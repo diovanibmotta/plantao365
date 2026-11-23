@@ -2,12 +2,14 @@ import { Hono, type Context } from 'hono';
 import type { ZodType } from 'zod';
 import { requireAuth, requireRole, type AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
+import type { FutureShiftsFinder } from './types.js';
 import {
   PROTECTED_PROFILE_FIELDS,
   UsersError,
   createUser,
   createUserSchema,
   getProfile,
+  listFutureShifts,
   listUsers,
   updateProfile,
   updateProfileSchema,
@@ -17,6 +19,8 @@ import {
 
 export interface UsersRouterDeps {
   db: Sql;
+  futureShiftsFinder?: FutureShiftsFinder;
+  now?: () => Date;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -48,12 +52,12 @@ function parseWith<T>(
   return { response: invalid(c, issues[0]?.message ?? 'Dados inválidos', issues) };
 }
 
-export function createUsersRouter({ db }: UsersRouterDeps): Hono<AuthEnv> {
+export function createUsersRouter({ db, futureShiftsFinder, now }: UsersRouterDeps): Hono<AuthEnv> {
   const router = new Hono<AuthEnv>();
 
   router.onError((err, c) => {
     if (err instanceof UsersError) {
-      return c.json({ error: err.code, message: err.message }, err.status);
+      return c.json({ error: err.code, message: err.message, ...(err.details ?? {}) }, err.status);
     }
     throw err;
   });
@@ -99,7 +103,20 @@ export function createUsersRouter({ db }: UsersRouterDeps): Hono<AuthEnv> {
     if ('response' in body) return body.response;
     const input = parseWith(c, updateUserSchema, body.raw);
     if ('response' in input) return input.response;
-    return c.json(await updateUser(db, c.get('user')!.id, id, input.data));
+    return c.json(
+      await updateUser(db, c.get('user')!.id, id, input.data, { finder: futureShiftsFinder, now }),
+    );
+  });
+
+  router.get('/users/:id/future-shifts', requireRole('manager'), async (c) => {
+    const id = c.req.param('id');
+    if (!UUID.test(id)) {
+      return c.json({ error: 'not_found', message: 'Usuário não encontrado' }, 404);
+    }
+    await getProfile(db, id);
+    return c.json({
+      shifts: await listFutureShifts(db, futureShiftsFinder, id, (now ?? (() => new Date()))()),
+    });
   });
 
   return router;

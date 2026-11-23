@@ -88,18 +88,18 @@ Monorepo TypeScript (`apps/api` Hono, `apps/web` React, `packages/shared` domín
   - [x] 6.4 API (gestor): editar plantão, validar conflitos, publicar (exige confirmação se há dias sem responsável; recusa sobreposição com escala publicada; grava responsável e horas originais), alterar escala publicada com motivo obrigatório e registro; auditoria.
     - _Depende de: 6.3, 10.1_
     - _Requisitos: 8.1, 8.2, 8.3, 8.4, 8.5, 8.7_
-  - [ ] 6.5 Web (gestor): gerar, revisar em calendário, editar plantões com avisos de conflito e publicar; modo de edição de escala publicada com motivo obrigatório e aviso de notificação.
+  - [x] 6.5 Web (gestor): gerar, revisar em calendário, editar plantões com avisos de conflito e publicar; modo de edição de escala publicada com motivo obrigatório e aviso de notificação.
     - _Depende de: 2.3, 6.4_
     - _Requisitos: 7.1, 7.6, 8.1, 8.2, 8.3, 8.4_
   - [x] 6.6 Web: "Minha escala" e calendário da equipe com tipo do dia, horas, filtros e destaque do próprio plantão.
     - _Depende de: 2.3, 6.1_
     - _Requisitos: 9.1, 9.2, 9.3, 9.4_
-  - [ ] 6.7 Desativação de membro com plantões futuros publicados: API lista os plantões e bloqueia a desativação até a reatribuição; ajuste na tela de membros.
+  - [x] 6.7 Desativação de membro com plantões futuros publicados: API lista os plantões e bloqueia a desativação até a reatribuição; ajuste na tela de membros.
     - _Depende de: 3.3, 6.4_
     - _Requisitos: 3.2_
 
 - [ ] 7. Trocas de plantão
-  - [ ] 7.1 Migração e API de trocas: solicitar (permuta ou cessão), aceitar/recusar, cancelar, aprovar/rejeitar pelo gestor, aplicar na escala; recusa por exceção do colega com mensagem genérica; auditoria.
+  - [x] 7.1 Migração e API de trocas: solicitar (permuta ou cessão), aceitar/recusar, cancelar, aprovar/rejeitar pelo gestor, aplicar na escala; recusa por exceção do colega com mensagem genérica; auditoria.
     - _Depende de: 6.4_
     - _Requisitos: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
   - [ ] 7.2 Web: solicitar troca a partir de "Minha escala", caixa de pedidos do colega, fila de aprovação do gestor.
@@ -118,7 +118,7 @@ Monorepo TypeScript (`apps/api` Hono, `apps/web` React, `packages/shared` domín
   - [x] 9.1 Serviço de e-mail: SMTP configurável, templates pt-BR, tabela de outbox com retry limitado e registro de falha; servidor SMTP de teste em memória para os testes.
     - _Depende de: 1.3_
     - _Requisitos: 12.5, 12.7, RNF-8_
-  - [ ] 9.2 Eventos de escala: publicação e alteração de plantão publicado (inclui alteração por recálculo de feriado).
+  - [x] 9.2 Eventos de escala: publicação e alteração de plantão publicado (inclui alteração por recálculo de feriado).
     - _Depende de: 9.1, 6.4_
     - _Requisitos: 12.1, 12.2_
   - [ ] 9.3 Eventos de troca: solicitação, aceite, recusa, aprovação e rejeição; aviso ao gestor quando o colega aceita.

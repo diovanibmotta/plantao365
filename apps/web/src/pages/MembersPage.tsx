@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { MembersTable } from '../members/MembersTable';
 import { NewMemberForm } from '../members/NewMemberForm';
-import { describeError, sortMembers } from '../members/types';
-import type { Member, MemberRole, NewMemberInput } from '../members/types';
+import { blockingShifts, describeError, describeShift, sortMembers } from '../members/types';
+import type { FutureShift, Member, MemberRole, NewMemberInput } from '../members/types';
 import '../members/members.css';
 
 type Loaded = { members: Member[] } | { error: string } | null;
@@ -12,7 +12,11 @@ export function MembersPage() {
   const [loaded, setLoaded] = useState<Loaded>(null);
   const [showForm, setShowForm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    kind: 'ok' | 'error';
+    text: string;
+    shifts?: FutureShift[];
+  } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<Member | null>(null);
 
@@ -58,6 +62,7 @@ export function MembersPage() {
       setMessage({
         kind: 'error',
         text: describeError(err, 'Não foi possível salvar a alteração.'),
+        shifts: blockingShifts(err),
       });
     } finally {
       setBusyId(null);
@@ -130,6 +135,17 @@ export function MembersPage() {
       {message?.kind === 'error' && (
         <p className="alert members-message" role="alert">
           {message.text}
+          {message.shifts && message.shifts.length > 0 && (
+            <>
+              {' '}
+              Plantões futuros publicados:
+              <ul className="members-shifts">
+                {message.shifts.map((s) => (
+                  <li key={s.shiftId}>{describeShift(s)}</li>
+                ))}
+              </ul>
+            </>
+          )}
         </p>
       )}
 

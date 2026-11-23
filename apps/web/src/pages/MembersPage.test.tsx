@@ -195,6 +195,35 @@ describe('tela de membros', () => {
     expect(await screen.findByText('Ana tem plantões futuros publicados.')).toBeTruthy();
   });
 
+  it('lista os plantões futuros que bloqueiam a desativação', async () => {
+    mockApi([member('1', { name: 'Ana' })], () =>
+      json(
+        {
+          error: 'has_future_published_shifts',
+          message: 'm',
+          shifts: [
+            {
+              shiftId: 's1',
+              date: '2026-06-20',
+              scheduleId: 'sc1',
+              scheduleStart: '2026-06-01',
+              scheduleEnd: '2026-06-30',
+            },
+          ],
+        },
+        409,
+      ),
+    );
+    const user = userEvent.setup();
+    render(<MembersPage />);
+    await user.click(await screen.findByRole('button', { name: 'Desativar Ana' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar desativação' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('plantões futuros publicados');
+    expect(within(alert).getByText('20/06/2026 (escala de 01/06/2026 a 30/06/2026)')).toBeTruthy();
+    expect(screen.getByText('Ativo')).toBeTruthy();
+  });
+
   it('mostra erro ao carregar a lista', async () => {
     vi.stubGlobal(
       'fetch',

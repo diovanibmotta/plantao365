@@ -1,4 +1,5 @@
 import type { Role } from '../auth/index.js';
+import type { Sql } from '../db.js';
 
 export interface ProfileDto {
   id: string;
@@ -40,3 +41,17 @@ export interface UpdateUserInput {
   participatesInRotation?: boolean;
   active?: boolean;
 }
+
+export interface FutureShiftDto {
+  shiftId: string;
+  date: string;
+  scheduleId: string;
+  scheduleStart: string;
+  scheduleEnd: string;
+}
+
+/** Injetado pelo app (findPublishedShiftsForUser de schedules) para evitar acoplamento circular. */
+export type FutureShiftsFinder = (
+  sql: Sql,
+  args: { userId: string; start: string; end: string },
+) => Promise<Array<{ date: string; userId: string | null }>>;

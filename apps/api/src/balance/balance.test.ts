@@ -302,7 +302,8 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('balance (PostgreSQL)', () =>
             where table_schema = 'public' and table_name = 'hour_adjustments'`
         ).length;
       expect(await exists()).toBe(1);
-      await migrateDown(m.sql, migrations, 1);
+      // reverte a 0009 e todas as posteriores
+      await migrateDown(m.sql, migrations, migrations.length - 8);
       expect(await exists()).toBe(0);
       await migrateUp(m.sql, migrations);
       expect(await exists()).toBe(1);

@@ -1,4 +1,5 @@
 import type postgres from 'postgres';
+import { addDays, TIME_ZONE } from '@plantao360/shared';
 import { z } from 'zod';
 import { recordAudit, type AuditJson } from '../audit/index.js';
 import type { Role } from '../auth/index.js';
@@ -6,6 +7,8 @@ import type { Sql } from '../db.js';
 import type {
   CreateUserInput,
   ProfileDto,
+  FutureShiftDto,
+  FutureShiftsFinder,
   UpdateProfileInput,
   UpdateUserInput,
   UserListItemDto,
@@ -18,6 +21,7 @@ export class UsersError extends Error {
     readonly status: 400 | 404 | 409,
     readonly code: string,
     message: string,
+    readonly details?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -174,14 +178,66 @@ export async function createUser(
   });
 }
 
-/**
- * Ponto de extensão: hoje sempre permite. A task 6.7 passará a recusar a desativação
- * de quem tem plantões futuros publicados.
- */
-export async function assertCanDeactivate(tx: Tx, userId: string): Promise<void> {
-  void tx;
-  void userId;
-  await Promise.resolve();
+const FUTURE_HORIZON_DAYS = 3650;
+
+/** Data local (fuso do sistema) de um instante, no formato AAAA-MM-DD. */
+const localToday = (now: Date): string =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+
+/** Plantões publicados de hoje em diante atribuídos ao usuário (Req 3.2). */
+export async function listFutureShifts(
+  db: Sql | Tx,
+  finder: FutureShiftsFinder | undefined,
+  userId: string,
+  now: Date,
+): Promise<FutureShiftDto[]> {
+  if (!finder) return [];
+  const start = localToday(now);
+  const found = await finder(db as Sql, {
+    userId,
+    start,
+    end: addDays(start, FUTURE_HORIZON_DAYS),
+  });
+  const dates = found.map((f) => f.date);
+  if (dates.length === 0) return [];
+  const rows = await db<
+    { id: string; date: string; schedule_id: string; start_date: string; end_date: string }[]
+  >`
+    select s.id, s.date::text as date, sc.id as schedule_id,
+      sc.start_date::text as start_date, sc.end_date::text as end_date
+    from shifts s join schedules sc on sc.id = s.schedule_id
+    where sc.status = 'published' and s.user_id = ${userId} and s.date = any(${dates}::date[])
+    order by s.date, sc.start_date`;
+  return rows.map((r) => ({
+    shiftId: r.id,
+    date: r.date,
+    scheduleId: r.schedule_id,
+    scheduleStart: r.start_date,
+    scheduleEnd: r.end_date,
+  }));
+}
+
+/** Bloqueia a desativação enquanto houver plantões futuros publicados (Req 3.2). */
+export async function assertCanDeactivate(
+  tx: Tx,
+  userId: string,
+  finder?: FutureShiftsFinder,
+  now: Date = new Date(),
+): Promise<void> {
+  const shifts = await listFutureShifts(tx, finder, userId, now);
+  if (shifts.length > 0) {
+    throw new UsersError(
+      409,
+      'has_future_published_shifts',
+      'O membro possui plantões futuros publicados; reatribua-os antes de desativar',
+      { shifts },
+    );
+  }
 }
 
 export async function updateUser(
@@ -189,6 +245,7 @@ export async function updateUser(
   actorId: string,
   userId: string,
   input: UpdateUserInput,
+  opts: { finder?: FutureShiftsFinder; now?: () => Date } = {},
 ): Promise<UserListItemDto> {
   return db.begin(async (tx) => {
     const managers = await tx<{ id: string }[]>`
@@ -208,7 +265,8 @@ export async function updateUser(
       );
     }
     const deactivating = before.active && !active;
-    if (deactivating) await assertCanDeactivate(tx, userId);
+    if (deactivating)
+      await assertCanDeactivate(tx, userId, opts.finder, (opts.now ?? (() => new Date()))());
 
     const participates = input.participatesInRotation ?? before.participates_in_rotation;
     const [after] = await tx<UserRow[]>`

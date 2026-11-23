@@ -1,0 +1,153 @@
+.sad-block {
+  margin-bottom: calc(var(--space) * 1.5);
+}
+
+.sad-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px var(--space);
+  margin: 8px 0;
+}
+
+.sad-row label,
+.sad-edit label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.sad-block input,
+.sad-block select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.sad-note,
+.sad-warnings {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+}
+
+.sad-warnings {
+  border-left-color: var(--danger);
+  list-style: none;
+}
+
+.sad-report {
+  margin-top: 8px;
+}
+
+.sad-table {
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.sad-table caption {
+  text-align: left;
+  color: var(--muted);
+}
+
+.sad-table th,
+.sad-table td {
+  padding: 4px 12px 4px 0;
+  text-align: left;
+}
+
+.sad-schedules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sad-month {
+  text-transform: capitalize;
+}
+
+.sad-weekdays,
+.sad-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sad-weekdays {
+  color: var(--muted);
+  font-size: 0.8em;
+  text-align: center;
+}
+
+.sad-day {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 64px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.8em;
+}
+
+.sad-day--outside {
+  border-color: transparent;
+}
+
+.sad-day-number {
+  color: var(--muted);
+}
+
+.sad-shift {
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sad-shift--empty {
+  border-color: var(--danger);
+}
+
+.sad-shift--selected {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+}
+
+.sad-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px var(--space);
+  margin: var(--space) 0;
+}
+
+.sad-edit h3 {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sad-confirm {
+  margin: var(--space) 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}

@@ -6,6 +6,7 @@ import { BalancePage } from './pages/BalancePage';
 import { CollectiveVacationsPage } from './exceptions/CollectiveVacationsPage';
 import { LoginPage } from './pages/LoginPage';
 import { HolidaysPage } from './pages/HolidaysPage';
+import { ScheduleAdminPage } from './pages/ScheduleAdminPage';
 import { MembersPage } from './pages/MembersPage';
 import { MySchedulePage } from './pages/MySchedulePage';
 import { NotFoundPage } from './pages/pages';
@@ -26,6 +27,7 @@ export function App() {
           <Route element={<RequireRole role="manager" />}>
             <Route path="equipe" element={<MembersPage />} />
             <Route path="ferias-coletivas" element={<CollectiveVacationsPage />} />
+            <Route path="gerenciar-escala" element={<ScheduleAdminPage />} />
             <Route path="feriados" element={<HolidaysPage />} />
             <Route path="auditoria" element={<AuditPage />} />
           </Route>

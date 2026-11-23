@@ -7,7 +7,13 @@ import {
   formatShiftPeriod,
   localIsoDate,
 } from './format.js';
-import { escapeHtml, renderEmail, renderLayout } from './templates.js';
+import {
+  escapeHtml,
+  renderEmail,
+  renderLayout,
+  renderSchedulePublishedEmail,
+  renderShiftChangedEmail,
+} from './templates.js';
 
 const dayShift = {
   date: '2026-03-14',
@@ -91,5 +97,43 @@ describe('templates', () => {
     const out = renderEmail({ subject: 'x', paragraphs: ['<script>alert(1)</script>'] });
     expect(out.html).not.toContain('<script>');
     expect(out.text).toContain('<script>alert(1)</script>');
+  });
+});
+
+describe('templates de eventos de escala', () => {
+  const shift = { ...dayShift };
+
+  it('escala publicada lista os plantões do período', () => {
+    const out = renderSchedulePublishedEmail({
+      startDate: '2026-03-01',
+      endDate: '2026-03-31',
+      shifts: [shift, { ...shift, date: '2026-03-20', startsAt: null, endsAt: null }],
+      appUrl: 'https://plantao.example/minha-escala',
+    });
+    expect(out.subject).toBe('Escala publicada: 01/03/2026 a 31/03/2026');
+    expect(out.text).toContain('- sábado, 14 de março de 2026, das 08:00 às 20:00, 12 h');
+    expect(out.text).toContain('- sexta-feira, 20 de março de 2026, 12 h');
+    expect(out.html).toContain('href="https://plantao.example/minha-escala"');
+  });
+
+  it('alteração informa perda/recebimento e o motivo escapado', () => {
+    const lost = renderShiftChangedEmail({ kind: 'lost', shift, reason: 'Troca <urgente>' });
+    expect(lost.subject).toBe('Plantão removido: 14/03/2026');
+    expect(lost.text).toContain('deixou de ser responsável');
+    expect(lost.text).toContain('Motivo: Troca <urgente>');
+    expect(lost.html).toContain('Motivo: Troca &lt;urgente&gt;');
+    const got = renderShiftChangedEmail({ kind: 'received', shift, reason: null });
+    expect(got.subject).toBe('Novo plantão: 14/03/2026');
+    expect(got.text).not.toContain('Motivo');
+  });
+
+  it('recálculo mostra horas antes e depois', () => {
+    const out = renderShiftChangedEmail({
+      kind: 'updated',
+      shift: { ...shift, hours: 24 },
+      previousHours: 14,
+      reason: 'Feriado criado',
+    });
+    expect(out.text).toContain('de 14 h para 24 h');
   });
 });

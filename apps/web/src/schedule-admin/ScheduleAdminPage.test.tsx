@@ -1,0 +1,219 @@
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { ScheduleAdminPage } from '../pages/ScheduleAdminPage';
+import type { ShiftDto } from '../schedule/types';
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+
+const users = [
+  { id: 'u1', name: 'Ana Souza', active: true },
+  { id: 'u2', name: 'Bruno Lima', active: true },
+];
+
+const shift = (date: string, userId: string | null): ShiftDto => ({
+  id: `sh-${date}`,
+  scheduleId: 's1',
+  date,
+  dayType: 'weekday',
+  hours: 14,
+  startsAt: null,
+  endsAt: null,
+  userId,
+  userName: users.find((u) => u.id === userId)?.name ?? null,
+  originalUserId: null,
+  originalHours: null,
+});
+
+const schedule = (status: 'draft' | 'published') => ({
+  id: 's1',
+  startDate: '2026-03-02',
+  endDate: '2026-03-03',
+  status,
+  publishedAt: null,
+});
+
+type Handler = (url: string, init: RequestInit) => Response | undefined;
+
+function mockApi(status: 'draft' | 'published', handler: Handler = () => undefined) {
+  const fetchMock = vi.fn((url: string, init: RequestInit = {}) => {
+    const custom = handler(url, init);
+    if (custom) return Promise.resolve(custom);
+    const method = init.method ?? 'GET';
+    if (url === '/api/users') return Promise.resolve(json(users));
+    if (url === '/api/schedules' && method === 'GET')
+      return Promise.resolve(json([schedule(status)]));
+    if (url === '/api/schedules/s1' && method === 'GET') {
+      return Promise.resolve(
+        json({
+          ...schedule(status),
+          shifts: [shift('2026-03-02', 'u1'), shift('2026-03-03', null)],
+        }),
+      );
+    }
+    return Promise.resolve(json({}, 404));
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
+const bodyOf = (fetchMock: ReturnType<typeof vi.fn>, url: string, method: string) => {
+  const call = fetchMock.mock.calls.find(
+    (c) => c[0] === url && (c[1] as RequestInit | undefined)?.method === method,
+  );
+  return call ? JSON.parse(String((call[1] as RequestInit).body ?? 'null')) : undefined;
+};
+
+async function openSchedule() {
+  const user = userEvent.setup();
+  render(<ScheduleAdminPage />);
+  await user.click(await screen.findByRole('button', { name: /02\/03\/2026 a 03\/03\/2026/ }));
+  await screen.findByRole('list', { name: 'Escala de março de 2026' });
+  return user;
+}
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+describe('ScheduleAdminPage', () => {
+  it('gera rascunho e mostra dias sem responsável, violações e resumo', async () => {
+    const fetchMock = mockApi('draft', (url, init) => {
+      if (url === '/api/schedules/generate' && init.method === 'POST') {
+        return json(
+          {
+            schedule: schedule('draft'),
+            shifts: [shift('2026-03-02', 'u1'), shift('2026-03-03', null)],
+            unassignedDates: ['2026-03-03'],
+            preferenceViolations: [{ date: '2026-03-02', userId: 'u1', kind: 'avoid_weekday' }],
+            summary: [{ userId: 'u1', hours: 14, weekendHolidayShifts: 0, shifts: 1 }],
+          },
+          201,
+        );
+      }
+      return undefined;
+    });
+    const user = userEvent.setup();
+    render(<ScheduleAdminPage />);
+    await user.type(screen.getByLabelText('De'), '2026-03-02');
+    await user.type(screen.getByLabelText('Até'), '2026-03-03');
+    await user.click(screen.getByRole('button', { name: 'Gerar rascunho' }));
+    const report = await screen.findByRole('status', { name: 'Resultado da geração' });
+    expect(report.textContent).toContain('Dias sem responsável: 03/03/2026');
+    expect(report.textContent).toContain(
+      '02/03/2026: Ana Souza (dia da semana que prefere evitar)',
+    );
+    expect(screen.getByRole('table', { name: 'Resumo por membro' })).toBeTruthy();
+    expect(bodyOf(fetchMock, '/api/schedules/generate', 'POST')).toEqual({
+      from: '2026-03-02',
+      to: '2026-03-03',
+    });
+    await screen.findByRole('heading', { name: /Rascunho: 02\/03\/2026/ });
+  });
+
+  it('edita plantão do rascunho e exibe avisos de conflito', async () => {
+    const fetchMock = mockApi('draft', (url, init) => {
+      if (url === '/api/schedules/s1/shifts/sh-2026-03-03' && init.method === 'PATCH') {
+        return json({
+          shift: shift('2026-03-03', 'u2'),
+          warnings: [{ code: 'user_unavailable', message: 'Usuário tem exceção nesta data' }],
+        });
+      }
+      return undefined;
+    });
+    const user = await openSchedule();
+    await user.click(screen.getByRole('button', { name: /03 mar 2026: sem responsável/ }));
+    await user.selectOptions(screen.getByLabelText('Responsável'), 'u2');
+    await user.click(screen.getByRole('button', { name: 'Salvar plantão' }));
+    expect((await screen.findByRole('list', { name: 'Avisos de conflito' })).textContent).toContain(
+      'Usuário tem exceção nesta data',
+    );
+    expect(bodyOf(fetchMock, '/api/schedules/s1/shifts/sh-2026-03-03', 'PATCH')).toEqual({
+      userId: 'u2',
+    });
+  });
+
+  it('publica com confirmação quando há dias sem responsável', async () => {
+    const fetchMock = mockApi('draft', (url, init) => {
+      if (url === '/api/schedules/s1/publish' && init.method === 'POST') {
+        const body = JSON.parse(String(init.body ?? '{}')) as { confirmUnassigned?: boolean };
+        return body.confirmUnassigned
+          ? json({ schedule: schedule('published'), shifts: [], unassignedDates: ['2026-03-03'] })
+          : json(
+              { error: 'confirmation_required', message: 'x', unassignedDates: ['2026-03-03'] },
+              409,
+            );
+      }
+      return undefined;
+    });
+    const user = await openSchedule();
+    await user.click(screen.getByRole('button', { name: 'Publicar escala' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Confirmar publicação' });
+    expect(dialog.textContent).toContain('03/03/2026');
+    await user.click(screen.getByRole('button', { name: 'Publicar mesmo assim' }));
+    await screen.findByText('Escala publicada.');
+    const publishBodies = fetchMock.mock.calls
+      .filter((c) => c[0] === '/api/schedules/s1/publish')
+      .map((c) => JSON.parse(String((c[1] as RequestInit).body)));
+    expect(publishBodies).toEqual([{}, { confirmUnassigned: true }]);
+  });
+
+  it('informa sobreposição com escala já publicada', async () => {
+    mockApi('draft', (url, init) =>
+      url === '/api/schedules/s1/publish' && init.method === 'POST'
+        ? json({ error: 'schedule_overlap_published', message: 'x' }, 409)
+        : undefined,
+    );
+    const user = await openSchedule();
+    await user.click(screen.getByRole('button', { name: 'Publicar escala' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('já publicada');
+  });
+
+  it('descarta o rascunho após confirmação', async () => {
+    const fetchMock = mockApi('draft', (url, init) =>
+      url === '/api/schedules/s1' && init.method === 'DELETE'
+        ? new Response(null, { status: 204 })
+        : undefined,
+    );
+    const user = await openSchedule();
+    await user.click(screen.getByRole('button', { name: 'Descartar rascunho' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar descarte' }));
+    await waitFor(() => expect(screen.queryByRole('region', { name: /Rascunho/ })).toBeNull());
+    expect(
+      fetchMock.mock.calls.some(
+        (c) =>
+          c[0] === '/api/schedules/s1' && (c[1] as RequestInit | undefined)?.method === 'DELETE',
+      ),
+    ).toBe(true);
+  });
+
+  it('exige motivo em escala publicada e avisa que o membro será notificado', async () => {
+    const fetchMock = mockApi('published', (url, init) =>
+      url === '/api/schedules/s1/shifts/sh-2026-03-02' && init.method === 'PATCH'
+        ? json({
+            shift: shift('2026-03-02', 'u2'),
+            warnings: [],
+            notice: 'Os membros envolvidos serão notificados da alteração.',
+          })
+        : undefined,
+    );
+    const user = await openSchedule();
+    expect(screen.getByText(/o membro será notificado/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Publicar escala' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /02 mar 2026: Ana Souza/ }));
+    await user.selectOptions(screen.getByLabelText('Responsável'), 'u2');
+    await user.click(screen.getByRole('button', { name: 'Salvar plantão' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('motivo');
+    expect(bodyOf(fetchMock, '/api/schedules/s1/shifts/sh-2026-03-02', 'PATCH')).toBeUndefined();
+    await user.type(screen.getByLabelText('Motivo (obrigatório)'), 'Troca combinada');
+    await user.click(screen.getByRole('button', { name: 'Salvar plantão' }));
+    await screen.findByText('Os membros envolvidos serão notificados da alteração.');
+    expect(bodyOf(fetchMock, '/api/schedules/s1/shifts/sh-2026-03-02', 'PATCH')).toEqual({
+      userId: 'u2',
+      reason: 'Troca combinada',
+    });
+  });
+});

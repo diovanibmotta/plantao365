@@ -8,17 +8,36 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
   let t: TestDb;
   let sql: Sql;
   let app: ReturnType<typeof buildTestApp>;
+  let appWithShifts: ReturnType<typeof buildTestApp>;
 
   beforeAll(async () => {
     t = await createTestDb();
     sql = t.sql;
     app = buildTestApp(sql, (a) => a.route('/', createUsersRouter({ db: sql })));
+    appWithShifts = buildTestApp(sql, (a) =>
+      a.route(
+        '/',
+        createUsersRouter({
+          db: sql,
+          now: () => new Date('2026-06-10T15:00:00Z'),
+          futureShiftsFinder: async (tx, q) => {
+            const rows = await tx<{ date: string; user_id: string }[]>`
+              select s.date::text as date, s.user_id from shifts s
+              join schedules sc on sc.id = s.schedule_id
+              where sc.status = 'published' and s.user_id = ${q.userId}
+                and s.date between ${q.start}::date and ${q.end}::date`;
+            return rows.map((r) => ({ date: r.date, userId: r.user_id }));
+          },
+        }),
+      ),
+    );
   });
   afterAll(async () => {
     await t.drop();
   });
   beforeEach(async () => {
     await sql`delete from sessions`;
+    await sql`delete from schedules`;
     await sql`delete from users`;
     await sql`alter table audit_log disable trigger audit_log_no_truncate`;
     await sql`truncate audit_log`;
@@ -301,6 +320,89 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
           select count(*)::int as n from users where role = 'manager' and active`;
         expect(n).toBe(1);
       }
+    });
+  });
+
+  describe('desativação com plantões futuros publicados (Req 3.2)', () => {
+    const call2 = (method: string, path: string, cookie: string, body?: unknown) =>
+      appWithShifts.request(path, {
+        method,
+        headers: {
+          cookie,
+          ...(method === 'GET' ? {} : csrfHeaders),
+          origin: TEST_ORIGIN,
+          ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+
+    const seed = async (managerId: string, status: 'draft' | 'published', memberId: string) => {
+      const [sc] = await sql<{ id: string }[]>`
+        insert into schedules (start_date, end_date, status, created_by)
+        values ('2026-06-01', '2026-06-30', ${status}, ${managerId}) returning id`;
+      for (const [date, hours] of [
+        ['2026-06-05', 14],
+        ['2026-06-20', 24],
+        ['2026-06-25', 14],
+      ] as const) {
+        await sql`
+          insert into shifts (schedule_id, date, day_type, hours, user_id)
+          values (${sc!.id}, ${date}, 'weekday', ${hours}, ${memberId})`;
+      }
+      return sc!.id;
+    };
+
+    it('blocks with 409 listing only future published shifts, until reassigned', async () => {
+      const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
+      const m = await loginAs(sql, { email: 'm@x.com' });
+      const other = await loginAs(sql, { email: 'o@x.com' });
+      const scheduleId = await seed(g.id, 'published', m.id);
+
+      const res = await call2('PATCH', `/users/${m.id}`, g.cookie, { active: false });
+      expect(res.status).toBe(409);
+      const body = (await res.json()) as {
+        error: string;
+        shifts: { date: string; scheduleId: string; scheduleStart: string }[];
+      };
+      expect(body.error).toBe('has_future_published_shifts');
+      expect(body.shifts.map((x) => x.date)).toEqual(['2026-06-20', '2026-06-25']);
+      expect(body.shifts[0]).toMatchObject({ scheduleId, scheduleStart: '2026-06-01' });
+      const [{ active }] = await sql<
+        { active: boolean }[]
+      >`select active from users where id = ${m.id}`;
+      expect(active).toBe(true);
+
+      const list = await call2('GET', `/users/${m.id}/future-shifts`, g.cookie);
+      expect(list.status).toBe(200);
+      expect(((await list.json()) as { shifts: unknown[] }).shifts).toHaveLength(2);
+
+      await sql`update shifts set user_id = ${other.id} where user_id = ${m.id} and date >= '2026-06-10'`;
+      const ok = await call2('PATCH', `/users/${m.id}`, g.cookie, { active: false });
+      expect(ok.status).toBe(200);
+      expect(await ok.json()).toMatchObject({ active: false });
+    });
+
+    it('ignores draft schedules', async () => {
+      const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
+      const m = await loginAs(sql, { email: 'm@x.com' });
+      await seed(g.id, 'draft', m.id);
+      const res = await call2('PATCH', `/users/${m.id}`, g.cookie, { active: false });
+      expect(res.status).toBe(200);
+    });
+
+    it('does not block other updates and restricts future-shifts to managers', async () => {
+      const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
+      const m = await loginAs(sql, { email: 'm@x.com' });
+      await seed(g.id, 'published', m.id);
+      const r = await call2('PATCH', `/users/${m.id}`, g.cookie, { name: 'Novo' });
+      expect(r.status).toBe(200);
+      expect((await call2('GET', `/users/${m.id}/future-shifts`, m.cookie)).status).toBe(403);
+      const nf = await call2(
+        'GET',
+        '/users/00000000-0000-4000-8000-000000000000/future-shifts',
+        g.cookie,
+      );
+      expect(nf.status).toBe(404);
     });
   });
 });

@@ -42,8 +42,18 @@ export function validateNewMember(name: string, email: string): NewMemberErrors 
   return errors;
 }
 
+export interface FutureShift {
+  shiftId: string;
+  date: string;
+  scheduleId: string;
+  scheduleStart: string;
+  scheduleEnd: string;
+}
+
 const ERROR_MESSAGES: Record<string, string> = {
   email_in_use: 'Já existe um usuário com este e-mail.',
+  has_future_published_shifts:
+    'Não é possível desativar: o membro tem plantões futuros publicados. Reatribua-os antes.',
   last_manager: 'Não é possível remover ou desativar o último gestor ativo.',
 };
 
@@ -57,6 +67,20 @@ export function describeError(err: unknown, fallback: string): string {
   }
   return err instanceof Error ? err.message : fallback;
 }
+
+/** Plantões futuros que bloqueiam a desativação (409 has_future_published_shifts), se for o caso. */
+export function blockingShifts(err: unknown): FutureShift[] {
+  if (!(err instanceof ApiError) || err.status !== 409) return [];
+  const body = err.body as { error?: unknown; shifts?: unknown } | null | undefined;
+  if (typeof body !== 'object' || body === null) return [];
+  if (body.error !== 'has_future_published_shifts' || !Array.isArray(body.shifts)) return [];
+  return body.shifts as FutureShift[];
+}
+
+const formatDate = (iso: string): string => iso.split('-').reverse().join('/');
+
+export const describeShift = (s: FutureShift): string =>
+  `${formatDate(s.date)} (escala de ${formatDate(s.scheduleStart)} a ${formatDate(s.scheduleEnd)})`;
 
 export function sortMembers(list: Member[]): Member[] {
   return [...list].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
