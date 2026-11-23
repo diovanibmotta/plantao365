@@ -1,5 +1,5 @@
 import { Navigate, useSearchParams } from 'react-router';
-import { APP_NAME } from '@plantao360/shared';
+import { APP_NAME } from '@diovanibmotta/plantao365-shared';
 import { useAuth } from '../auth/AuthContext';
 
 const DENIAL_MESSAGES: Record<string, string> = {

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { shiftForDate, type DayType } from '@plantao360/shared';
+import { shiftForDate, type DayType } from '@diovanibmotta/plantao365-shared';
 import { recordAudit } from '../audit/index.js';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';

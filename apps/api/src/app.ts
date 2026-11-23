@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
-import type { HealthStatus } from '@plantao360/shared';
+import type { HealthStatus } from '@diovanibmotta/plantao365-shared';
 import { pingDb, type Sql } from './db.js';
 import {
   createAuthRouter,

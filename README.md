@@ -31,7 +31,7 @@ apps/
   api/            API Hono, migrações em apps/api/migrations
   web/            SPA React
 packages/
-  shared/         regras de domínio compartilhadas (@plantao360/shared)
+  shared/         regras de domínio compartilhadas (@diovanibmotta/plantao365-shared)
 ```
 
 ## Começando
@@ -41,7 +41,7 @@ Pré-requisitos: Node >= 22, npm >= 10 e um PostgreSQL acessível.
 ```bash
 npm install
 cp .env.example .env        # ajuste DATABASE_URL e MANAGER_EMAILS
-npm run migrate -w @plantao360/api -- up
+npm run migrate -w @diovanibmotta/plantao365-api -- up
 npm run dev                 # API em :3000 e web em :5173
 ```
 
@@ -54,9 +54,9 @@ Veja [`.env.example`](.env.example) e a seção [Configuração](#configuração
 ### Migrações
 
 ```bash
-npm run migrate -w @plantao360/api -- status
-npm run migrate -w @plantao360/api -- up
-npm run migrate -w @plantao360/api -- down 1     # reverte N migrações (ou "all")
+npm run migrate -w @diovanibmotta/plantao365-api -- status
+npm run migrate -w @diovanibmotta/plantao365-api -- up
+npm run migrate -w @diovanibmotta/plantao365-api -- down 1     # reverte N migrações (ou "all")
 ```
 
 ## Docker
@@ -138,6 +138,19 @@ TEST_DATABASE_URL=postgres://usuario:senha@localhost:5432/postgres npm test
 ## Releases
 
 Versionamento automático com [semantic-release](https://semantic-release.gitbook.io) e [Gitmoji](https://gitmoji.dev) a cada push em `main`: tag `vX.Y.Z`, `CHANGELOG.md` e GitHub Release. Veja as regras de commit em [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Artefatos publicados
+
+A cada release o workflow publica:
+
+- **Pacote TypeScript** `@diovanibmotta/plantao365-shared` (regras de domínio com tipos `.d.ts`) no GitHub Packages (npm).
+- **Imagem da API** `ghcr.io/diovanibmotta/plantao365-api`, com as tags `X.Y.Z`, `X.Y` e `latest`.
+
+```bash
+# .npmrc: @diovanibmotta:registry=https://npm.pkg.github.com
+npm install @diovanibmotta/plantao365-shared
+docker pull ghcr.io/diovanibmotta/plantao365-api:latest
+```
 
 ## Contribuindo
 

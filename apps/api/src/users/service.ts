@@ -1,5 +1,5 @@
 import type postgres from 'postgres';
-import { addDays, TIME_ZONE } from '@plantao360/shared';
+import { addDays, TIME_ZONE } from '@diovanibmotta/plantao365-shared';
 import { z } from 'zod';
 import { recordAudit, type AuditJson } from '../audit/index.js';
 import type { Role } from '../auth/index.js';

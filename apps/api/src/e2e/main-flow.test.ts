@@ -6,7 +6,7 @@
  * (/auth/login + /auth/callback); e-mails saem pela outbox real (createMailer + startOutboxWorker)
  * para um servidor SMTP de teste em memória. Cenário único encadeado: cada passo depende do anterior.
  */
-import { addDays } from '@plantao360/shared';
+import { addDays } from '@diovanibmotta/plantao365-shared';
 import type { Hono } from 'hono';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SESSION_COOKIE } from '../auth/index.js';

@@ -1,4 +1,4 @@
-import { parseLocalDate, type LocalDate } from '@plantao360/shared';
+import { parseLocalDate, type LocalDate } from '@diovanibmotta/plantao365-shared';
 import { z } from 'zod';
 import type { Sql } from '../db.js';
 import type { ScheduleDto, ShiftDto, ShiftRangeQuery } from './types.js';

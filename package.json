@@ -12,9 +12,9 @@
   },
   "scripts": {
     "dev": "npm-run-all2 --parallel dev:api dev:web",
-    "dev:api": "npm run dev -w @plantao360/api",
-    "dev:web": "npm run dev -w @plantao360/web",
-    "build": "npm run build -w @plantao360/shared && npm run build -w @plantao360/api && npm run build -w @plantao360/web",
+    "dev:api": "npm run dev -w @diovanibmotta/plantao365-api",
+    "dev:web": "npm run dev -w @diovanibmotta/plantao365-web",
+    "build": "npm run build -w @diovanibmotta/plantao365-shared && npm run build -w @diovanibmotta/plantao365-api && npm run build -w @diovanibmotta/plantao365-web",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
