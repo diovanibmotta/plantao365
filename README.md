@@ -18,13 +18,13 @@ Gestão de escala de plantão (sobreaviso) para equipes: rodízio automático co
 
 ## Stack
 
-| Camada | Tecnologia |
-|---|---|
-| API | Node 22, [Hono](https://hono.dev), TypeScript, postgres.js, zod, pino |
-| Web | React 19, Vite, React Router |
-| Domínio | `packages/shared` (TypeScript puro: datas, turnos, motor de rodízio) |
-| Banco | PostgreSQL com migrações SQL up/down |
-| Testes | Vitest + Testing Library |
+| Camada  | Tecnologia                                                            |
+| ------- | --------------------------------------------------------------------- |
+| API     | Node 22, [Hono](https://hono.dev), TypeScript, postgres.js, zod, pino |
+| Web     | React 19, Vite, React Router                                          |
+| Domínio | `packages/shared` (TypeScript puro: datas, turnos, motor de rodízio)  |
+| Banco   | PostgreSQL com migrações SQL up/down                                  |
+| Testes  | Vitest + Testing Library                                              |
 
 ## Estrutura (monorepo npm workspaces)
 
@@ -64,14 +64,14 @@ npm run migrate -w @plantao360/api -- down 1     # reverte N migrações (ou "al
 
 ## Scripts
 
-| Comando | O que faz |
-|---|---|
-| `npm run dev` | API e web em modo desenvolvimento |
-| `npm run build` | build de shared, api e web |
-| `npm run lint` | ESLint |
-| `npm run format` / `format:check` | Prettier |
-| `npm run typecheck` | `tsc -b` |
-| `npm test` | Vitest |
+| Comando                           | O que faz                         |
+| --------------------------------- | --------------------------------- |
+| `npm run dev`                     | API e web em modo desenvolvimento |
+| `npm run build`                   | build de shared, api e web        |
+| `npm run lint`                    | ESLint                            |
+| `npm run format` / `format:check` | Prettier                          |
+| `npm run typecheck`               | `tsc -b`                          |
+| `npm test`                        | Vitest                            |
 
 Os testes de API criam bancos temporários e exigem um usuário PostgreSQL com permissão de criar bancos:
 

@@ -34,12 +34,12 @@ Exemplos:
 
 ### Efeito no versionamento
 
-| Gitmoji | Versão |
-|---|---|
-| 💥 `:boom:` (breaking change) | major |
-| ✨ `:sparkles:` (funcionalidade) | minor |
-| 🐛 `:bug:`, 🚑️ `:ambulance:`, 🔒️ `:lock:` | patch |
-| demais (📝 ♻️ ✅ 🔧 …) | sem release |
+| Gitmoji                                   | Versão      |
+| ----------------------------------------- | ----------- |
+| 💥 `:boom:` (breaking change)             | major       |
+| ✨ `:sparkles:` (funcionalidade)          | minor       |
+| 🐛 `:bug:`, 🚑️ `:ambulance:`, 🔒️ `:lock:` | patch       |
+| demais (📝 ♻️ ✅ 🔧 …)                    | sem release |
 
 A cada push em `main`, o workflow [Release](.github/workflows/release.yml) valida (formatação, lint, tipos, testes, build) e roda o semantic-release, que cria a tag, atualiza `CHANGELOG.md` e publica o GitHub Release. O commit de release (`🔖 chore(release): …`) leva `[skip ci]`; não o edite à mão.
 
