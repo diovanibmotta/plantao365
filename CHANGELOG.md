@@ -1,3 +1,8 @@
+# [v1.1.0](https://github.com/diovanibmotta/plantao365/compare/v1.0.0...v1.1.0) (2026-11-23)
+
+## ✨ New Features
+- [`c80d21b`](https://github.com/diovanibmotta/plantao365/commit/c80d21b)  feat(api): edita, publica e altera escalas com auditoria
+
 # v1.0.0 (2026-11-23)
 
 ## ✨ New Features
