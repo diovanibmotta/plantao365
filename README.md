@@ -14,8 +14,6 @@ Gestão de escala de plantão (sobreaviso) para equipes: rodízio automático co
 - Lembretes e avisos por e-mail (SMTP) com fila e retentativas.
 - Trilha de auditoria imutável das ações do gestor.
 
-> Em desenvolvimento: edição e publicação de escalas, trocas de plantão e recálculo por feriado tardio. O plano completo está em [`.ai/specs/plantao360`](.ai/specs/plantao360).
-
 ## Stack
 
 | Camada  | Tecnologia                                                            |
@@ -34,7 +32,6 @@ apps/
   web/            SPA React
 packages/
   shared/         regras de domínio compartilhadas (@plantao360/shared)
-.ai/specs/        PRD e plano de tarefas
 ```
 
 ## Começando
