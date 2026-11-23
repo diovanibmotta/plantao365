@@ -1,0 +1,135 @@
+.bal-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px var(--space);
+  margin-bottom: var(--space);
+}
+
+.bal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9em;
+  color: var(--muted);
+}
+
+.bal-field select,
+.bal-field input {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.bal-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: var(--space);
+  border-bottom: 1px solid var(--border);
+}
+
+.bal-tab {
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.bal-tab[aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.bal-h {
+  margin: var(--space) 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.bal-table .bal-r {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bal-table tbody th,
+.bal-table tfoot th {
+  font-size: inherit;
+  color: inherit;
+}
+
+.bal-table tfoot th,
+.bal-table tfoot td {
+  border-top: 2px solid var(--border);
+  font-weight: 600;
+}
+
+.bal-pos {
+  color: #15803d;
+}
+
+.bal-neg {
+  color: var(--danger);
+}
+
+@media (prefers-color-scheme: dark) {
+  .bal-pos {
+    color: #4ade80;
+  }
+}
+
+.bal-tag {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 0.8em;
+}
+
+.bal-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bal-link:hover {
+  text-decoration: underline;
+}
+
+.bal-member {
+  margin-top: var(--space);
+  padding-top: var(--space);
+  border-top: 1px solid var(--border);
+}
+
+.bal-form {
+  margin-bottom: var(--space);
+}
+
+.bal-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+@media (min-width: 720px) {
+  .bal-form-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .bal-wide {
+    grid-column: 1 / -1;
+  }
+}

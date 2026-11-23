@@ -1,0 +1,386 @@
+/* Design minimalista: tokens neutros, uma cor de acento, tipografia do sistema, sem biblioteca de UI. */
+:root {
+  --bg: #ffffff;
+  --surface: #f7f7f8;
+  --border: #e4e4e7;
+  --text: #18181b;
+  --muted: #71717a;
+  --accent: #2563eb;
+  --accent-strong: #2563eb;
+  --danger: #b91c1c;
+  --radius: 6px;
+  --space: 16px;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111113;
+    --surface: #1a1a1d;
+    --border: #2a2a2e;
+    --text: #ececee;
+    --muted: #a1a1aa;
+    --accent: #6ea0ff;
+    --accent-strong: #3b6fd8;
+    --danger: #f87171;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+h1 {
+  margin: 0 0 var(--space);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+a {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.shell {
+  min-height: 100vh;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--space);
+  top: -100px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px var(--space);
+  min-height: 52px;
+  padding: 8px var(--space);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  font-weight: 600;
+}
+
+.nav {
+  display: none;
+  order: 3;
+  width: 100%;
+}
+
+.nav.open {
+  display: block;
+}
+
+.nav ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav a {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.nav a:hover,
+.nav a.active {
+  background: var(--surface);
+}
+
+.nav a.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.menu-toggle {
+  margin-left: auto;
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-name {
+  display: none;
+  color: var(--muted);
+}
+
+.btn {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--surface);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.btn.primary {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #ffffff;
+}
+
+.btn.primary:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.content {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: calc(var(--space) * 2) var(--space);
+}
+
+.content:focus {
+  outline: none;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.status,
+.center {
+  padding: calc(var(--space) * 3) var(--space);
+  text-align: center;
+}
+
+.login {
+  max-width: 380px;
+  margin: 15vh auto 0;
+  padding: 0 var(--space);
+  text-align: center;
+}
+
+.alert {
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  text-align: left;
+}
+
+@media (min-width: 720px) {
+  .menu-toggle {
+    display: none;
+  }
+
+  .nav {
+    display: block;
+    order: 0;
+    width: auto;
+    flex: 1;
+  }
+
+  .nav ul {
+    flex-direction: row;
+  }
+
+  .user {
+    margin-left: auto;
+  }
+
+  .user-name {
+    display: inline;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.block {
+  display: block;
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: var(--space);
+}
+
+.filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9em;
+  color: var(--muted);
+}
+
+.filters input,
+.filters select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.audit-table th,
+.audit-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.audit-table th {
+  font-size: 0.85em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.audit-details td {
+  background: var(--surface);
+}
+
+.audit-json-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space);
+}
+
+.audit-json h3 {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+}
+
+.audit-json pre {
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  max-height: 320px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-size: 0.85em;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: var(--space);
+}
+
+@media (max-width: 719px) {
+  .audit-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .audit-table,
+  .audit-table tbody,
+  .audit-table tr,
+  .audit-table td {
+    display: block;
+  }
+
+  .audit-table tr:not(.audit-details) {
+    margin-top: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .audit-table td[data-label] {
+    border-bottom: 0;
+  }
+
+  .audit-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.8em;
+    color: var(--muted);
+  }
+
+  .audit-details td {
+    border: 1px solid var(--border);
+    border-top: 0;
+  }
+}
+
+@media (min-width: 720px) {
+  .filters {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .filter-actions,
+  .filters .alert {
+    grid-column: 1 / -1;
+  }
+
+  .audit-json-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

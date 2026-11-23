@@ -1,0 +1,70 @@
+import { describe, expect, it } from 'vitest';
+import { ConfigError, loadConfig } from './config.js';
+
+const base = { DATABASE_URL: 'postgres://u:p@localhost:5432/plantao360' };
+
+describe('loadConfig', () => {
+  it('applies defaults', () => {
+    const c = loadConfig(base);
+    expect(c).toMatchObject({
+      NODE_ENV: 'development',
+      PORT: 3000,
+      LOG_LEVEL: 'info',
+      OIDC_MOCK: false,
+      MANAGER_EMAILS: [],
+    });
+  });
+
+  it('requires DATABASE_URL', () => {
+    expect(() => loadConfig({})).toThrow(ConfigError);
+  });
+
+  it('parses manager e-mails, lowercasing and trimming', () => {
+    const c = loadConfig({ ...base, MANAGER_EMAILS: ' Ana@Empresa.com , bia@empresa.com,' });
+    expect(c.MANAGER_EMAILS).toEqual(['ana@empresa.com', 'bia@empresa.com']);
+  });
+
+  it('rejects invalid manager e-mails', () => {
+    expect(() => loadConfig({ ...base, MANAGER_EMAILS: 'nao-e-email' })).toThrow(ConfigError);
+  });
+
+  it('treats empty optional variables as unset', () => {
+    const c = loadConfig({ ...base, SMTP_HOST: '', SMTP_PORT: '', OIDC_ISSUER: '' });
+    expect(c.SMTP_HOST).toBeUndefined();
+    expect(c.SMTP_PORT).toBeUndefined();
+  });
+
+  it('requires SMTP_FROM when SMTP_HOST is set', () => {
+    expect(() => loadConfig({ ...base, SMTP_HOST: 'smtp.example.com' })).toThrow(/SMTP_FROM/);
+    expect(
+      loadConfig({ ...base, SMTP_HOST: 'smtp.example.com', SMTP_FROM: 'plantao@example.com' })
+        .SMTP_HOST,
+    ).toBe('smtp.example.com');
+  });
+
+  it('production requires OIDC settings and a manager, and forbids the OIDC mock', () => {
+    const prod = { ...base, NODE_ENV: 'production' };
+    expect(() => loadConfig(prod)).toThrow(/OIDC_ISSUER[\s\S]*MANAGER_EMAILS/);
+    expect(() =>
+      loadConfig({ ...prod, OIDC_MOCK: 'true', MANAGER_EMAILS: 'ana@empresa.com' }),
+    ).toThrow(/OIDC_MOCK/);
+    const ok = loadConfig({
+      ...prod,
+      MANAGER_EMAILS: 'ana@empresa.com',
+      OIDC_ISSUER: 'https://login.microsoftonline.com/tenant/v2.0',
+      OIDC_CLIENT_ID: 'id',
+      OIDC_CLIENT_SECRET: 'secret',
+      OIDC_REDIRECT_URI: 'https://plantao.example.com/auth/callback',
+    });
+    expect(ok.NODE_ENV).toBe('production');
+  });
+
+  it('does not leak values in error messages', () => {
+    try {
+      loadConfig({ DATABASE_URL: 'mysql://user:supersecret@host/db' });
+      expect.unreachable();
+    } catch (err) {
+      expect((err as Error).message).not.toContain('supersecret');
+    }
+  });
+});

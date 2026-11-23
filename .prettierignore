@@ -1,0 +1,7 @@
+node_modules
+dist
+dist-types
+package-lock.json
+.ai
+CHANGELOG.md
+.local

@@ -1,0 +1,75 @@
+.profile-section {
+  max-width: 520px;
+  margin-bottom: calc(var(--space) * 2);
+}
+
+.profile-section h2 {
+  margin: 0 0 var(--space);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.profile-facts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px 16px;
+  margin: 0 0 var(--space);
+}
+
+.profile-facts dt {
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
+.profile-facts dd {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-field input[type='tel'] {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.profile-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.9em;
+}
+
+.profile-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-ok {
+  margin: 0;
+  color: var(--accent);
+}
+
+@media (min-width: 720px) {
+  .profile-facts {
+    grid-template-columns: 140px 1fr;
+  }
+
+  .profile-facts dd {
+    margin: 0;
+  }
+}

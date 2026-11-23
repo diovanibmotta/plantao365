@@ -1,0 +1,226 @@
+.sched-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px var(--space);
+  margin-bottom: var(--space);
+}
+
+.sched-toolbar select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.sched-month {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.sched-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.sched-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.sched-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: var(--space);
+  border-bottom: 1px solid var(--border);
+}
+
+.sched-tab {
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sched-tab[aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.sched-summary {
+  margin: 0 0 var(--space);
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.sched-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sched-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px var(--space);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.sched-item-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  flex: 1 1 240px;
+}
+
+.sched-item-date {
+  font-weight: 600;
+}
+
+.sched-item-meta {
+  display: flex;
+  gap: 10px;
+}
+
+.sched-item-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.sched-tag {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.8em;
+}
+
+.sched-tag--holiday,
+.sched-tag--collective_vacation {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.sched-weekdays,
+.sched-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sched-weekdays {
+  display: none;
+}
+
+.sched-day {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 84px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.85em;
+}
+
+.sched-day--outside,
+.sched-day--empty {
+  display: none;
+}
+
+.sched-day-number {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.sched-day--today .sched-day-number {
+  color: var(--accent);
+}
+
+.sched-day--mine {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.sched-day-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sched-day-note {
+  color: var(--accent);
+}
+
+.sched-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px var(--space);
+  margin: var(--space) 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.sched-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+}
+
+.sched-swatch--mine {
+  background: var(--surface);
+}
+
+@media (min-width: 720px) {
+  .sched-weekdays,
+  .sched-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .sched-weekdays {
+    display: grid;
+    color: var(--muted);
+    font-size: 0.8em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .sched-grid {
+    margin-top: 6px;
+  }
+
+  .sched-day--empty {
+    display: flex;
+  }
+
+  .sched-day--outside {
+    display: flex;
+    visibility: hidden;
+  }
+}

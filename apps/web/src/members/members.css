@@ -1,0 +1,144 @@
+.members-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: var(--space);
+}
+
+.members-head h1 {
+  margin: 0;
+}
+
+.members-form,
+.members-confirm {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: var(--space);
+  padding: var(--space);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.members-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9em;
+  color: var(--muted);
+}
+
+.members-field input,
+.members-field select,
+.members-table select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.members-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.9em;
+}
+
+.members-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.members-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.members-message {
+  margin: 0 0 var(--space);
+}
+
+.members-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.members-table th,
+.members-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.members-table th {
+  font-size: 0.85em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.members-inactive td {
+  color: var(--muted);
+}
+
+.members-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.8em;
+  color: var(--muted);
+}
+
+@media (min-width: 720px) {
+  .members-form {
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+  }
+
+  .members-form .members-actions,
+  .members-form .members-check,
+  .members-form .alert {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 719px) {
+  .members-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .members-table,
+  .members-table tbody,
+  .members-table tr,
+  .members-table td {
+    display: block;
+  }
+
+  .members-table tr {
+    margin-top: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .members-table td {
+    border-bottom: 0;
+  }
+
+  .members-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.8em;
+    color: var(--muted);
+  }
+}
