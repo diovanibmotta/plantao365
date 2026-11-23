@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { LocalDate } from '@plantao360/shared';
+import type { LocalDate } from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import {

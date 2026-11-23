@@ -1,4 +1,4 @@
-import { dayOfWeek, parseLocalDate } from '@plantao360/shared';
+import { dayOfWeek, parseLocalDate } from '@diovanibmotta/plantao365-shared';
 import { ApiError } from '../api/client';
 
 export type HolidayScope = 'national' | 'state' | 'municipal';

@@ -1,7 +1,13 @@
 {
-  "name": "@plantao360/shared",
-  "private": true,
+  "name": "@diovanibmotta/plantao365-shared",
   "version": "0.0.0",
+  "description": "Regras de domínio compartilhadas do Plantão360: datas, turnos e motor de rodízio",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/diovanibmotta/plantao365.git",
+    "directory": "packages/shared"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,6 +16,13 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json"

@@ -1,4 +1,4 @@
-import { yearOf } from '@plantao360/shared';
+import { yearOf } from '@diovanibmotta/plantao365-shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { recordAudit } from '../audit/index.js';

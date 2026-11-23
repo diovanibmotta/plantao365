@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { LocalDate } from '@plantao360/shared';
+import type { LocalDate } from '@diovanibmotta/plantao365-shared';
 import type { ShiftDto } from '../schedule/types';
 import { SwapRequestForm } from './SwapRequestForm';
 
