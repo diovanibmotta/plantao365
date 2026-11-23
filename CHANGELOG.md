@@ -1,3 +1,8 @@
+# [v1.4.0](https://github.com/diovanibmotta/plantao365/compare/v1.3.0...v1.4.0) (2026-11-23)
+
+## ✨ New Features
+- [`e8df491`](https://github.com/diovanibmotta/plantao365/commit/e8df491)  feat: fecha lacunas do checklist final do PRD (Req 1, 4, 5, 9 e 13)
+
 # [v1.3.0](https://github.com/diovanibmotta/plantao365/compare/v1.2.0...v1.3.0) (2026-11-23)
 
 ## ✨ New Features
