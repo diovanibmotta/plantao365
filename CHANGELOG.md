@@ -1,3 +1,9 @@
+# [v1.4.1](https://github.com/diovanibmotta/plantao365/compare/v1.4.0...v1.4.1) (2026-11-23)
+
+## 🐛 Bug Fixes
+- [`3f9e6e4`](https://github.com/diovanibmotta/plantao365/commit/3f9e6e4)  fix(api): ordem de locks, outbox sem SMTP em transação e PII fora dos logs 
+- [`531e35c`](https://github.com/diovanibmotta/plantao365/commit/531e35c)  fix(api): notificações entram no outbox na mesma transação da mudança
+
 # [v1.4.0](https://github.com/diovanibmotta/plantao365/compare/v1.3.0...v1.4.0) (2026-11-23)
 
 ## ✨ New Features
