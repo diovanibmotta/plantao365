@@ -1,4 +1,5 @@
 import { Hono, type Context } from 'hono';
+import type { TransactionSql } from 'postgres';
 import { z } from 'zod';
 import { requireAuth } from '../auth/authz.js';
 import type { AuthEnv } from '../auth/types.js';
@@ -22,7 +23,7 @@ import {
 export interface SwapsRouterDeps {
   db: Sql;
   now?: () => Date;
-  /** Ponto de extensão (task 9.3): chamado após o commit; falhas do hook não desfazem a ação. */
+  /** Ponto de extensão (task 9.3): chamado na transação da mutação (em savepoint); falhas não a desfazem. */
   onSwapEvent?: SwapEventHook;
 }
 
@@ -79,6 +80,7 @@ export function createSwapsRouter({
   router.use('/swaps/*', requireAuth());
 
   const emit = async (
+    tx: Sql,
     type: SwapEventType,
     swap: SwapDto,
     actorId: string,
@@ -86,9 +88,11 @@ export function createSwapsRouter({
   ) => {
     if (!onSwapEvent) return;
     try {
-      await onSwapEvent({ type, swap, actorId, reason });
+      await (tx as unknown as TransactionSql).savepoint((sp) =>
+        onSwapEvent({ type, swap, actorId, reason }, sp as unknown as Sql),
+      );
     } catch {
-      // falha de notificação não desfaz a ação já commitada
+      // falha de notificação desfaz só o savepoint; a mutação continua
     }
   };
 
@@ -97,8 +101,9 @@ export function createSwapsRouter({
     const parsed = createBody.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return invalid(c, parsed.error);
     const b = parsed.data;
-    const result = await db.begin((tx) =>
-      createSwap(tx as unknown as Sql, {
+    const result = await db.begin(async (t) => {
+      const tx = t as unknown as Sql;
+      const r = await createSwap(tx, {
         kind: b.kind,
         requesterId: user.id,
         counterpartId: b.counterpartId,
@@ -106,10 +111,11 @@ export function createSwapsRouter({
         counterpartShiftId: b.counterpartShiftId ?? null,
         note: b.note ?? null,
         now: now(),
-      }),
-    );
+      });
+      if (r.ok) await emit(tx, 'requested', r.value, user.id, null);
+      return r;
+    });
     if (!result.ok) return failure(c, result);
-    await emit('requested', result.value, user.id, null);
     return c.json({ swap: result.value }, 201);
   });
 
@@ -145,18 +151,20 @@ export function createSwapsRouter({
       const body = actionBody.safeParse(raw ? await c.req.json().catch(() => null) : {});
       if (!body.success) return invalid(c, body.error);
       const reason = body.data.reason ?? null;
-      const result = await db.begin((tx) =>
-        transitionSwap(tx as unknown as Sql, {
+      const result = await db.begin(async (t) => {
+        const tx = t as unknown as Sql;
+        const r = await transitionSwap(tx, {
           action,
           swapId: id.data,
           actorId: user.id,
           actorRole: user.role,
           reason,
           now: now(),
-        }),
-      );
+        });
+        if (r.ok) await emit(tx, r.value.event, r.value.swap, user.id, reason);
+        return r;
+      });
       if (!result.ok) return failure(c, result);
-      await emit(result.value.event, result.value.swap, user.id, reason);
       return c.json({ swap: result.value.swap });
     });
   }

@@ -110,11 +110,17 @@ export async function notifySwapEvent(
   return queued;
 }
 
-/** Gancho `onSwapEvent` do SwapsRouter. Falhas são registradas e não propagadas (pós-commit). */
-export function createOnSwapEvent(deps: SwapEventsDeps): (event: SwapEvent) => Promise<void> {
-  return async (event) => {
+/**
+ * Gancho `onSwapEvent` do SwapsRouter: enfileira na transação recebida (`sql`, default
+ * `deps.db`), atomicamente com a mutação. Falhas são logadas e relançadas para que o savepoint
+ * do chamador desfaça só o gancho (um erro SQL engolido aqui deixaria a transação abortada).
+ */
+export function createOnSwapEvent(
+  deps: SwapEventsDeps,
+): (event: SwapEvent, sql?: Sql) => Promise<void> {
+  return async (event, sql = deps.db) => {
     try {
-      await notifySwapEvent(deps.db, event, {
+      await notifySwapEvent(sql, event, {
         appBaseUrl: deps.appBaseUrl,
         ...(deps.now ? { now: deps.now() } : {}),
       });
@@ -123,6 +129,7 @@ export function createOnSwapEvent(deps: SwapEventsDeps): (event: SwapEvent) => P
         { err, swapId: event.swap.id, type: event.type },
         'Falha ao enfileirar e-mails de troca',
       );
+      throw err;
     }
   };
 }

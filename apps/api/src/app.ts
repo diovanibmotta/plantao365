@@ -81,6 +81,7 @@ export function createApp({ logger, db, authOptions, allowedOrigins }: AppDeps):
       '/api',
       createUnavailabilityRouter({
         db,
+        logger,
         conflictChecker: async (sql, args) => {
           const rows = await findPublishedShiftsForUser(sql, args);
           return rows.flatMap((r) => (r.userId ? [{ date: r.date, userId: r.userId }] : []));

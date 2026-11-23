@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Sql } from '../db.js';
 import { buildTestApp, csrfHeaders, loginAs, TEST_ORIGIN, type TestUser } from '../test-app.js';
 import { createTestDb, type TestDb } from '../test-utils.js';
+import { createOnSwapEvent } from '../notifications/swap-events.js';
 import { createSwapsRouter, type SwapEvent } from './index.js';
 
 const NOW = new Date('2026-11-23T12:00:00Z');
@@ -15,6 +16,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('swaps (PostgreSQL)', () => {
   let caio: TestUser;
   let events: SwapEvent[];
   let hookFails = false;
+  let realHook = false;
   let sched: string;
   const shift: Record<string, string> = {};
 
@@ -25,9 +27,15 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('swaps (PostgreSQL)', () => {
         createSwapsRouter({
           db: sql,
           now: () => NOW,
-          onSwapEvent: (e) => {
+          onSwapEvent: async (e, tx) => {
+            if (realHook) return createOnSwapEvent({ db: sql, now: () => NOW })(e, tx);
             events.push(e);
-            if (hookFails) throw new Error('smtp fora');
+            if (hookFails) {
+              await tx`
+                insert into email_outbox (to_address, subject, text, dedupe_key)
+                values ('x@x.com', 's', 't', ${`falha:${e.swap.id}`})`;
+              throw new Error('smtp fora');
+            }
           },
         }),
       ),
@@ -89,13 +97,14 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('swaps (PostgreSQL)', () => {
     await t.drop();
   });
   beforeEach(async () => {
-    await sql`truncate swaps, unavailabilities, shifts, schedules, sessions, users cascade`;
+    await sql`truncate email_outbox, swaps, unavailabilities, shifts, schedules, sessions, users cascade`;
     manager = await loginAs(sql, { email: 'g@x.com', role: 'manager', name: 'Gestor' });
     ana = await loginAs(sql, { email: 'ana@x.com', name: 'Ana' });
     bia = await loginAs(sql, { email: 'bia@x.com', name: 'Bia' });
     caio = await loginAs(sql, { email: 'caio@x.com', name: 'Caio' });
     events = [];
     hookFails = false;
+    realHook = false;
     sched = await insertSchedule('2026-12-01', '2026-12-31', 'published');
     shift['ana1'] = await insertShift(sched, '2026-12-01', ana.id);
     shift['bia2'] = await insertShift(sched, '2026-12-02', bia.id);
@@ -428,6 +437,43 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('swaps (PostgreSQL)', () => {
       hookFails = true;
       expect((await act(id, 'approve', manager)).status).toBe(200);
       expect(await owner(shift['ana1']!)).toBe(bia.id);
+    });
+  });
+
+  describe('notificação transacional (outbox)', () => {
+    const outbox = async () =>
+      sql<{ to_address: string; dedupe_key: string }[]>`
+        select to_address, dedupe_key from email_outbox order by dedupe_key`;
+    const statusOf = async (id: string) =>
+      (await sql<{ status: string }[]>`select status from swaps where id = ${id}`)[0]!.status;
+
+    it('sucesso grava a transição e o e-mail juntos', async () => {
+      realHook = true;
+      const id = await create(cessionBody());
+      expect((await act(id, 'accept', bia)).status).toBe(200);
+      expect(await statusOf(id)).toBe('awaiting_approval');
+      const keys = (await outbox()).map((r) => r.dedupe_key);
+      expect(keys).toContain(`swap-requested:${id}:counterpart`);
+      expect(keys).toContain(`swap-accepted:${id}:requester`);
+    });
+
+    it('falha do gancho não desfaz a transição nem deixa e-mail parcial', async () => {
+      const id = await create(cessionBody());
+      hookFails = true;
+      expect((await act(id, 'accept', bia)).status).toBe(200);
+      expect(await statusOf(id)).toBe('awaiting_approval');
+      expect(await outbox()).toHaveLength(0);
+    });
+
+    it('rollback da mutação não deixa e-mail na outbox', async () => {
+      realHook = true;
+      const id = await create(cessionBody());
+      await sql`delete from email_outbox`;
+      await sql`update shifts set user_id = ${caio.id} where id = ${shift['ana1']}`;
+      // aceite revalida a viabilidade e falha: nada de e-mail
+      expect((await act(id, 'accept', bia)).status).toBeGreaterThanOrEqual(400);
+      expect(await statusOf(id)).toBe('pending');
+      expect(await outbox()).toHaveLength(0);
     });
   });
 

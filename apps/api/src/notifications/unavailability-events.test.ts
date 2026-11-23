@@ -80,9 +80,20 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
       expect(await outbox()).toHaveLength(2);
     });
 
-    it('falha do banco é capturada', async () => {
+    it('falha do banco é registrada e propagada (o router isola num savepoint)', async () => {
       const bad = createOnUnavailabilityConflict({ db: {} as Sql });
-      await expect(bad(ev())).resolves.toBeUndefined();
+      await expect(bad(ev())).rejects.toBeDefined();
+    });
+
+    it('usa o sql recebido: rollback da transação não deixa e-mail', async () => {
+      await user('Gui', { role: 'manager' });
+      await expect(
+        sql.begin(async (tx) => {
+          await hook()(ev(), tx as unknown as Sql);
+          throw new Error('rollback');
+        }),
+      ).rejects.toThrow('rollback');
+      expect(await outbox()).toHaveLength(0);
     });
   },
 );

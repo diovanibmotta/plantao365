@@ -54,13 +54,17 @@ export async function notifyUnavailabilityConflict(
   return queued;
 }
 
-/** Gancho `onConflict` do UnavailabilityRouter. Falhas são registradas e não propagadas. */
+/**
+ * Gancho `onConflict` do UnavailabilityRouter. Usa o `sql` da transação da mutação (default
+ * `deps.db`), então o outbox é atômico com a exceção. Registra e RELANÇA o erro: o router o captura
+ * num savepoint (capturar aqui deixaria a transação abortada).
+ */
 export function createOnUnavailabilityConflict(
   deps: UnavailabilityEventsDeps,
-): (event: UnavailabilityConflictEvent) => Promise<void> {
-  return async (event) => {
+): (event: UnavailabilityConflictEvent, sql?: Sql) => Promise<void> {
+  return async (event, sql = deps.db) => {
     try {
-      await notifyUnavailabilityConflict(deps.db, event, {
+      await notifyUnavailabilityConflict(sql, event, {
         appBaseUrl: deps.appBaseUrl,
         ...(deps.now ? { now: deps.now() } : {}),
       });
@@ -69,6 +73,7 @@ export function createOnUnavailabilityConflict(
         { err, unavailabilityId: event.unavailabilityId },
         'Falha ao enfileirar e-mail de conflito de exceção',
       );
+      throw err;
     }
   };
 }

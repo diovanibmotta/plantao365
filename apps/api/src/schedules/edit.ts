@@ -5,6 +5,7 @@ import { requireRole } from '../auth/authz.js';
 import type { AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
 import { listUnavailableByDate } from '../unavailability/service.js';
+import { runHookInSavepoint } from './hook.js';
 import { getSchedule, listShiftsOfSchedule, lockSchedulesThenShifts } from './service.js';
 import type { ScheduleDto, ShiftDto } from './types.js';
 
@@ -29,8 +30,8 @@ export interface ShiftChange {
   actorId: string;
 }
 
-/** Ponto de extensão (task 9.2): chamado após o commit de uma alteração em escala publicada. */
-export type ShiftChangedHook = (change: ShiftChange) => void | Promise<void>;
+/** Ponto de extensão (task 9.2): chamado dentro da transação (savepoint, com o `sql` dela); falha não aborta a edição. */
+export type ShiftChangedHook = (change: ShiftChange, sql: Sql) => void | Promise<void>;
 
 export const editShiftBodySchema = z.object({
   userId: z.uuid().nullable(),
@@ -172,29 +173,22 @@ export function registerEditRoutes(
       });
       const sched = (await getSchedule(tx, id))!;
       const shifts = await listShiftsOfSchedule(tx, id);
-      return {
-        kind: 'ok',
-        warnings,
-        published,
-        change: {
-          schedule: sched,
-          shift: shifts.find((s) => s.id === shiftId)!,
-          previousUserId: shift.user_id,
-          newUserId: userId,
-          reason: reason ?? null,
-          actorId,
-        },
+      const change: ShiftChange = {
+        schedule: sched,
+        shift: shifts.find((s) => s.id === shiftId)!,
+        previousUserId: shift.user_id,
+        newUserId: userId,
+        reason: reason ?? null,
+        actorId,
       };
+      const { onShiftChanged } = deps;
+      if (published && onShiftChanged) {
+        await runHookInSavepoint(tx, (sp) => onShiftChanged(change, sp));
+      }
+      return { kind: 'ok', warnings, published, change };
     });
 
     if (outcome.kind === 'error') return c.json(outcome.body, outcome.status);
-    if (outcome.published && deps.onShiftChanged) {
-      try {
-        await deps.onShiftChanged(outcome.change);
-      } catch {
-        // falha de notificação não desfaz a alteração já commitada
-      }
-    }
     return c.json({
       shift: outcome.change.shift,
       warnings: outcome.warnings,

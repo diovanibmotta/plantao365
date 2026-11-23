@@ -3,7 +3,9 @@ import { z } from 'zod';
 import { recordAudit } from '../audit/index.js';
 import { requireAuth } from '../auth/authz.js';
 import type { AuthEnv, AuthUser } from '../auth/types.js';
+import type { TransactionSql } from 'postgres';
 import type { Sql } from '../db.js';
+import type { Logger } from '../logger.js';
 import {
   deleteUnavailability,
   getUnavailability,
@@ -27,10 +29,14 @@ export interface UnavailabilityRouterDeps {
   /** Férias coletivas: conta plantões publicados por data (Req. 5.6); sem ele, não há aviso. */
   collectiveImpactChecker?: CollectiveImpactChecker;
   /**
-   * Chamado após o commit quando uma exceção de MEMBRO conflita com plantão publicado e o autor
-   * não é gestor (o gestor já recebe os avisos na própria resposta). Erros são capturados.
+   * Chamado DENTRO da transação da mutação (antes do commit), com o `sql` dessa transação, quando
+   * uma exceção de MEMBRO conflita com plantão publicado e o autor não é gestor (o gestor já recebe
+   * os avisos na própria resposta). Roda num savepoint: se lançar, só o gancho é desfeito (a exceção
+   * permanece) e o erro é registrado. Quem enfileira e-mail deve usar o `sql` recebido, para o
+   * outbox ser atômico com a mudança.
    */
-  onConflict?: (event: UnavailabilityConflictEvent) => Promise<void> | void;
+  onConflict?: (event: UnavailabilityConflictEvent, sql: Sql) => Promise<void> | void;
+  logger?: Logger | undefined;
 }
 
 /** Datas AAAA-MM-DD de `start` a `end` (inclusive), em UTC para evitar deslocamento de fuso. */
@@ -91,21 +97,25 @@ export function createUnavailabilityRouter({
   conflictChecker,
   collectiveImpactChecker,
   onConflict,
+  logger,
 }: UnavailabilityRouterDeps): Hono<AuthEnv> {
   const check: ConflictChecker = conflictChecker ?? (async () => []);
   const router = new Hono<AuthEnv>();
   router.use('/unavailabilities', requireAuth());
   router.use('/unavailabilities/*', requireAuth());
 
-  const warningsFor = async (row: UnavailabilityDto): Promise<UnavailabilityWarning[]> => {
-    const found = await check(db, { userId: row.userId, start: row.startDate, end: row.endDate });
+  const warningsFor = async (
+    sql: Sql,
+    row: UnavailabilityDto,
+  ): Promise<UnavailabilityWarning[]> => {
+    const found = await check(sql, { userId: row.userId, start: row.startDate, end: row.endDate });
     const warnings: UnavailabilityWarning[] = found.map((f) => ({
       type: 'published_shift_conflict',
       date: f.date,
       userId: f.userId,
     }));
     if (row.userId === null && collectiveImpactChecker) {
-      const impact = await collectiveImpactChecker(db, expandDates(row.startDate, row.endDate));
+      const impact = await collectiveImpactChecker(sql, expandDates(row.startDate, row.endDate));
       for (const i of impact) {
         if (i.count > 0)
           warnings.push({ type: 'published_shifts_affected', date: i.date, count: i.count });
@@ -114,11 +124,13 @@ export function createUnavailabilityRouter({
     return warnings;
   };
 
+  /** Roda dentro da transação da mutação: calcula avisos e enfileira a notificação atomicamente. */
   const warnAndNotify = async (
+    tx: TransactionSql,
     row: UnavailabilityDto,
     actor: AuthUser,
   ): Promise<UnavailabilityWarning[]> => {
-    const warnings = await warningsFor(row);
+    const warnings = await warningsFor(tx as unknown as Sql, row);
     const dates = [
       ...new Set(warnings.flatMap((w) => (w.type === 'published_shift_conflict' ? [w.date] : []))),
     ].sort();
@@ -132,9 +144,12 @@ export function createUnavailabilityRouter({
         actorId: actor.id,
       };
       try {
-        await onConflict(event);
-      } catch {
-        // pós-commit: a notificação nunca derruba a resposta
+        await tx.savepoint(async (sp) => {
+          await onConflict(event, sp as unknown as Sql);
+        });
+      } catch (err) {
+        // a falha do gancho desfaz só o savepoint; a mutação segue e é confirmada
+        logger?.error({ err, unavailabilityId: row.id }, 'Falha no gancho onConflict da exceção');
       }
     }
     return warnings;
@@ -204,9 +219,9 @@ export function createUnavailabilityRouter({
         entityId: created.id,
         after: { ...created },
       });
-      return created;
+      return { created, warnings: await warnAndNotify(tx, created, user) };
     });
-    return c.json({ unavailability: row, warnings: await warnAndNotify(row, user) }, 201);
+    return c.json({ unavailability: row.created, warnings: row.warnings }, 201);
   });
 
   router.patch('/unavailabilities/:id', async (c) => {
@@ -240,7 +255,7 @@ export function createUnavailabilityRouter({
         before: { ...before },
         after: { ...after },
       });
-      return { status: 200 as const, after };
+      return { status: 200 as const, after, warnings: await warnAndNotify(tx, after, user) };
     });
 
     switch (outcome.status) {
@@ -253,10 +268,7 @@ export function createUnavailabilityRouter({
       case 'period':
         return fail(c, 400, 'validation_error', periodMessage);
       default:
-        return c.json({
-          unavailability: outcome.after,
-          warnings: await warnAndNotify(outcome.after, user),
-        });
+        return c.json({ unavailability: outcome.after, warnings: outcome.warnings });
     }
   });
 

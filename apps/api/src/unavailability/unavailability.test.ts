@@ -3,7 +3,8 @@ import type { Sql } from '../db.js';
 import { buildTestApp, csrfHeaders, loginAs, TEST_ORIGIN, type TestUser } from '../test-app.js';
 import { createTestDb, type TestDb } from '../test-utils.js';
 import { createUnavailabilityRouter, listUnavailableByDate } from './index.js';
-import type { ConflictChecker } from './types.js';
+import { createOnUnavailabilityConflict } from '../notifications/unavailability-events.js';
+import type { ConflictChecker, UnavailabilityConflictEvent } from './types.js';
 
 describe.skipIf(!process.env['TEST_DATABASE_URL'])('unavailability (PostgreSQL)', () => {
   let t: TestDb;
@@ -289,6 +290,96 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('unavailability (PostgreSQL)'
       body: JSON.stringify(mine),
     });
     expect((await res.json()).warnings).toEqual([]);
+  });
+
+  describe('gancho onConflict transacional', () => {
+    const withHook = (onConflict: (e: UnavailabilityConflictEvent, tx: Sql) => Promise<void>) =>
+      buildTestApp(sql, (a) =>
+        a.route('/', createUnavailabilityRouter({ db: sql, conflictChecker: stub, onConflict })),
+      );
+    const post = (a: ReturnType<typeof withHook>, user: TestUser, path = '/unavailabilities') =>
+      a.request(path, {
+        method: 'POST',
+        headers: {
+          cookie: user.cookie,
+          ...csrfHeaders,
+          origin: TEST_ORIGIN,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(mine),
+      });
+    const count = async (table: 'unavailabilities' | 'email_outbox') =>
+      Number((await sql`select count(*)::int as n from ${sql(table)}`)[0]!['n']);
+
+    beforeEach(async () => {
+      await sql`delete from email_outbox`;
+      conflicts = [{ date: '2026-12-02', userId: ana.id }];
+    });
+
+    it('sucesso grava a exceção e o e-mail juntos', async () => {
+      const hook = createOnUnavailabilityConflict({ db: sql });
+      const res = await post(withHook(hook), ana);
+      expect(res.status).toBe(201);
+      expect(await count('unavailabilities')).toBe(1);
+      expect(await count('email_outbox')).toBe(1);
+    });
+
+    it('falha do gancho não desfaz a criação nem deixa e-mail parcial', async () => {
+      const hook = createOnUnavailabilityConflict({ db: sql });
+      const res = await post(
+        withHook(async (e, tx) => {
+          await hook(e, tx);
+          throw new Error('boom');
+        }),
+        ana,
+      );
+      expect(res.status).toBe(201);
+      expect(await count('unavailabilities')).toBe(1);
+      expect(await count('email_outbox')).toBe(0);
+    });
+
+    it('falha SQL no gancho não aborta a transação (criação e edição)', async () => {
+      const broken = withHook(async (_e, tx) => {
+        await tx`select * from tabela_inexistente`;
+      });
+      const res = await post(broken, ana);
+      expect(res.status).toBe(201);
+      const u = (await res.json()).unavailability;
+      const patch = await broken.request(`/unavailabilities/${u.id}`, {
+        method: 'PATCH',
+        headers: {
+          cookie: ana.cookie,
+          ...csrfHeaders,
+          origin: TEST_ORIGIN,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ endDate: '2026-12-08' }),
+      });
+      expect(patch.status).toBe(200);
+      const [row] = await sql`select end_date::text as e from unavailabilities where id = ${u.id}`;
+      expect(row!['e']).toBe('2026-12-08');
+    });
+
+    it('rollback da mutação não deixa e-mail', async () => {
+      const hook = createOnUnavailabilityConflict({ db: sql });
+      await expect(
+        sql.begin(async (tx) => {
+          await hook(
+            {
+              unavailabilityId: '33333333-3333-4333-8333-333333333333',
+              userId: ana.id,
+              startDate: '2026-12-01',
+              endDate: '2026-12-05',
+              dates: ['2026-12-02'],
+              actorId: ana.id,
+            },
+            tx as unknown as Sql,
+          );
+          throw new Error('rollback');
+        }),
+      ).rejects.toThrow('rollback');
+      expect(await count('email_outbox')).toBe(0);
+    });
   });
 
   it('registra auditoria na mesma transação (create/update/delete)', async () => {

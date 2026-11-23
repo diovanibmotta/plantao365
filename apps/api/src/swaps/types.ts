@@ -1,4 +1,5 @@
 import type { LocalDate } from '@plantao360/shared';
+import type { Sql } from '../db.js';
 
 export const SWAP_KINDS = ['swap', 'cession'] as const;
 export type SwapKind = (typeof SWAP_KINDS)[number];
@@ -46,7 +47,7 @@ export interface SwapDto {
 export type SwapEventType =
   'requested' | 'accepted' | 'declined' | 'cancelled' | 'approved' | 'rejected';
 
-/** Ponto de extensão (task 9.3): chamado após o commit de cada transição. */
+/** Ponto de extensão (task 9.3): chamado dentro da transação da mutação, antes do commit. */
 export interface SwapEvent {
   type: SwapEventType;
   swap: SwapDto;
@@ -54,4 +55,8 @@ export interface SwapEvent {
   reason: string | null;
 }
 
-export type SwapEventHook = (event: SwapEvent) => void | Promise<void>;
+/**
+ * `sql` é a transação da mutação: o gancho enfileira nela, atomicamente com a mudança de estado.
+ * Roda em savepoint: se lançar, só o trabalho do gancho é desfeito e a mutação segue.
+ */
+export type SwapEventHook = (event: SwapEvent, sql: Sql) => void | Promise<void>;

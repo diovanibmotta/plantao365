@@ -152,13 +152,13 @@ export async function notifyShiftsChanged(
   return queued;
 }
 
-/** Gancho `onPublished` do SchedulesRouter. Falhas são registradas e não propagadas (pós-commit). */
+/** Gancho `onPublished` do SchedulesRouter. Roda dentro da transação da mutação (sql); registra e relança a falha (o savepoint a isola). */
 export function createOnPublished(
   deps: ScheduleEventsDeps,
-): (event: PublishedEvent) => Promise<void> {
-  return async (event) => {
+): (event: PublishedEvent, sql?: Sql) => Promise<void> {
+  return async (event, sql = deps.db) => {
     try {
-      await notifySchedulePublished(deps.db, event, {
+      await notifySchedulePublished(sql, event, {
         appBaseUrl: deps.appBaseUrl,
         ...(deps.now ? { now: deps.now() } : {}),
       });
@@ -167,6 +167,7 @@ export function createOnPublished(
         { err, scheduleId: event.schedule.id },
         'Falha ao enfileirar e-mails de publicação',
       );
+      throw err;
     }
   };
 }
@@ -174,12 +175,12 @@ export function createOnPublished(
 /** Gancho `onShiftChanged` do SchedulesRouter: só escalas publicadas notificam. */
 export function createOnShiftChanged(
   deps: ScheduleEventsDeps,
-): (change: ShiftChange) => Promise<void> {
-  return async (change) => {
+): (change: ShiftChange, sql?: Sql) => Promise<void> {
+  return async (change, sql = deps.db) => {
     if (change.schedule.status !== 'published') return;
     try {
       await notifyShiftsChanged(
-        deps.db,
+        sql,
         [
           {
             shiftId: change.shift.id,
@@ -199,6 +200,7 @@ export function createOnShiftChanged(
         { err, shiftId: change.shift.id },
         'Falha ao enfileirar e-mails de alteração',
       );
+      throw err;
     }
   };
 }

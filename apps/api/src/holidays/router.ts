@@ -159,17 +159,11 @@ export function createHolidaysRouter({
   router.post('/holidays/recalculate', manager, async (c) => {
     const parsed = recalculateBodySchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json(validationError(parsed.error), 400);
-    const changes = await recalculateHolidayShifts(db, {
-      dates: parsed.data.dates,
-      actorId: c.get('user')!.id,
-    });
-    if (changes.length > 0 && onShiftsRecalculated) {
-      try {
-        await onShiftsRecalculated(changes);
-      } catch {
-        // falha de notificação não desfaz o recálculo já commitado
-      }
-    }
+    const changes = await recalculateHolidayShifts(
+      db,
+      { dates: parsed.data.dates, actorId: c.get('user')!.id },
+      onShiftsRecalculated,
+    );
     return c.json({ updated: changes.length, changes });
   });
 

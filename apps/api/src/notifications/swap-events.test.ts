@@ -153,13 +153,24 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('notificações de troca (Pos
     expect(rows.map((r) => r.to_address)).toEqual(['ana@example.com']);
   });
 
-  it('erros são capturados e logados, sem propagar', async () => {
+  it('usa o sql recebido: rollback da transação não deixa e-mail', async () => {
+    await expect(
+      sql.begin(async (tx) => {
+        await hook()(ev('requested'), tx as unknown as Sql);
+        expect(await tx`select 1 from email_outbox`).toHaveLength(1);
+        throw new Error('rollback');
+      }),
+    ).rejects.toThrow('rollback');
+    expect(await outbox()).toHaveLength(0);
+  });
+
+  it('erros são logados e relançados (o savepoint do roteador os absorve)', async () => {
     const errors: unknown[] = [];
     const broken = createOnSwapEvent({
       db: { ...sql, then: undefined } as unknown as Sql,
       logger: { error: (...a: unknown[]) => errors.push(a) } as never,
     });
-    await expect(broken(ev('requested'))).resolves.toBeUndefined();
+    await expect(broken(ev('requested'))).rejects.toBeDefined();
     expect(errors).toHaveLength(1);
   });
 });

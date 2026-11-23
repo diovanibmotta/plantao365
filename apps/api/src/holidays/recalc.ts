@@ -4,6 +4,7 @@ import { recordAudit } from '../audit/index.js';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
 import { notifyShiftsChanged } from '../notifications/schedule-events.js';
+import { runHookInSavepoint } from '../schedules/hook.js';
 import { lockSchedulesThenShifts } from '../schedules/service.js';
 import { listUnavailableByDate } from '../unavailability/service.js';
 import { listHolidayDates, localDate } from './service.js';
@@ -33,8 +34,14 @@ export interface ShiftRecalcChange {
   version: string;
 }
 
-/** Ponto de extensão pós-commit: notifica responsáveis (Req. 4.6, 12.2). */
-export type ShiftsRecalculatedHook = (changes: ShiftRecalcChange[]) => void | Promise<void>;
+/**
+ * Ponto de extensão: notifica responsáveis (Req. 4.6, 12.2). Roda DENTRO da transação do recálculo
+ * (savepoint), com o `sql` da transação; falha não aborta o recálculo.
+ */
+export type ShiftsRecalculatedHook = (
+  changes: ShiftRecalcChange[],
+  sql: Sql,
+) => void | Promise<void>;
 
 interface Row {
   id: string;
@@ -56,6 +63,7 @@ const iso = (d: Date | null) => (d ? d.toISOString() : null);
 export async function recalculateHolidayShifts(
   db: Sql,
   input: { dates: string[]; actorId: string },
+  onChanges?: ShiftsRecalculatedHook | undefined,
 ): Promise<ShiftRecalcChange[]> {
   const dates = [...new Set(input.dates)].sort();
   return db.begin(async (txRaw) => {
@@ -126,6 +134,9 @@ export async function recalculateHolidayShifts(
     if (scheduleIds.size > 0) {
       await tx`update schedules set updated_at = now() where id in ${tx([...scheduleIds])}`;
     }
+    if (changes.length > 0 && onChanges) {
+      await runHookInSavepoint(tx, (sp) => onChanges(changes, sp));
+    }
     return changes;
   });
 }
@@ -136,7 +147,7 @@ export function createOnShiftsRecalculated(deps: {
   appBaseUrl?: string | undefined;
   logger?: Logger | undefined;
 }): ShiftsRecalculatedHook {
-  return async (changes) => {
+  return async (changes, sql = deps.db) => {
     const notices = changes
       .filter((c) => c.previousHours !== c.hours)
       .map((c) => ({
@@ -153,9 +164,10 @@ export function createOnShiftsRecalculated(deps: {
       }));
     if (notices.length === 0) return;
     try {
-      await notifyShiftsChanged(deps.db, notices, { appBaseUrl: deps.appBaseUrl });
+      await notifyShiftsChanged(sql, notices, { appBaseUrl: deps.appBaseUrl });
     } catch (err) {
       deps.logger?.error({ err }, 'Falha ao enfileirar e-mails de recálculo por feriado');
+      throw err;
     }
   };
 }

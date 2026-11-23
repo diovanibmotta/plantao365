@@ -4,6 +4,7 @@ import { recordAudit } from '../audit/index.js';
 import { requireRole } from '../auth/authz.js';
 import type { AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
+import { runHookInSavepoint } from './hook.js';
 import { getSchedule, listShiftsOfSchedule } from './service.js';
 import type { ScheduleDto, ShiftDto } from './types.js';
 
@@ -13,8 +14,11 @@ export interface PublishedEvent {
   actorId: string;
 }
 
-/** Ponto de extensão (task 9.2): chamado após o commit da publicação. */
-export type PublishedHook = (event: PublishedEvent) => void | Promise<void>;
+/**
+ * Ponto de extensão (task 9.2): chamado DENTRO da transação da publicação (savepoint), com o `sql`
+ * da transação, para que o enqueue seja atômico com a mudança. Falha não aborta a publicação.
+ */
+export type PublishedHook = (event: PublishedEvent, sql: Sql) => void | Promise<void>;
 
 export const publishBodySchema = z.object({ confirmUnassigned: z.boolean().optional() });
 
@@ -106,21 +110,17 @@ export function registerPublishRoutes(
         },
       });
       const schedule = (await getSchedule(tx, id))!;
-      return {
-        kind: 'ok',
-        unassignedDates,
-        event: { schedule, shifts: await listShiftsOfSchedule(tx, id), actorId },
+      const event: PublishedEvent = {
+        schedule,
+        shifts: await listShiftsOfSchedule(tx, id),
+        actorId,
       };
+      const { onPublished } = deps;
+      if (onPublished) await runHookInSavepoint(tx, (sp) => onPublished(event, sp));
+      return { kind: 'ok', unassignedDates, event };
     });
 
     if (outcome.kind === 'error') return c.json(outcome.body, outcome.status);
-    if (deps.onPublished) {
-      try {
-        await deps.onPublished(outcome.event);
-      } catch {
-        // falha de notificação não desfaz a publicação já commitada
-      }
-    }
     return c.json({
       schedule: outcome.event.schedule,
       shifts: outcome.event.shifts,
