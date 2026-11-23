@@ -16,6 +16,11 @@ export interface HolidayWarning {
   count: number;
 }
 
+export interface RecalculateResult {
+  updated: number;
+  changes: unknown[];
+}
+
 export type HolidayMutation = Holiday & { warnings: HolidayWarning[] };
 
 export interface HolidayFormValues {
@@ -92,10 +97,15 @@ export function validateForm(values: HolidayFormValues): HolidayFormErrors {
   return errors;
 }
 
+export function recalcSummary(updated: number): string {
+  if (updated === 0) return 'Nenhum plantão mudou.';
+  return updated === 1 ? '1 plantão recalculado.' : `${updated} plantões recalculados.`;
+}
+
 export function warningMessage(count: number): string {
   return count === 1
-    ? '1 plantão publicado nesta data terá as horas alteradas — peça o recálculo.'
-    : `${count} plantões publicados nesta data terão as horas alteradas — peça o recálculo.`;
+    ? '1 plantão publicado nesta data terá as horas alteradas — use “Recalcular horas”.'
+    : `${count} plantões publicados nesta data terão as horas alteradas — use “Recalcular horas”.`;
 }
 
 export function errorMessage(err: unknown, fallback: string): string {

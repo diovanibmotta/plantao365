@@ -12,6 +12,7 @@ import '../schedule/schedule.css';
 const PAST_DAYS = 120;
 const FUTURE_DAYS = 240;
 const SUMMARY_DAYS = 30;
+const HISTORY_YEARS = 5;
 
 type Tab = 'upcoming' | 'past';
 
@@ -29,8 +30,9 @@ interface MySchedulePageProps {
 
 export function MySchedulePage({ today: todayProp, renderActions }: MySchedulePageProps) {
   const today = todayProp ?? todayLocal();
-  const from = addDays(today, -PAST_DAYS);
-  const to = addDays(today, FUTURE_DAYS);
+  const [year, setYear] = useState('');
+  const from = year ? `${year}-01-01` : addDays(today, -PAST_DAYS);
+  const to = year ? `${year}-12-31` : addDays(today, FUTURE_DAYS);
   const key = `${from}|${to}`;
   const [tab, setTab] = useState<Tab>('upcoming');
   const [loaded, setLoaded] = useState<{ key: string; outcome: Outcome } | null>(null);
@@ -80,6 +82,9 @@ export function MySchedulePage({ today: todayProp, renderActions }: MySchedulePa
           tab={tab}
           onTab={setTab}
           renderActions={renderActions}
+          year={year}
+          onYear={setYear}
+          currentYear={Number(today.slice(0, 4))}
         />
       )}
     </section>
@@ -92,9 +97,21 @@ interface ViewProps {
   tab: Tab;
   onTab: (tab: Tab) => void;
   renderActions: MySchedulePageProps['renderActions'];
+  year: string;
+  onYear: (year: string) => void;
+  currentYear: number;
 }
 
-function MyScheduleView({ data, today, tab, onTab, renderActions }: ViewProps) {
+function MyScheduleView({
+  data,
+  today,
+  tab,
+  onTab,
+  renderActions,
+  year,
+  onYear,
+  currentYear,
+}: ViewProps) {
   const upcoming = data.shifts
     .filter((s) => s.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -102,13 +119,15 @@ function MyScheduleView({ data, today, tab, onTab, renderActions }: ViewProps) {
     .filter((s) => s.date < today)
     .sort((a, b) => b.date.localeCompare(a.date));
   const list = tab === 'upcoming' ? upcoming : past;
-  const total = sumHours(data.shifts, today, SUMMARY_DAYS);
+  const total = year ? null : sumHours(data.shifts, today, SUMMARY_DAYS);
 
   return (
     <>
-      <p className="sched-summary">
-        Total nos próximos {SUMMARY_DAYS} dias: <strong>{formatHours(total)}</strong>
-      </p>
+      {total !== null && (
+        <p className="sched-summary">
+          Total nos próximos {SUMMARY_DAYS} dias: <strong>{formatHours(total)}</strong>
+        </p>
+      )}
       <div className="sched-tabs" role="tablist" aria-label="Período">
         <button
           type="button"
@@ -133,6 +152,21 @@ function MyScheduleView({ data, today, tab, onTab, renderActions }: ViewProps) {
           Anteriores ({past.length})
         </button>
       </div>
+      {tab === 'past' && (
+        <label className="sched-year">
+          Ano
+          <select value={year} onChange={(e) => onYear(e.target.value)}>
+            <option value="">Últimos meses</option>
+            {Array.from({ length: HISTORY_YEARS + 1 }, (_, i) => String(currentYear - i)).map(
+              (y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+      )}
       <div role="tabpanel" id="panel-shifts" aria-labelledby={`tab-${tab}`}>
         {list.length === 0 ? (
           <p className="status muted">

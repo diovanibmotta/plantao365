@@ -11,7 +11,13 @@ import {
   monthRange,
 } from '../schedule/calendar';
 import type { MonthKey } from '../schedule/calendar';
-import { formatDayShort, formatHours, holidayMap, todayLocal } from '../schedule/format';
+import {
+  DAY_TYPE_LABEL,
+  formatDayShort,
+  formatHours,
+  holidayMap,
+  todayLocal,
+} from '../schedule/format';
 import type { HolidayDto, ShiftDto, UnavailabilityDto } from '../schedule/types';
 import '../schedule/schedule.css';
 
@@ -154,6 +160,8 @@ function MonthCalendar({ month, data, today, userId, member }: MonthCalendarProp
     if (member && s.userId !== member) continue;
     shiftsByDate.set(s.date, [...(shiftsByDate.get(s.date) ?? []), s]);
   }
+  const dayTypeByDate = new Map<LocalDate, ShiftDto['dayType']>();
+  for (const s of data.shifts) dayTypeByDate.set(s.date, s.dayType);
   const isVacation = (date: LocalDate) =>
     data.vacations.some((v) => date >= v.startDate && date <= v.endDate) ||
     data.shifts.some((s) => s.date === date && s.dayType === 'collective_vacation');
@@ -173,6 +181,11 @@ function MonthCalendar({ month, data, today, userId, member }: MonthCalendarProp
           );
           const holiday = data.holidays.get(date);
           const vacation = isVacation(date);
+          const dayType = dayTypeByDate.get(date);
+          const typeLabel =
+            !holiday && (dayType === 'weekday' || dayType === 'weekend')
+              ? DAY_TYPE_LABEL[dayType]
+              : null;
           const mine = shifts.some((s) => userId !== null && s.userId === userId);
           const classes = ['sched-day'];
           if (mine) classes.push('sched-day--mine');
@@ -183,6 +196,11 @@ function MonthCalendar({ month, data, today, userId, member }: MonthCalendarProp
               <time dateTime={date} className="sched-day-number" aria-label={formatDayShort(date)}>
                 {Number(date.slice(8, 10))}
               </time>
+              {typeLabel && (
+                <span className="sched-day-type" data-testid={`day-type-${date}`}>
+                  {typeLabel}
+                </span>
+              )}
               {holiday && <span className="sched-day-note">Feriado: {holiday}</span>}
               {vacation && <span className="sched-day-note">Férias coletivas</span>}
               {shifts.map((s) => (
@@ -203,6 +221,8 @@ function MonthCalendar({ month, data, today, userId, member }: MonthCalendarProp
           <span className="sched-swatch sched-swatch--mine" aria-hidden="true" />
           Seu plantão
         </li>
+        <li>Dia útil: 14h</li>
+        <li>Fim de semana: 24h</li>
         <li>Feriado e férias coletivas aparecem em destaque</li>
         <li>Horas ao lado do nome</li>
       </ul>

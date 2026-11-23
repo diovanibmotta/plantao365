@@ -41,6 +41,7 @@ export const ENTITY_TYPES: { value: string; label: string }[] = [
   { value: 'shift', label: 'Plantão' },
   { value: 'swap', label: 'Troca' },
   { value: 'adjustment', label: 'Ajuste' },
+  { value: 'preferences', label: 'Preferências' },
 ];
 
 export function entityLabel(type: string): string {

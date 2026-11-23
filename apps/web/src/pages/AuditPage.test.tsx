@@ -8,6 +8,8 @@ import { AuthProvider } from '../auth/AuthContext';
 import type { AuthUser } from '../auth/AuthContext';
 import type { AuditItem, AuditPageData } from '../audit/types';
 
+const ANA_ID = '11111111-1111-4111-8111-111111111111';
+
 const user = (role: AuthUser['role']): AuthUser => ({
   id: '1',
   email: 'a@b.c',
@@ -45,7 +47,13 @@ const page = (items: AuditItem[], total = items.length, offset = 0): AuditPageDa
 
 function mockApi(me: AuthUser, audit: (url: string) => Response) {
   const fetchMock = vi.fn((url: string) =>
-    Promise.resolve(url === '/auth/me' ? json(me) : audit(url)),
+    Promise.resolve(
+      url === '/auth/me'
+        ? json(me)
+        : url === '/api/users'
+          ? json([{ id: ANA_ID, name: 'Ana Souza' }])
+          : audit(url),
+    ),
   );
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
@@ -76,7 +84,7 @@ describe('tela de auditoria', () => {
   it('lista os registros com ator, entidade, motivo e data local', async () => {
     mockApi(user('manager'), () => json(page([item(1)])));
     renderAudit();
-    expect(await screen.findByText('Ana Souza')).toBeTruthy();
+    expect(await within(await screen.findByRole('table')).findByText('Ana Souza')).toBeTruthy();
     expect(screen.getByText('ana@example.com')).toBeTruthy();
     expect(within(screen.getByRole('table')).getByText('Plantão')).toBeTruthy();
     expect(screen.getByText('troca aprovada')).toBeTruthy();
@@ -102,12 +110,17 @@ describe('tela de auditoria', () => {
     const fetchMock = mockApi(user('manager'), () => json(page([item(1)])));
     const ui = userEvent.setup();
     renderAudit();
-    await screen.findByText('Ana Souza');
+    await screen.findByRole('table');
 
     await ui.type(screen.getByLabelText('De'), '2026-03-01');
     await ui.type(screen.getByLabelText('Até'), '2026-03-31');
     await ui.selectOptions(screen.getByLabelText('Tipo de entidade'), 'swap');
-    await ui.type(screen.getByLabelText('ID do ator'), ' abc ');
+    await ui.selectOptions(
+      await screen
+        .findByRole('option', { name: 'Ana Souza' })
+        .then(() => screen.getByLabelText('Ator')),
+      ANA_ID,
+    );
     await ui.click(screen.getByRole('button', { name: 'Aplicar' }));
 
     await waitFor(() => expect(auditCalls(fetchMock)).toHaveLength(2));
@@ -115,7 +128,8 @@ describe('tela de auditoria', () => {
     expect(q.get('from')).toBe('2026-03-01T00:00:00.000-03:00');
     expect(q.get('to')).toBe('2026-03-31T23:59:59.999-03:00');
     expect(q.get('entityType')).toBe('swap');
-    expect(q.get('actorId')).toBe('abc');
+    expect(q.get('actorId')).toBe(ANA_ID);
+    expect(screen.getByRole('option', { name: 'Preferências' })).toBeTruthy();
     expect(q.get('offset')).toBe('0');
 
     await ui.click(screen.getByRole('button', { name: 'Limpar' }));

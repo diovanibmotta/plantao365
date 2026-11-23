@@ -298,6 +298,22 @@ describe.skipIf(!TEST_DATABASE_URL)('auth', () => {
       });
       expect(res.status).toBe(403);
     });
+
+    it('redirects HTML navigation to /login with the denial reason', async () => {
+      const { provider } = stub({ email: 'ghost@example.com', name: 'G', oid: 'o' });
+      const app = buildApp(provider);
+      const { cookies, state } = await startLogin(app);
+      const res = await app.request(`/auth/callback?state=${state}&code=abc`, {
+        headers: { cookie: cookieHeader(cookies), accept: 'text/html' },
+      });
+      expect(res.status).toBe(302);
+      expect(res.headers.get('location')).toBe(`${options.appBaseUrl}/login?error=not_registered`);
+
+      const bad = await app.request('/auth/callback?state=x&code=abc', {
+        headers: { accept: 'text/html' },
+      });
+      expect(bad.headers.get('location')).toContain('/login?error=invalid_state');
+    });
   });
 
   describe('bootstrapManagers', () => {
@@ -308,16 +324,39 @@ describe.skipIf(!TEST_DATABASE_URL)('auth', () => {
       expect(u).toMatchObject({ role: 'manager', active: true, participates_in_rotation: false });
     });
 
-    it('is idempotent and does not change existing users', async () => {
+    it('promotes and reactivates existing users, keeping other fields', async () => {
       await addUser('membro@example.com', { active: false });
       await t.sql`update users set participates_in_rotation = true`;
-      expect(await bootstrapManagers(t.sql, ['membro@example.com'])).toEqual([]);
+      expect(await bootstrapManagers(t.sql, ['membro@example.com'])).toEqual([
+        'membro@example.com',
+      ]);
+      const [m] = await t.sql`select role, active, participates_in_rotation, name from users`;
+      expect(m).toMatchObject({
+        role: 'manager',
+        active: true,
+        participates_in_rotation: true,
+        name: 'Fulano',
+      });
+      const [{ id }] = await t.sql<{ id: string }[]>`select id from users`;
+      const audit = await t.sql`select actor_id, action, before, after from audit_log
+        where entity_type = 'user' and entity_id = ${id}`;
+      expect(audit).toHaveLength(1);
+      expect(audit[0]).toMatchObject({
+        actor_id: null,
+        action: 'update',
+        before: { role: 'member', active: false },
+        after: { role: 'manager', active: true },
+      });
+    });
+
+    it('is idempotent: audits only on change and never repeats', async () => {
       expect(await bootstrapManagers(t.sql, ['novo@example.com'])).toEqual(['novo@example.com']);
       expect(await bootstrapManagers(t.sql, ['novo@example.com'])).toEqual([]);
-      const [m] = await t.sql`select role, active, participates_in_rotation from users
-        where email = 'membro@example.com'`;
-      expect(m).toMatchObject({ role: 'member', active: false, participates_in_rotation: true });
-      expect(await t.sql`select 1 from users`).toHaveLength(2);
+      expect(await t.sql`select 1 from users`).toHaveLength(1);
+      const [{ id }] = await t.sql<{ id: string }[]>`select id from users`;
+      expect(
+        await t.sql`select action from audit_log where entity_type = 'user' and entity_id = ${id}`,
+      ).toEqual([{ action: 'create' }]);
     });
   });
 });

@@ -92,6 +92,25 @@ describe('MySchedulePage', () => {
     expect(url.searchParams.get('to')).toBe('2026-11-05');
   });
 
+  it('permite ver o histórico de um ano inteiro na aba Anteriores', async () => {
+    const fetchMock = mockApi([shift('2025-06-10', 'weekday', 14)]);
+    render(<MySchedulePage today={TODAY} />);
+    await userEvent.click(await screen.findByRole('tab', { name: /Anteriores/ }));
+    await userEvent.selectOptions(screen.getByLabelText('Ano'), '2025');
+    expect(await screen.findAllByTestId('shift-item')).toHaveLength(1);
+    const url = new URL(
+      String(
+        fetchMock.mock.calls
+          .map((c) => c[0])
+          .filter((u) => u.startsWith('/api/shifts/mine'))
+          .at(-1),
+      ),
+      'http://localhost',
+    );
+    expect(url.searchParams.get('from')).toBe('2025-01-01');
+    expect(url.searchParams.get('to')).toBe('2025-12-31');
+  });
+
   it('exibe erro', async () => {
     vi.stubGlobal(
       'fetch',

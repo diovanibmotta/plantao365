@@ -127,6 +127,9 @@ describe('TeamSchedulePage', () => {
     expect(within(other).getByText('Bruno Lima')).toBeTruthy();
     expect(within(other).getByText('Feriado: Dia Teste')).toBeTruthy();
     expect(within(screen.getByTestId('day-2026-03-07')).getByText('24h')).toBeTruthy();
+    expect(within(mine).getByText('Dia útil')).toBeTruthy();
+    expect(within(screen.getByTestId('day-2026-03-07')).getByText('Fim de semana')).toBeTruthy();
+    expect(screen.queryByTestId('day-type-2026-03-03')).toBeNull();
 
     expect(within(screen.getByTestId('day-2026-03-25')).getByText('Férias coletivas')).toBeTruthy();
     expect(within(screen.getByTestId('day-2026-03-10')).queryByText('Férias coletivas')).toBeNull();

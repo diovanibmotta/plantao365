@@ -212,9 +212,106 @@ describe('tela de feriados', () => {
     const warning = await screen.findByLabelText('Aviso de impacto');
     expect(warning.textContent).toContain(`25 de dezembro: ${warningMessage(1)}`);
     expect(warning.textContent).toContain('3 plantões publicados nesta data terão as horas');
-    expect(warning.textContent).toContain('peça o recálculo');
+    expect(warning.textContent).toContain('Recalcular horas');
     expect(screen.getByText('Natal')).toBeTruthy();
     await ui.click(within(warning).getByRole('button', { name: 'Dispensar' }));
     expect(screen.queryByLabelText('Aviso de impacto')).toBeNull();
+  });
+
+  describe('recálculo de horas', () => {
+    async function openWarning(recalc: (init?: RequestInit) => Response) {
+      const fetchMock = mockApi((url, init) => {
+        if (url === '/api/holidays/recalculate') return recalc(init);
+        if (init?.method === 'POST')
+          return json(
+            {
+              ...NATAL,
+              warnings: [
+                { type: 'published_shifts_affected', date: '2026-12-25', count: 1 },
+                { type: 'published_shifts_affected', date: '2026-12-26', count: 3 },
+              ],
+            },
+            201,
+          );
+        return json({ items: [NATAL] });
+      });
+      const ui = userEvent.setup();
+      render(<HolidaysPage />);
+      await screen.findByText('Natal');
+      await ui.click(screen.getByRole('button', { name: 'Novo feriado' }));
+      fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-12-25' } });
+      await ui.type(screen.getByLabelText('Nome'), 'Natal');
+      await ui.click(screen.getByRole('button', { name: 'Salvar' }));
+      await screen.findByLabelText('Aviso de impacto');
+      return { fetchMock, ui };
+    }
+
+    it('confirma, envia as datas afetadas, informa o total e limpa o aviso', async () => {
+      const { fetchMock, ui } = await openWarning(() => json({ updated: 4, changes: [] }));
+      await ui.click(screen.getByRole('button', { name: 'Recalcular horas' }));
+      expect(writes(fetchMock).filter((w) => w[0].endsWith('/recalculate'))).toHaveLength(0);
+      await ui.click(screen.getByRole('button', { name: 'Confirmar recálculo' }));
+      expect((await screen.findByLabelText('Resultado do recálculo')).textContent).toBe(
+        '4 plantões recalculados.',
+      );
+      const call = writes(fetchMock).find((w) => w[0] === '/api/holidays/recalculate')!;
+      expect(call[1].method).toBe('POST');
+      expect(JSON.parse(String(call[1].body))).toEqual({ dates: ['2026-12-25', '2026-12-26'] });
+      expect(screen.queryByLabelText('Aviso de impacto')).toBeNull();
+    });
+
+    it('cancelar não chama a API e mantém o aviso', async () => {
+      const { fetchMock, ui } = await openWarning(() => json({ updated: 1, changes: [] }));
+      await ui.click(screen.getByRole('button', { name: 'Recalcular horas' }));
+      await ui.click(screen.getByRole('button', { name: 'Cancelar' }));
+      expect(writes(fetchMock).some((w) => w[0].endsWith('/recalculate'))).toBe(false);
+      expect(screen.getByLabelText('Aviso de impacto')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Recalcular horas' })).toBeTruthy();
+    });
+
+    it('informa quando nenhum plantão mudou', async () => {
+      const { ui } = await openWarning(() => json({ updated: 0, changes: [] }));
+      await ui.click(screen.getByRole('button', { name: 'Recalcular horas' }));
+      await ui.click(screen.getByRole('button', { name: 'Confirmar recálculo' }));
+      expect((await screen.findByLabelText('Resultado do recálculo')).textContent).toBe(
+        'Nenhum plantão mudou.',
+      );
+    });
+
+    it('mostra o erro da API e mantém o aviso para nova tentativa', async () => {
+      const { ui } = await openWarning(() =>
+        json({ error: 'boom', message: 'Falha ao recalcular' }, 500),
+      );
+      await ui.click(screen.getByRole('button', { name: 'Recalcular horas' }));
+      await ui.click(screen.getByRole('button', { name: 'Confirmar recálculo' }));
+      expect((await screen.findByRole('alert')).textContent).toBe('Falha ao recalcular');
+      expect(screen.getByLabelText('Aviso de impacto')).toBeTruthy();
+      expect(
+        (screen.getByRole('button', { name: 'Confirmar recálculo' }) as HTMLButtonElement).disabled,
+      ).toBe(false);
+    });
+
+    it('desabilita os botões durante a chamada', async () => {
+      let release!: () => void;
+      const gate = new Promise<void>((r) => (release = r));
+      const { ui } = await openWarning(() => json({ updated: 1, changes: [] }));
+      const original = globalThis.fetch;
+      vi.stubGlobal('fetch', (url: string, init?: RequestInit) =>
+        url === '/api/holidays/recalculate'
+          ? gate.then(() => json({ updated: 1, changes: [] }))
+          : original(url, init),
+      );
+      await ui.click(screen.getByRole('button', { name: 'Recalcular horas' }));
+      await ui.click(screen.getByRole('button', { name: 'Confirmar recálculo' }));
+      const busy = screen.getByRole('button', { name: 'Recalculando…' }) as HTMLButtonElement;
+      expect(busy.disabled).toBe(true);
+      expect((screen.getByRole('button', { name: 'Cancelar' }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+      release();
+      expect((await screen.findByLabelText('Resultado do recálculo')).textContent).toBe(
+        '1 plantão recalculado.',
+      );
+    });
   });
 });

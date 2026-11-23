@@ -119,6 +119,7 @@ describe('exceções do membro', () => {
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
     const warning = await screen.findByRole('status', { name: 'Aviso de conflito' });
     expect(warning.textContent).toContain('03/07/2026');
+    expect(warning.textContent).toContain('O gestor foi avisado por e-mail');
     const [url, init] = writes(fetchMock)[0]!;
     expect(url).toBe('/api/unavailabilities');
     expect(JSON.parse(String(init.body))).toEqual({

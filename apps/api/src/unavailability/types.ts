@@ -23,6 +23,33 @@ export interface ConflictWarning {
   userId: string;
 }
 
+/** Férias coletivas sobre dias que já têm plantões publicados (Req. 5.6). */
+export interface ShiftsAffectedWarning {
+  type: 'published_shifts_affected';
+  date: string;
+  count: number;
+}
+
+export type UnavailabilityWarning = ConflictWarning | ShiftsAffectedWarning;
+
+/** Evento do gancho `onConflict`: exceção de membro que conflita com plantão publicado. */
+export interface UnavailabilityConflictEvent {
+  unavailabilityId: string;
+  userId: string;
+  startDate: string;
+  endDate: string;
+  /** Datas em conflito (ordenadas, sem repetição). */
+  dates: string[];
+  /** Quem criou/editou a exceção. */
+  actorId: string;
+}
+
+/** Contagem de plantões publicados por data (ex.: countPublishedShiftsOnDates). */
+export type CollectiveImpactChecker = (
+  sql: Sql,
+  dates: string[],
+) => Promise<Array<{ date: string; count: number }>>;
+
 export interface ConflictArgs {
   userId: string | null;
   start: string;

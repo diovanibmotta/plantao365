@@ -4,11 +4,11 @@ import { useAuth } from '../auth/AuthContext';
 import { UnavailabilityForm } from './UnavailabilityForm';
 import { KIND_LABELS, errorMessage, formatDate, formatPeriod } from './types';
 import type {
-  ConflictWarning,
   FormValues,
   MemberOption,
   Unavailability,
   UnavailabilityMutation,
+  UnavailabilityWarning,
 } from './types';
 import './exceptions.css';
 
@@ -40,7 +40,7 @@ export function UnavailabilityManager({
   const [formError, setFormError] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [warnings, setWarnings] = useState<ConflictWarning[]>([]);
+  const [warnings, setWarnings] = useState<UnavailabilityWarning[]>([]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -157,13 +157,23 @@ export function UnavailabilityManager({
       {warnings.length > 0 && (
         <div className="exc-warning" role="status" aria-label="Aviso de conflito">
           <ul>
-            {warnings.map((w) => (
-              <li key={`${w.date}:${w.userId}`}>
-                Conflito com plantão publicado em {formatDate(w.date)}
-                {nameOf(w.userId) ? ` (${nameOf(w.userId)})` : ''}. Avise o gestor para ajustar a
-                escala.
-              </li>
-            ))}
+            {warnings.map((w) =>
+              w.type === 'published_shifts_affected' ? (
+                <li key={`${w.date}:affected`}>
+                  {formatDate(w.date)}:{' '}
+                  {w.count === 1 ? '1 plantão publicado' : `${w.count} plantões publicados`} neste
+                  dia. Ajuste os plantões ou recalcule a escala.
+                </li>
+              ) : (
+                <li key={`${w.date}:${w.userId}`}>
+                  Conflito com plantão publicado em {formatDate(w.date)}
+                  {nameOf(w.userId) ? ` (${nameOf(w.userId)})` : ''}.{' '}
+                  {user?.role === 'manager'
+                    ? 'Ajuste a escala, se necessário.'
+                    : 'O gestor foi avisado por e-mail.'}
+                </li>
+              ),
+            )}
           </ul>
           <button type="button" className="btn" onClick={() => setWarnings([])}>
             Dispensar

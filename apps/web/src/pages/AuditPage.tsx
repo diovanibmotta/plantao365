@@ -5,6 +5,11 @@ import { AuditTable } from '../audit/AuditTable';
 import { buildAuditQuery, EMPTY_FILTERS, ENTITY_TYPES, PAGE_SIZE } from '../audit/types';
 import type { AuditFilterValues, AuditPageData } from '../audit/types';
 
+interface ActorOption {
+  id: string;
+  name: string;
+}
+
 type Outcome = { error: string } | { data: AuditPageData };
 
 interface Loaded {
@@ -17,7 +22,17 @@ export function AuditPage() {
   const [applied, setApplied] = useState<AuditFilterValues>(EMPTY_FILTERS);
   const [offset, setOffset] = useState(0);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [actors, setActors] = useState<ActorOption[]>([]);
   const query = buildAuditQuery(applied, offset);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api
+      .get<ActorOption[]>('/api/users', controller.signal)
+      .then((users) => setActors(users.map((u) => ({ id: u.id, name: u.name }))))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -75,13 +90,15 @@ export function AuditPage() {
           </select>
         </label>
         <label>
-          ID do ator
-          <input
-            type="text"
-            value={draft.actorId}
-            placeholder="UUID do usuário"
-            onChange={(e) => set('actorId')(e.target.value)}
-          />
+          Ator
+          <select value={draft.actorId} onChange={(e) => set('actorId')(e.target.value)}>
+            <option value="">Todos</option>
+            {actors.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
         </label>
         <div className="filter-actions">
           <button type="submit" className="btn primary" disabled={rangeInvalid}>

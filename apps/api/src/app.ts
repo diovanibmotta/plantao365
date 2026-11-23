@@ -19,6 +19,7 @@ import {
   createSchedulesRouter,
   findPublishedShiftsForUser,
 } from './schedules/index.js';
+import { createOnUnavailabilityConflict } from './notifications/unavailability-events.js';
 import { createOnSwapEvent } from './notifications/swap-events.js';
 import { createSwapsRouter } from './swaps/index.js';
 import { createUnavailabilityRouter } from './unavailability/index.js';
@@ -84,6 +85,8 @@ export function createApp({ logger, db, authOptions, allowedOrigins }: AppDeps):
           const rows = await findPublishedShiftsForUser(sql, args);
           return rows.flatMap((r) => (r.userId ? [{ date: r.date, userId: r.userId }] : []));
         },
+        collectiveImpactChecker: (sql, dates) => countPublishedShiftsOnDates(sql, dates),
+        onConflict: createOnUnavailabilityConflict(notifyDeps),
       }),
     );
     app.route(

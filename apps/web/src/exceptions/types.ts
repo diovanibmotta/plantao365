@@ -17,9 +17,17 @@ export interface ConflictWarning {
   userId: string;
 }
 
+export interface ShiftsAffectedWarning {
+  type: 'published_shifts_affected';
+  date: string;
+  count: number;
+}
+
+export type UnavailabilityWarning = ConflictWarning | ShiftsAffectedWarning;
+
 export interface UnavailabilityMutation {
   unavailability: Unavailability;
-  warnings?: ConflictWarning[];
+  warnings?: UnavailabilityWarning[];
 }
 
 export interface MemberOption {

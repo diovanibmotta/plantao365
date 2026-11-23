@@ -14,14 +14,32 @@ import {
 import {
   MEMBER_KINDS,
   UNAVAILABILITY_KINDS,
+  type CollectiveImpactChecker,
   type ConflictChecker,
-  type ConflictWarning,
+  type UnavailabilityConflictEvent,
   type UnavailabilityDto,
+  type UnavailabilityWarning,
 } from './types.js';
 
 export interface UnavailabilityRouterDeps {
   db: Sql;
   conflictChecker?: ConflictChecker;
+  /** Férias coletivas: conta plantões publicados por data (Req. 5.6); sem ele, não há aviso. */
+  collectiveImpactChecker?: CollectiveImpactChecker;
+  /**
+   * Chamado após o commit quando uma exceção de MEMBRO conflita com plantão publicado e o autor
+   * não é gestor (o gestor já recebe os avisos na própria resposta). Erros são capturados.
+   */
+  onConflict?: (event: UnavailabilityConflictEvent) => Promise<void> | void;
+}
+
+/** Datas AAAA-MM-DD de `start` a `end` (inclusive), em UTC para evitar deslocamento de fuso. */
+function expandDates(start: string, end: string): string[] {
+  const out: string[] = [];
+  for (let t = Date.parse(`${start}T00:00:00Z`); t <= Date.parse(`${end}T00:00:00Z`); t += 864e5) {
+    out.push(new Date(t).toISOString().slice(0, 10));
+  }
+  return out;
 }
 
 const date = z.iso.date({ error: 'Data inválida; use AAAA-MM-DD' });
@@ -71,15 +89,55 @@ const fail = (c: Ctx, status: 400 | 403 | 404, error: string, message: string) =
 export function createUnavailabilityRouter({
   db,
   conflictChecker,
+  collectiveImpactChecker,
+  onConflict,
 }: UnavailabilityRouterDeps): Hono<AuthEnv> {
   const check: ConflictChecker = conflictChecker ?? (async () => []);
   const router = new Hono<AuthEnv>();
   router.use('/unavailabilities', requireAuth());
   router.use('/unavailabilities/*', requireAuth());
 
-  const warningsFor = async (row: UnavailabilityDto): Promise<ConflictWarning[]> => {
+  const warningsFor = async (row: UnavailabilityDto): Promise<UnavailabilityWarning[]> => {
     const found = await check(db, { userId: row.userId, start: row.startDate, end: row.endDate });
-    return found.map((f) => ({ type: 'published_shift_conflict', date: f.date, userId: f.userId }));
+    const warnings: UnavailabilityWarning[] = found.map((f) => ({
+      type: 'published_shift_conflict',
+      date: f.date,
+      userId: f.userId,
+    }));
+    if (row.userId === null && collectiveImpactChecker) {
+      const impact = await collectiveImpactChecker(db, expandDates(row.startDate, row.endDate));
+      for (const i of impact) {
+        if (i.count > 0)
+          warnings.push({ type: 'published_shifts_affected', date: i.date, count: i.count });
+      }
+    }
+    return warnings;
+  };
+
+  const warnAndNotify = async (
+    row: UnavailabilityDto,
+    actor: AuthUser,
+  ): Promise<UnavailabilityWarning[]> => {
+    const warnings = await warningsFor(row);
+    const dates = [
+      ...new Set(warnings.flatMap((w) => (w.type === 'published_shift_conflict' ? [w.date] : []))),
+    ].sort();
+    if (onConflict && row.userId && actor.role !== 'manager' && dates.length > 0) {
+      const event: UnavailabilityConflictEvent = {
+        unavailabilityId: row.id,
+        userId: row.userId,
+        startDate: row.startDate,
+        endDate: row.endDate,
+        dates,
+        actorId: actor.id,
+      };
+      try {
+        await onConflict(event);
+      } catch {
+        // pós-commit: a notificação nunca derruba a resposta
+      }
+    }
+    return warnings;
   };
 
   const canTouch = (user: AuthUser, row: UnavailabilityDto) =>
@@ -148,7 +206,7 @@ export function createUnavailabilityRouter({
       });
       return created;
     });
-    return c.json({ unavailability: row, warnings: await warningsFor(row) }, 201);
+    return c.json({ unavailability: row, warnings: await warnAndNotify(row, user) }, 201);
   });
 
   router.patch('/unavailabilities/:id', async (c) => {
@@ -197,7 +255,7 @@ export function createUnavailabilityRouter({
       default:
         return c.json({
           unavailability: outcome.after,
-          warnings: await warningsFor(outcome.after),
+          warnings: await warnAndNotify(outcome.after, user),
         });
     }
   });

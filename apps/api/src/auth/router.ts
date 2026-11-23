@@ -97,7 +97,7 @@ export function createAuthRouter({ db, logger, options, provider }: AuthRouterDe
       return c.json({ error: reason, message }, status);
     }
     if (c.req.header('accept')?.includes('text/html')) {
-      return c.redirect(new URL('/login?error=denied', appBaseUrl).href);
+      return c.redirect(new URL(`/login?error=${reason}`, appBaseUrl).href);
     }
     return c.html(
       page(

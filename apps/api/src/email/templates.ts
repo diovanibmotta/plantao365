@@ -282,3 +282,31 @@ export function renderSwapEmail(input: SwapEmailInput): RenderedEmail {
       : {}),
   });
 }
+
+export interface UnavailabilityConflictEmailInput {
+  memberName: string;
+  startDate: string;
+  endDate: string;
+  /** Datas (AAAA-MM-DD) com plantão publicado em conflito. */
+  dates: string[];
+  appUrl?: string | undefined;
+}
+
+/**
+ * Aviso ao gestor: exceção de membro sobre dia com plantão publicado (Req. 5.6). Traz só membro,
+ * período e datas em conflito; nunca o tipo nem a observação da exceção.
+ */
+export function renderUnavailabilityConflictEmail(
+  input: UnavailabilityConflictEmailInput,
+): RenderedEmail {
+  const period = formatDateRange(input.startDate, input.endDate);
+  return renderEmail({
+    subject: `Exceção conflita com plantão publicado: ${input.memberName}`,
+    paragraphs: [
+      `${input.memberName} registrou uma exceção de disponibilidade (${period}) que conflita com plantões já publicados. Ajuste a escala, se necessário.`,
+      'Datas em conflito:',
+    ],
+    lines: input.dates.map(formatDate),
+    ...(input.appUrl ? { action: { label: 'Abrir o Plantão360', url: input.appUrl } } : {}),
+  });
+}

@@ -14,6 +14,7 @@ import {
   renderSchedulePublishedEmail,
   renderShiftChangedEmail,
   renderSwapEmail,
+  renderUnavailabilityConflictEmail,
 } from './templates.js';
 
 const dayShift = {
@@ -204,5 +205,23 @@ describe('templates de eventos de troca', () => {
     const ok = renderSwapEmail({ ...base, event: 'approved', audience: 'counterpart' });
     expect(ok.subject).toBe('Troca aprovada: 14/03/2026');
     expect(ok.text).not.toContain('Motivo');
+  });
+});
+
+describe('renderUnavailabilityConflictEmail', () => {
+  it('lista membro, período e datas, escapando o nome', () => {
+    const out = renderUnavailabilityConflictEmail({
+      memberName: 'Ana <b>',
+      startDate: '2026-12-01',
+      endDate: '2026-12-05',
+      dates: ['2026-12-02', '2026-12-04'],
+      appUrl: 'https://plantao.example/escala',
+    });
+    expect(out.subject).toBe('Exceção conflita com plantão publicado: Ana <b>');
+    expect(out.text).toContain('(01/12/2026 a 05/12/2026)');
+    expect(out.text).toContain('2 de dezembro de 2026');
+    expect(out.text).toContain('4 de dezembro de 2026');
+    expect(out.html).toContain('Ana &lt;b&gt;');
+    expect(out.html).toContain('href="https://plantao.example/escala"');
   });
 });

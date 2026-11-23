@@ -1,18 +1,54 @@
 import type { Sql } from '../db.js';
+import { recordAudit } from '../audit/index.js';
+
+interface ExistingRow {
+  id: string;
+  role: string;
+  active: boolean;
+}
 
 /**
- * Garante que os e-mails informados existam como gestores ativos. Usuários já existentes
- * não são alterados nem rebaixados. Retorna os e-mails criados.
+ * Garante que os e-mails informados existam como gestores ativos: cria o usuário ausente,
+ * promove quem é membro e reativa quem está inativo, mantendo os demais campos. Cada mudança
+ * é auditada (ator nulo = sistema); quem já era gestor ativo não é tocado, então reinícios
+ * são idempotentes. Retorna os e-mails criados ou ajustados.
  */
 export async function bootstrapManagers(db: Sql, emails: readonly string[]): Promise<string[]> {
-  const created: string[] = [];
+  const changed: string[] = [];
   for (const email of new Set(emails.map((e) => e.trim().toLowerCase()).filter(Boolean))) {
-    const rows = await db<{ email: string }[]>`
-      insert into users (email, name, role, active, participates_in_rotation)
-      values (${email}, ${email.split('@')[0] ?? email}, 'manager', true, false)
-      on conflict (email) do nothing
-      returning email`;
-    created.push(...rows.map((r) => r.email));
+    const didChange = await db.begin(async (tx) => {
+      const [existing] = await tx<ExistingRow[]>`
+        select id, role, active from users where email = ${email} for update`;
+      if (!existing) {
+        const [row] = await tx<{ id: string }[]>`
+          insert into users (email, name, role, active, participates_in_rotation)
+          values (${email}, ${email.split('@')[0] ?? email}, 'manager', true, false)
+          returning id`;
+        await recordAudit(tx, {
+          actorId: null,
+          action: 'create',
+          entityType: 'user',
+          entityId: row!.id,
+          after: { email, role: 'manager', active: true },
+          reason: 'bootstrap MANAGER_EMAILS',
+        });
+        return true;
+      }
+      if (existing.role === 'manager' && existing.active) return false;
+      await tx`update users set role = 'manager', active = true, updated_at = now()
+        where id = ${existing.id}`;
+      await recordAudit(tx, {
+        actorId: null,
+        action: 'update',
+        entityType: 'user',
+        entityId: existing.id,
+        before: { role: existing.role, active: existing.active },
+        after: { role: 'manager', active: true },
+        reason: 'bootstrap MANAGER_EMAILS',
+      });
+      return true;
+    });
+    if (didChange) changed.push(email);
   }
-  return created;
+  return changed;
 }

@@ -7,6 +7,7 @@ import {
   errorMessage,
   formatHolidayDate,
   scopeLabel,
+  recalcSummary,
   yearOptions,
 } from '../holidays/types';
 import type {
@@ -14,6 +15,7 @@ import type {
   HolidayFormValues,
   HolidayMutation,
   HolidayWarning,
+  RecalculateResult,
 } from '../holidays/types';
 import '../holidays/holidays.css';
 
@@ -37,6 +39,10 @@ export function HolidaysPage() {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<HolidayWarning[]>([]);
+  const [confirmingRecalc, setConfirmingRecalc] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
+  const [recalcError, setRecalcError] = useState<string | null>(null);
+  const [recalcResult, setRecalcResult] = useState<string | null>(null);
   const key = `${year}:${reload}`;
 
   useEffect(() => {
@@ -65,6 +71,9 @@ export function HolidaysPage() {
 
   function finish(result: HolidayMutation) {
     setWarnings(result.warnings ?? []);
+    setConfirmingRecalc(false);
+    setRecalcError(null);
+    setRecalcResult(null);
     setEditing(null);
     setReload((n) => n + 1);
   }
@@ -100,6 +109,56 @@ export function HolidaysPage() {
     }
   }
 
+  async function recalculate() {
+    setRecalculating(true);
+    setRecalcError(null);
+    try {
+      const result = await api.post<RecalculateResult>('/api/holidays/recalculate', {
+        dates: [...new Set(warnings.map((w) => w.date))],
+      });
+      setRecalcResult(recalcSummary(result.updated));
+      setWarnings([]);
+      setConfirmingRecalc(false);
+    } catch (err) {
+      setRecalcError(errorMessage(err, 'Não foi possível recalcular as horas.'));
+    } finally {
+      setRecalculating(false);
+    }
+  }
+
+  const recalcAction = confirmingRecalc ? (
+    <span className="holidays-confirm" role="group" aria-label="Confirmar recálculo">
+      <span>Recalcular as horas dos plantões publicados nessas datas?</span>
+      <button
+        type="button"
+        className="btn primary"
+        disabled={recalculating}
+        onClick={() => void recalculate()}
+      >
+        {recalculating ? 'Recalculando…' : 'Confirmar recálculo'}
+      </button>
+      <button
+        type="button"
+        className="btn"
+        disabled={recalculating}
+        onClick={() => setConfirmingRecalc(false)}
+      >
+        Cancelar
+      </button>
+    </span>
+  ) : (
+    <button
+      type="button"
+      className="btn primary"
+      onClick={() => {
+        setRecalcError(null);
+        setConfirmingRecalc(true);
+      }}
+    >
+      Recalcular horas
+    </button>
+  );
+
   const years = yearOptions(year, currentYear);
 
   return (
@@ -127,7 +186,25 @@ export function HolidaysPage() {
       </div>
       <p className="holidays-hint muted">Feriado conta como plantão de 24h (08h às 08h).</p>
 
-      <HolidayWarnings warnings={warnings} onDismiss={() => setWarnings([])} />
+      <HolidayWarnings
+        warnings={warnings}
+        action={recalcAction}
+        onDismiss={() => {
+          setWarnings([]);
+          setConfirmingRecalc(false);
+          setRecalcError(null);
+        }}
+      />
+      {recalcError && (
+        <p className="alert" role="alert">
+          {recalcError}
+        </p>
+      )}
+      {recalcResult && (
+        <p className="status" role="status" aria-label="Resultado do recálculo">
+          {recalcResult}
+        </p>
+      )}
 
       {editing && (
         <HolidayForm

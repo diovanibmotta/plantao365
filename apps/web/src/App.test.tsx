@@ -102,6 +102,27 @@ describe('login', () => {
     renderAt('/login?error=denied');
     expect((await screen.findByRole('alert')).textContent).toContain('Acesso negado');
   });
+
+  it.each([
+    ['not_registered', 'não está cadastrado'],
+    ['inactive', 'está inativo'],
+    ['identity_mismatch', 'não corresponde ao cadastro'],
+    ['invalid_state', 'expirou ou é inválida'],
+    ['idp_error', 'não foi concluído'],
+    ['invalid_token', 'validar sua identidade'],
+    ['qualquer_coisa', 'Não foi possível entrar'],
+  ])('mostra mensagem específica para error=%s', async (reason, text) => {
+    mockApi(null);
+    renderAt(`/login?error=${reason}`);
+    expect((await screen.findByRole('alert')).textContent).toContain(text);
+  });
+
+  it('não mostra alerta sem error', async () => {
+    mockApi(null);
+    renderAt('/login');
+    await screen.findByRole('button', { name: 'Entrar com Microsoft' });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
 });
 
 describe('logout', () => {

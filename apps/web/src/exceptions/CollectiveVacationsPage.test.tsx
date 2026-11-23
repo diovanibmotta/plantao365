@@ -48,7 +48,7 @@ describe('férias coletivas', () => {
           ? json(
               {
                 unavailability: collective,
-                warnings: [{ type: 'published_shift_conflict', date: '2026-12-25', userId: 'u1' }],
+                warnings: [{ type: 'published_shifts_affected', date: '2026-12-25', count: 3 }],
               },
               201,
             )
@@ -71,7 +71,7 @@ describe('férias coletivas', () => {
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
     expect(
       (await screen.findByRole('status', { name: 'Aviso de conflito' })).textContent,
-    ).toContain('25/12/2026');
+    ).toContain('25/12/2026: 3 plantões publicados neste dia. Ajuste os plantões ou recalcule');
     const post = fetchMock.mock.calls.find((c) => c[1]?.method === 'POST')!;
     expect(JSON.parse(String(post[1]?.body))).toEqual({
       kind: 'collective_vacation',

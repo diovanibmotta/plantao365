@@ -173,6 +173,11 @@
   color: var(--accent);
 }
 
+.sched-day-type {
+  color: var(--muted);
+  font-size: 0.75em;
+}
+
 .sched-legend {
   display: flex;
   flex-wrap: wrap;
@@ -223,4 +228,13 @@
     display: flex;
     visibility: hidden;
   }
+}
+
+.sched-year {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 var(--space);
+  color: var(--muted);
+  font-size: 0.9em;
 }
