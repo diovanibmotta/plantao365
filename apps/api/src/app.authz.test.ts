@@ -50,6 +50,19 @@ describe.skipIf(!TEST_DATABASE_URL)('authz integration', () => {
     expect(res.status).toBe(200);
   });
 
+  it('member reaches non-audit /api routes (guard must not leak)', async () => {
+    for (const path of [
+      '/api/me',
+      '/api/holidays',
+      '/api/shifts/mine?from=2026-01-01&to=2026-01-31',
+      '/api/swaps',
+      '/api/me/balance',
+    ]) {
+      const res = await app.request(path, { headers: { cookie: memberCookie } });
+      expect(res.status, path).toBe(200);
+    }
+  });
+
   it('POST /auth/logout requires the CSRF header', async () => {
     const blocked = await app.request('/auth/logout', {
       method: 'POST',

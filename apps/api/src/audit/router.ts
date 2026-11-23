@@ -14,9 +14,7 @@ export function createAuditRouter({ db, guard }: AuditRouterDeps): Hono {
     );
   }
   const router = new Hono();
-  router.use('*', guard);
-
-  router.get('/audit', async (c) => {
+  router.get('/audit', guard, async (c) => {
     const parsed = auditFiltersSchema.safeParse(c.req.query());
     if (!parsed.success) {
       return c.json(
