@@ -1,3 +1,11 @@
+# [v1.3.0](https://github.com/diovanibmotta/plantao365/compare/v1.2.0...v1.3.0) (2026-11-23)
+
+## ✨ New Features
+- [`04f52f8`](https://github.com/diovanibmotta/plantao365/commit/04f52f8)  feat: recálculo por feriado, telas de trocas e e-mails de troca 
+
+## 🐛 Bug Fixes
+- [`ee04b33`](https://github.com/diovanibmotta/plantao365/commit/ee04b33)  fix(api): guard de gestor da auditoria bloqueava membros em todo /api
+
 # [v1.2.0](https://github.com/diovanibmotta/plantao365/compare/v1.1.0...v1.2.0) (2026-11-23)
 
 ## ✨ New Features
