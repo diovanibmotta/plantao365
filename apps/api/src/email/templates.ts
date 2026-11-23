@@ -183,3 +183,102 @@ export function renderShiftChangedEmail(input: ShiftChangedEmailInput): Rendered
     ...(input.appUrl ? { action: { label: 'Abrir minha escala', url: input.appUrl } } : {}),
   });
 }
+
+export type SwapEmailEvent =
+  'requested' | 'accepted' | 'declined' | 'cancelled' | 'approved' | 'rejected';
+export type SwapEmailAudience = 'requester' | 'counterpart' | 'manager';
+
+export interface SwapEmailInput {
+  event: SwapEmailEvent;
+  audience: SwapEmailAudience;
+  swapKind: 'swap' | 'cession';
+  requesterName: string;
+  counterpartName: string;
+  /** Plantão do solicitante. */
+  requesterShift: EventShift;
+  /** Plantão do colega (só em permuta). */
+  counterpartShift: EventShift | null;
+  /** Motivo da rejeição pelo gestor (só usado em `rejected`). */
+  reason?: string | null | undefined;
+  appUrl?: string | undefined;
+  actionLabel?: string | undefined;
+}
+
+/** Linhas dos plantões sob a ótica de quem lê. */
+function swapLines(input: SwapEmailInput): string[] {
+  const mine = formatEventShift(input.requesterShift);
+  const theirs = input.counterpartShift ? formatEventShift(input.counterpartShift) : null;
+  if (input.audience === 'requester') {
+    return [`Você entrega: ${mine}`, ...(theirs ? [`Você assume: ${theirs}`] : [])];
+  }
+  if (input.audience === 'counterpart') {
+    return [`Você assume: ${mine}`, ...(theirs ? [`Você entrega: ${theirs}`] : [])];
+  }
+  return [
+    `${input.requesterName} entrega: ${mine}`,
+    ...(theirs ? [`${input.counterpartName} entrega: ${theirs}`] : []),
+  ];
+}
+
+/**
+ * Eventos de troca de plantão (Req. 12.3 e 12.8): solicitação, aceite, recusa, cancelamento,
+ * aprovação e rejeição. Mostra data, período e horas dos plantões; nunca cita exceções do colega.
+ */
+export function renderSwapEmail(input: SwapEmailInput): RenderedEmail {
+  const noun = input.swapKind === 'swap' ? 'troca' : 'cessão';
+  const Noun = `${noun[0]!.toUpperCase()}${noun.slice(1)}`;
+  const date = formatDateRange(input.requesterShift.date, input.requesterShift.date);
+  const { requesterName: req, counterpartName: other } = input;
+  const paragraphs: string[] = [];
+  let subject: string;
+
+  switch (input.event) {
+    case 'requested':
+      subject = `Pedido de ${noun} de plantão: ${date}`;
+      paragraphs.push(
+        input.swapKind === 'swap'
+          ? `${req} pediu uma permuta de plantão com você. Responda ao pedido no Plantão360.`
+          : `${req} pediu que você assuma um plantão (cessão). Responda ao pedido no Plantão360.`,
+      );
+      break;
+    case 'accepted':
+      if (input.audience === 'manager') {
+        subject = `Troca aguardando aprovação: ${date}`;
+        paragraphs.push(
+          `Há uma ${noun} de plantão aguardando aprovação: ${other} aceitou o pedido de ${req}.`,
+        );
+      } else {
+        subject = `Pedido de ${noun} aceito: ${date}`;
+        paragraphs.push(
+          `${other} aceitou o seu pedido de ${noun}. Agora ele aguarda a aprovação do gestor.`,
+        );
+      }
+      break;
+    case 'declined':
+      subject = `Pedido de ${noun} recusado: ${date}`;
+      paragraphs.push(`${other} recusou o seu pedido de ${noun}. A escala não foi alterada.`);
+      break;
+    case 'cancelled':
+      subject = `Pedido de ${noun} cancelado: ${date}`;
+      paragraphs.push(`${req} cancelou o pedido de ${noun} de plantão feito a você.`);
+      break;
+    case 'approved':
+      subject = `${Noun} aprovada: ${date}`;
+      paragraphs.push(`O gestor aprovou a ${noun} de plantão. A escala já foi atualizada.`);
+      break;
+    case 'rejected':
+      subject = `${Noun} rejeitada: ${date}`;
+      paragraphs.push(`O gestor rejeitou a ${noun} de plantão. A escala não foi alterada.`);
+      if (input.reason) paragraphs.push(`Motivo: ${input.reason}`);
+      break;
+  }
+
+  return renderEmail({
+    subject,
+    paragraphs,
+    lines: swapLines(input),
+    ...(input.appUrl
+      ? { action: { label: input.actionLabel ?? 'Abrir minha escala', url: input.appUrl } }
+      : {}),
+  });
+}

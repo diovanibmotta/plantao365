@@ -1,0 +1,73 @@
+.swp-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+  padding: var(--space);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.swp-field {
+  display: grid;
+  gap: 4px;
+}
+
+.swp-field select,
+.swp-field textarea,
+.swp-reason input {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.swp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.swp-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.swp-card {
+  display: grid;
+  gap: 6px;
+  padding: 10px var(--space);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.swp-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.swp-status {
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.85em;
+}
+
+.swp-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.swp-reason {
+  display: grid;
+  gap: 4px;
+  max-width: 420px;
+}

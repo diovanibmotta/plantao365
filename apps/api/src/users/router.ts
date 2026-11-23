@@ -84,6 +84,15 @@ export function createUsersRouter({ db, futureShiftsFinder, now }: UsersRouterDe
     return c.json(await updateProfile(db, c.get('user')!.id, input.data));
   });
 
+  router.get('/users/colleagues', requireAuth(), async (c) => {
+    const me = c.get('user')!.id;
+    const rows = await db<{ id: string; name: string }[]>`
+      select id, name from users
+      where active and participates_in_rotation and id <> ${me}
+      order by name, id`;
+    return c.json(rows);
+  });
+
   router.get('/users', requireRole('manager'), async (c) => c.json(await listUsers(db)));
 
   router.post('/users', requireRole('manager'), async (c) => {

@@ -11,6 +11,7 @@ import { MembersPage } from './pages/MembersPage';
 import { MySchedulePage } from './pages/MySchedulePage';
 import { NotFoundPage } from './pages/pages';
 import { ProfilePage } from './pages/ProfilePage';
+import { SwapsPage } from './pages/SwapsPage';
 import { TeamSchedulePage } from './pages/TeamSchedulePage';
 
 export function App() {
@@ -22,6 +23,7 @@ export function App() {
           <Route index element={<Navigate to="/minha-escala" replace />} />
           <Route path="minha-escala" element={<MySchedulePage />} />
           <Route path="escala" element={<TeamSchedulePage />} />
+          <Route path="trocas" element={<SwapsPage />} />
           <Route path="saldo" element={<BalancePage />} />
           <Route path="perfil" element={<ProfilePage />} />
           <Route element={<RequireRole role="manager" />}>

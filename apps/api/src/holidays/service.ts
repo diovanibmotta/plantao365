@@ -25,7 +25,7 @@ export type ImpactChecker = (
 
 export const noImpact: ImpactChecker = async () => [];
 
-const localDate = z
+export const localDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data deve estar no formato AAAA-MM-DD')
   .refine((v) => {

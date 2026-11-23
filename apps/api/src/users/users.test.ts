@@ -404,5 +404,16 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
       );
       expect(nf.status).toBe(404);
     });
+
+    it('lists colleagues (active, in rotation, not me) for any member', async () => {
+      const me = await loginAs(sql, { email: 'me@x.com', name: 'Eu' });
+      await loginAs(sql, { email: 'a@x.com', name: 'Ana' });
+      await loginAs(sql, { email: 'i@x.com', name: 'Inativo', active: false });
+      await loginAs(sql, { email: 'g@x.com', name: 'Gestor', participatesInRotation: false });
+      const res = await call2('GET', '/users/colleagues', me.cookie);
+      expect(res.status).toBe(200);
+      expect(((await res.json()) as Array<{ name: string }>).map((u) => u.name)).toEqual(['Ana']);
+      expect((await call2('GET', '/users/colleagues', '')).status).toBe(401);
+    });
   });
 });

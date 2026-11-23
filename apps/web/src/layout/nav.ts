@@ -9,6 +9,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { to: '/minha-escala', label: 'Minha escala' },
   { to: '/escala', label: 'Escala' },
+  { to: '/trocas', label: 'Trocas' },
   { to: '/saldo', label: 'Saldo' },
   { to: '/gerenciar-escala', label: 'Gerenciar escala', role: 'manager' },
   { to: '/equipe', label: 'Equipe', role: 'manager' },

@@ -13,6 +13,7 @@ import {
   renderLayout,
   renderSchedulePublishedEmail,
   renderShiftChangedEmail,
+  renderSwapEmail,
 } from './templates.js';
 
 const dayShift = {
@@ -135,5 +136,73 @@ describe('templates de eventos de escala', () => {
       reason: 'Feriado criado',
     });
     expect(out.text).toContain('de 14 h para 24 h');
+  });
+});
+
+describe('templates de eventos de troca', () => {
+  const base = {
+    swapKind: 'swap' as const,
+    requesterName: 'Ana',
+    counterpartName: 'Bia',
+    requesterShift: dayShift,
+    counterpartShift: { ...nightShift, date: '2026-03-20' },
+  };
+
+  it('solicitação ao colega mostra o que assume e entrega', () => {
+    const out = renderSwapEmail({ ...base, event: 'requested', audience: 'counterpart' });
+    expect(out.subject).toBe('Pedido de troca de plantão: 14/03/2026');
+    expect(out.text).toContain('Ana pediu uma permuta');
+    expect(out.text).toContain(
+      'Você assume: sábado, 14 de março de 2026, das 08:00 às 20:00, 12 h',
+    );
+    expect(out.text).toContain('Você entrega: sexta-feira, 20 de março de 2026');
+  });
+
+  it('cessão não tem plantão do colega', () => {
+    const out = renderSwapEmail({
+      ...base,
+      swapKind: 'cession',
+      counterpartShift: null,
+      event: 'requested',
+      audience: 'counterpart',
+    });
+    expect(out.subject).toBe('Pedido de cessão de plantão: 14/03/2026');
+    expect(out.text).not.toContain('Você entrega');
+  });
+
+  it('aceite avisa o gestor que há troca aguardando aprovação', () => {
+    const out = renderSwapEmail({ ...base, event: 'accepted', audience: 'manager' });
+    expect(out.subject).toBe('Troca aguardando aprovação: 14/03/2026');
+    expect(out.text).toContain('aguardando aprovação');
+    expect(out.text).toContain('Ana entrega:');
+    expect(out.text).toContain('Bia entrega:');
+    const mine = renderSwapEmail({ ...base, event: 'accepted', audience: 'requester' });
+    expect(mine.text).toContain('Bia aceitou');
+  });
+
+  it('recusa e cancelamento', () => {
+    expect(renderSwapEmail({ ...base, event: 'declined', audience: 'requester' }).text).toContain(
+      'Bia recusou',
+    );
+    expect(
+      renderSwapEmail({ ...base, event: 'cancelled', audience: 'counterpart' }).text,
+    ).toContain('Ana cancelou');
+  });
+
+  it('rejeição traz o motivo escapado; aprovação não', () => {
+    const rej = renderSwapEmail({
+      ...base,
+      event: 'rejected',
+      audience: 'requester',
+      reason: 'Falta <cobertura>',
+      appUrl: 'https://plantao.example/minha-escala',
+    });
+    expect(rej.subject).toBe('Troca rejeitada: 14/03/2026');
+    expect(rej.text).toContain('Motivo: Falta <cobertura>');
+    expect(rej.html).toContain('Motivo: Falta &lt;cobertura&gt;');
+    expect(rej.html).toContain('href="https://plantao.example/minha-escala"');
+    const ok = renderSwapEmail({ ...base, event: 'approved', audience: 'counterpart' });
+    expect(ok.subject).toBe('Troca aprovada: 14/03/2026');
+    expect(ok.text).not.toContain('Motivo');
   });
 });

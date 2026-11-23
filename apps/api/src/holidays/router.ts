@@ -15,10 +15,16 @@ import {
   type HolidayWarning,
   type ImpactChecker,
 } from './service.js';
+import {
+  recalculateBodySchema,
+  recalculateHolidayShifts,
+  type ShiftsRecalculatedHook,
+} from './recalc.js';
 
 export interface HolidaysRouterDeps {
   db: Sql;
   impactChecker?: ImpactChecker;
+  onShiftsRecalculated?: ShiftsRecalculatedHook | undefined;
 }
 
 const idSchema = z.uuid();
@@ -34,6 +40,7 @@ function isUniqueViolation(err: unknown): boolean {
 export function createHolidaysRouter({
   db,
   impactChecker = noImpact,
+  onShiftsRecalculated,
 }: HolidaysRouterDeps): Hono<AuthEnv> {
   const router = new Hono<AuthEnv>();
   const manager = requireRole('manager');
@@ -147,6 +154,23 @@ export function createHolidaysRouter({
     });
     if (!removed) return c.json({ error: 'not_found' }, 404);
     return c.json({ ...removed, warnings: await warningsFor([removed.date]) });
+  });
+
+  router.post('/holidays/recalculate', manager, async (c) => {
+    const parsed = recalculateBodySchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json(validationError(parsed.error), 400);
+    const changes = await recalculateHolidayShifts(db, {
+      dates: parsed.data.dates,
+      actorId: c.get('user')!.id,
+    });
+    if (changes.length > 0 && onShiftsRecalculated) {
+      try {
+        await onShiftsRecalculated(changes);
+      } catch {
+        // falha de notificação não desfaz o recálculo já commitado
+      }
+    }
+    return c.json({ updated: changes.length, changes });
   });
 
   return router;

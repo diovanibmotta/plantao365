@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import { formatHours, holidayMap, sumHours, todayLocal } from '../schedule/format';
 import { ShiftItem } from '../schedule/ShiftItem';
 import type { HolidayDto, ShiftDto } from '../schedule/types';
+import { SwapRequestAction } from '../swaps/SwapRequestAction';
 import '../schedule/schedule.css';
 
 const PAST_DAYS = 120;
@@ -146,7 +147,13 @@ function MyScheduleView({ data, today, tab, onTab, renderActions }: ViewProps) {
                 key={shift.id}
                 shift={shift}
                 holidayName={data.holidays.get(shift.date)}
-                actions={renderActions?.(shift)}
+                actions={
+                  renderActions ? (
+                    renderActions(shift)
+                  ) : (
+                    <SwapRequestAction shift={shift} today={today} />
+                  )
+                }
               />
             ))}
           </ul>

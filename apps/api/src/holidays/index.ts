@@ -9,3 +9,9 @@ export {
   type HolidayWarning,
   type ImpactChecker,
 } from './service.js';
+export {
+  createOnShiftsRecalculated,
+  recalculateHolidayShifts,
+  type ShiftRecalcChange,
+  type ShiftsRecalculatedHook,
+} from './recalc.js';

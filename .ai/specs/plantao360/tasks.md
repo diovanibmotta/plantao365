@@ -59,7 +59,7 @@ Monorepo TypeScript (`apps/api` Hono, `apps/web` React, `packages/shared` domín
   - [x] 4.2 Web: gestão de feriados (lista, criar, editar, remover) para o gestor, com aviso de impacto e ação de recálculo.
     - _Depende de: 2.3, 4.1_
     - _Requisitos: 4.1, 4.4, 4.6_
-  - [ ] 4.3 API (gestor): recalcular tipo e horas de plantões publicados afetados por feriado criado, alterado ou removido; auditoria; dispara evento de alteração tratado em 9.2.
+  - [x] 4.3 API (gestor): recalcular tipo e horas de plantões publicados afetados por feriado criado, alterado ou removido; auditoria; dispara evento de alteração tratado em 9.2.
     - _Depende de: 4.1, 6.4, 9.2_
     - _Requisitos: 4.4, 4.6, 12.2_
 
@@ -102,7 +102,7 @@ Monorepo TypeScript (`apps/api` Hono, `apps/web` React, `packages/shared` domín
   - [x] 7.1 Migração e API de trocas: solicitar (permuta ou cessão), aceitar/recusar, cancelar, aprovar/rejeitar pelo gestor, aplicar na escala; recusa por exceção do colega com mensagem genérica; auditoria.
     - _Depende de: 6.4_
     - _Requisitos: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
-  - [ ] 7.2 Web: solicitar troca a partir de "Minha escala", caixa de pedidos do colega, fila de aprovação do gestor.
+  - [x] 7.2 Web: solicitar troca a partir de "Minha escala", caixa de pedidos do colega, fila de aprovação do gestor.
     - _Depende de: 6.6, 7.1_
     - _Requisitos: 10.1, 10.2, 10.3, 10.4_
 
@@ -121,7 +121,7 @@ Monorepo TypeScript (`apps/api` Hono, `apps/web` React, `packages/shared` domín
   - [x] 9.2 Eventos de escala: publicação e alteração de plantão publicado (inclui alteração por recálculo de feriado).
     - _Depende de: 9.1, 6.4_
     - _Requisitos: 12.1, 12.2_
-  - [ ] 9.3 Eventos de troca: solicitação, aceite, recusa, aprovação e rejeição; aviso ao gestor quando o colega aceita.
+  - [x] 9.3 Eventos de troca: solicitação, aceite, recusa, aprovação e rejeição; aviso ao gestor quando o colega aceita.
     - _Depende de: 9.1, 7.1_
     - _Requisitos: 12.3, 12.8_
   - [x] 9.4 Job de lembrete 24h antes do plantão, idempotente, respeitando a opção de lembrete do perfil.

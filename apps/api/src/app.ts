@@ -13,12 +13,13 @@ import { createAuditRouter } from './audit/index.js';
 import { createBalanceRouter } from './balance/index.js';
 import { createOnPublished, createOnShiftChanged } from './notifications/schedule-events.js';
 import { createPreferencesRouter } from './preferences/index.js';
-import { createHolidaysRouter } from './holidays/index.js';
+import { createHolidaysRouter, createOnShiftsRecalculated } from './holidays/index.js';
 import {
   countPublishedShiftsOnDates,
   createSchedulesRouter,
   findPublishedShiftsForUser,
 } from './schedules/index.js';
+import { createOnSwapEvent } from './notifications/swap-events.js';
 import { createSwapsRouter } from './swaps/index.js';
 import { createUnavailabilityRouter } from './unavailability/index.js';
 import { createUsersRouter } from './users/index.js';
@@ -66,11 +67,13 @@ export function createApp({ logger, db, authOptions, allowedOrigins }: AppDeps):
     app.use(sessionMiddleware({ db, cookieOptions: { secure: authOptions.cookieSecure } }));
     app.route('/api', createAuditRouter({ db, guard: requireRole('manager') }));
     app.route('/api', createUsersRouter({ db, futureShiftsFinder: findPublishedShiftsForUser }));
+    const notifyDeps = { db, appBaseUrl: authOptions.appBaseUrl, logger };
     app.route(
       '/api',
       createHolidaysRouter({
         db,
         impactChecker: (sql, dates) => countPublishedShiftsOnDates(sql, dates),
+        onShiftsRecalculated: createOnShiftsRecalculated(notifyDeps),
       }),
     );
     app.route(
@@ -83,7 +86,6 @@ export function createApp({ logger, db, authOptions, allowedOrigins }: AppDeps):
         },
       }),
     );
-    const notifyDeps = { db, appBaseUrl: authOptions.appBaseUrl, logger };
     app.route(
       '/api',
       createSchedulesRouter({
@@ -92,7 +94,7 @@ export function createApp({ logger, db, authOptions, allowedOrigins }: AppDeps):
         onShiftChanged: createOnShiftChanged(notifyDeps),
       }),
     );
-    app.route('/api', createSwapsRouter({ db }));
+    app.route('/api', createSwapsRouter({ db, onSwapEvent: createOnSwapEvent(notifyDeps) }));
     app.route('/api', createPreferencesRouter({ db }));
     app.route('/api', createBalanceRouter({ db }));
   }
