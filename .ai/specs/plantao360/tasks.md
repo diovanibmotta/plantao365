@@ -52,7 +52,7 @@ Monorepo TypeScript (`apps/api` Hono, `apps/web` React, `packages/shared` domín
     - _Depende de: 2.3, 3.1, 3.2_
     - _Requisitos: 2.1, 2.2, 3.1, 3.5, 3.6_
 
-- [ ] 4. Feriados
+- [x] 4. Feriados
   - [x] 4.1 Migração e API de feriados (CRUD pelo gestor, leitura por todos), unicidade data+abrangência, seed de nacionais 2026 e 2027, aviso de impacto em escala publicada (sem recálculo automático), auditoria.
     - _Depende de: 2.2, 10.1_
     - _Requisitos: 4.1, 4.2, 4.3, 4.4, 4.5_
@@ -74,7 +74,7 @@ Monorepo TypeScript (`apps/api` Hono, `apps/web` React, `packages/shared` domín
     - _Depende de: 2.3, 5.2_
     - _Requisitos: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 6. Escala
+- [x] 6. Escala
   - [x] 6.1 Migração e API de leitura de escalas e plantões (escala: período, estado rascunho/publicada; plantão: data, tipo, horas, responsável, `responsavel_original`, `horas_original`); membros só leem publicadas.
     - _Depende de: 2.2, 1.4_
     - _Requisitos: 8.6, 8.7, 9.1, 9.2, 9.3_
@@ -98,7 +98,7 @@ Monorepo TypeScript (`apps/api` Hono, `apps/web` React, `packages/shared` domín
     - _Depende de: 3.3, 6.4_
     - _Requisitos: 3.2_
 
-- [ ] 7. Trocas de plantão
+- [x] 7. Trocas de plantão
   - [x] 7.1 Migração e API de trocas: solicitar (permuta ou cessão), aceitar/recusar, cancelar, aprovar/rejeitar pelo gestor, aplicar na escala; recusa por exceção do colega com mensagem genérica; auditoria.
     - _Depende de: 6.4_
     - _Requisitos: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
@@ -114,7 +114,7 @@ Monorepo TypeScript (`apps/api` Hono, `apps/web` React, `packages/shared` domín
     - _Depende de: 2.3, 8.1_
     - _Requisitos: 11.3, 11.4, 11.5_
 
-- [ ] 9. Notificações por e-mail
+- [x] 9. Notificações por e-mail
   - [x] 9.1 Serviço de e-mail: SMTP configurável, templates pt-BR, tabela de outbox com retry limitado e registro de falha; servidor SMTP de teste em memória para os testes.
     - _Depende de: 1.3_
     - _Requisitos: 12.5, 12.7, RNF-8_
