@@ -1,6 +1,7 @@
 import type { LocalDate } from '@plantao360/shared';
 import { recordAudit, type AuditJson, type SqlOrTx } from '../audit/index.js';
 import type { Sql } from '../db.js';
+import { lockSchedulesThenShifts } from '../schedules/service.js';
 import type { SwapDto, SwapEventType, SwapKind, SwapShiftInfo, SwapStatus } from './types.js';
 
 export type Failure = {
@@ -159,7 +160,7 @@ async function hasException(tx: Sql, userId: string, date: string): Promise<bool
 }
 
 /**
- * Trava os plantões envolvidos (ordem de id, evita deadlock) e valida, no momento da chamada:
+ * Trava escalas e plantões envolvidos (ordem canônica, ver schedules/service.ts) e valida, no momento da chamada:
  * existem, são de escala publicada, pertencem a quem deveriam, têm horas, são futuros
  * (conservador: plantão que já começou é recusado), os envolvidos estão ativos no revezamento
  * e ninguém recebe plantão em data com exceção.
@@ -169,13 +170,13 @@ export async function checkFeasibility(
   f: Feasibility,
 ): Promise<Result<{ requesterShift: LockedShift; counterpartShift: LockedShift | null }>> {
   const ids = [f.requesterShiftId, ...(f.counterpartShiftId ? [f.counterpartShiftId] : [])];
+  await lockSchedulesThenShifts(tx, { shiftIds: ids });
   const rows = await tx<LockedShift[]>`
     select sh.id, sh.date::text as date, sh.hours, sh.user_id, sh.starts_at, sc.status
     from shifts sh
     join schedules sc on sc.id = sh.schedule_id
     where sh.id = any(${ids}::uuid[])
-    order by sh.id
-    for update of sh`;
+    order by sh.id`;
   const byId = new Map(rows.map((r) => [r.id, r]));
   const requesterShift = byId.get(f.requesterShiftId);
   const counterpartShift = f.counterpartShiftId ? (byId.get(f.counterpartShiftId) ?? null) : null;

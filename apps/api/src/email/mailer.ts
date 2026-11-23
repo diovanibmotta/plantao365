@@ -1,14 +1,21 @@
 import nodemailer from 'nodemailer';
 import type { Logger } from '../logger.js';
-import type { Mailer, OutgoingEmail, SmtpOptions } from './types.js';
+import type { Mailer, OutgoingEmail, SendContext, SmtpOptions } from './types.js';
+
+/** Mascara o endereço (a***@dominio) para logs; o assunto não é registrado (pode conter PII). */
+export function maskEmail(address: string): string {
+  const at = address.lastIndexOf('@');
+  if (at < 1) return '***';
+  return `${address[0]}***${address.slice(at)}`;
+}
 
 /** Mailer que apenas registra em log; útil em desenvolvimento sem SMTP. */
 export function createDisabledMailer(logger: Logger): Mailer {
   return {
     kind: 'disabled',
-    async send(message) {
+    async send(message, context?: SendContext) {
       logger.info(
-        { to: message.to, subject: message.subject },
+        { emailId: context?.emailId, to: maskEmail(message.to) },
         'SMTP não configurado: e-mail apenas registrado em log',
       );
     },

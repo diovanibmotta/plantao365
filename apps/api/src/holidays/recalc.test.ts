@@ -134,6 +134,21 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('recálculo por feriado (Post
     expect((await shiftOn(published, DATE)).starts_at?.toISOString()).toBe(`${DATE}T21:00:00.000Z`);
   });
 
+  it('criar, remover e recriar o feriado gera 3 notificações distintas', async () => {
+    const holiday = () =>
+      sql`insert into holidays (date, name, scope) values (${DATE}::date, 'Teste', 'national')`;
+    await holiday();
+    await recalc(manager, { dates: [DATE] });
+    await sql`delete from holidays where date = ${DATE}::date`;
+    await recalc(manager, { dates: [DATE] });
+    await holiday();
+    await recalc(manager, { dates: [DATE] });
+    expect(await sql`select 1 from email_outbox`).toHaveLength(3);
+    const again = await recalc(manager, { dates: [DATE] });
+    expect(((await again.json()) as { updated: number }).updated).toBe(0);
+    expect(await sql`select 1 from email_outbox`).toHaveLength(3);
+  });
+
   it('membro recebe 403, anônimo 401 e corpo inválido 400', async () => {
     expect((await recalc(member, { dates: [DATE] })).status).toBe(403);
     expect((await recalc(null, { dates: [DATE] })).status).toBe(401);

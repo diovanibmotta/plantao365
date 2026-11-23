@@ -1,3 +1,4 @@
+import { yearOf } from '@plantao360/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { recordAudit } from '../audit/index.js';
@@ -90,7 +91,7 @@ export function createBalanceRouter({
   router.get('/me/balance', async (c) => {
     const parsed = yearQuery.safeParse(c.req.query());
     if (!parsed.success) return invalid(c, parsed.error);
-    const y = parsed.data.year ?? now().getUTCFullYear();
+    const y = parsed.data.year ?? yearOf(now());
     return c.json(await memberBalance(c.get('user')!.id, y));
   });
 
@@ -103,14 +104,14 @@ export function createBalanceRouter({
     if (!parsed.success) return invalid(c, parsed.error);
     const [target] = await db<{ id: string }[]>`select id from users where id = ${id.data}`;
     if (!target) return fail(c, 404, 'user_not_found', 'Usuário não encontrado');
-    return c.json(await memberBalance(id.data, parsed.data.year ?? now().getUTCFullYear()));
+    return c.json(await memberBalance(id.data, parsed.data.year ?? yearOf(now())));
   });
 
   router.get('/balance', async (c) => {
     if (c.get('user')!.role !== 'manager') return forbidden(c);
     const parsed = yearQuery.safeParse(c.req.query());
     if (!parsed.success) return invalid(c, parsed.error);
-    const y = parsed.data.year ?? now().getUTCFullYear();
+    const y = parsed.data.year ?? yearOf(now());
     const all = await computeBalance(db, { year: y, now: now() });
     const balances = new Map(all.map((b) => [b.userId, b]));
     const users = await db<{ id: string; name: string }[]>`
@@ -130,7 +131,7 @@ export function createBalanceRouter({
     if (!parsed.success) return invalid(c, parsed.error);
     const items = await listAdjustments(db, {
       userId: parsed.data.userId,
-      year: parsed.data.year ?? now().getUTCFullYear(),
+      year: parsed.data.year ?? yearOf(now()),
     });
     return c.json({ items });
   });

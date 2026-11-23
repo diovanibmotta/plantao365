@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Sql } from '../db.js';
 import { createLogger } from '../logger.js';
-import { createDisabledMailer, createSmtpMailer } from './mailer.js';
+import { createDisabledMailer, createSmtpMailer, maskEmail } from './mailer.js';
 import {
   backoffDelayMs,
   enqueueEmail,
@@ -42,12 +42,20 @@ describe('backoffDelayMs', () => {
 });
 
 describe('mailer desabilitado', () => {
-  it('apenas registra em log', async () => {
+  it('apenas registra em log, sem PII (endereço mascarado, sem assunto)', async () => {
     const { logger, lines } = memoryLogger();
     const mailer = createDisabledMailer(logger);
-    await mailer.send(msg());
+    await mailer.send(msg(), { emailId: 'id-1' });
     expect(mailer.kind).toBe('disabled');
-    expect(lines.some((l) => l['to'] === 'ana@example.com')).toBe(true);
+    expect(lines.some((l) => l['to'] === 'a***@example.com' && l['emailId'] === 'id-1')).toBe(true);
+    const raw = JSON.stringify(lines);
+    expect(raw).not.toContain('ana@example.com');
+    expect(raw).not.toContain('Olá');
+  });
+
+  it('maskEmail preserva só a inicial e o domínio', () => {
+    expect(maskEmail('ana@example.com')).toBe('a***@example.com');
+    expect(maskEmail('invalido')).toBe('***');
   });
 });
 
@@ -191,6 +199,8 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('outbox de e-mail (PostgreSQL
     const errors = lines.filter((l) => l['level'] === 50);
     expect(errors).toHaveLength(3);
     expect(errors[2]?.['exhausted']).toBe(true);
+    expect(JSON.stringify(lines)).not.toContain('ana@example.com');
+    expect(errors[0]?.['emailId']).toEqual(expect.any(String));
   });
 
   it('SMTP indisponível de verdade: não lança e mantém o e-mail para nova tentativa', async () => {
@@ -240,6 +250,88 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('outbox de e-mail (PostgreSQL
     expect(new Set(sent).size).toBe(12);
     expect(sent).toHaveLength(12);
     expect((await rows()).every((r) => r.status === 'sent')).toBe(true);
+  });
+
+  it('envio ocorre fora de transação: linhas não ficam travadas durante o send', async () => {
+    await enqueueEmail(sql, msg('a@x.com'), T0);
+    await enqueueEmail(sql, msg('b@x.com'), T0);
+    const lockedDuringSend: boolean[] = [];
+    const mailer: Mailer = {
+      kind: 'smtp',
+      send: async () => {
+        // Segundo cliente: se a linha estivesse travada por uma transação aberta, o nowait lançaria.
+        try {
+          await sql`select id from email_outbox for update nowait`;
+          lockedDuringSend.push(false);
+        } catch {
+          lockedDuringSend.push(true);
+        }
+      },
+      close() {},
+    };
+    expect((await processOutbox(sql, mailer, { now: () => T0 })).sent).toBe(2);
+    expect(lockedDuringSend).toEqual([false, false]);
+  });
+
+  it('lease: lote reivindicado fica reservado e volta a ser elegível quando expira', async () => {
+    await enqueueEmail(sql, msg('a@x.com'), T0);
+    let release!: () => void;
+    const hang: Mailer = {
+      kind: 'smtp',
+      send: () => new Promise<void>((r) => (release = r)),
+      close() {},
+    };
+    const leaseMs = 60_000;
+    const first = processOutbox(sql, hang, { now: () => T0, leaseMs });
+    const deadline = Date.now() + 3000;
+    while (!release && Date.now() < deadline) await new Promise((r) => setTimeout(r, 10));
+
+    const sent: string[] = [];
+    const ok: Mailer = { kind: 'smtp', send: async (m) => void sent.push(m.to), close() {} };
+    const [row] = await rows();
+    expect(row?.status).toBe('pending');
+    expect(row?.next_attempt_at).toEqual(new Date(T0.getTime() + leaseMs));
+
+    expect((await processOutbox(sql, ok, { now: () => T0, leaseMs })).sent).toBe(0);
+    const expired = new Date(T0.getTime() + leaseMs);
+    expect((await processOutbox(sql, ok, { now: () => expired, leaseMs })).sent).toBe(1);
+    expect(sent).toEqual(['a@x.com']);
+
+    release();
+    await first;
+    const [after] = await rows();
+    expect(after).toMatchObject({ status: 'sent', attempts: 1 });
+  });
+
+  it('falha de SMTP libera o lease e reagenda com backoff (não fica presa)', async () => {
+    await enqueueEmail(sql, msg(), T0);
+    const mailer: Mailer = {
+      kind: 'smtp',
+      send: () => Promise.reject(new Error('boom')),
+      close() {},
+    };
+    await processOutbox(sql, mailer, { now: () => T0, leaseMs: 600_000, baseDelayMs: 1000 });
+    const [row] = await rows();
+    expect(row?.next_attempt_at).toEqual(new Date(T0.getTime() + 1000));
+  });
+
+  it('dois workers concorrentes com lote grande não enviam o mesmo e-mail duas vezes', async () => {
+    for (let i = 0; i < 10; i += 1) await enqueueEmail(sql, msg(`c${i}@x.com`), T0);
+    const sent: string[] = [];
+    const mailer: Mailer = {
+      kind: 'smtp',
+      send: async (m) => {
+        await new Promise((r) => setTimeout(r, 10));
+        sent.push(m.to);
+      },
+      close() {},
+    };
+    const results = await Promise.all(
+      [1, 2].map(() => processOutbox(sql, mailer, { now: () => T0, batchSize: 20 })),
+    );
+    expect(results.reduce((n, r) => n + r.sent, 0)).toBe(10);
+    expect(sent).toHaveLength(10);
+    expect(new Set(sent).size).toBe(10);
   });
 
   it('nunca lança, mesmo com a tabela indisponível', async () => {

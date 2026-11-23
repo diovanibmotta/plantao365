@@ -38,6 +38,8 @@ export interface ProcessOptions {
   baseDelayMs?: number;
   maxDelayMs?: number;
   batchSize?: number;
+  /** Tempo que um lote reivindicado fica reservado antes de voltar a ser elegível (padrão 5 min). */
+  leaseMs?: number;
   now?: () => Date;
   logger?: Logger;
 }
@@ -55,9 +57,16 @@ interface OutboxRow {
   html: string;
   text: string;
   attempts: number;
+  dedupe_key: string | null;
 }
 
-const DEFAULTS = { maxAttempts: 5, baseDelayMs: 60_000, maxDelayMs: 3_600_000, batchSize: 20 };
+const DEFAULTS = {
+  maxAttempts: 5,
+  baseDelayMs: 60_000,
+  maxDelayMs: 3_600_000,
+  batchSize: 20,
+  leaseMs: 300_000,
+};
 
 /** Atraso exponencial antes da próxima tentativa, dado o número de tentativas já feitas. */
 export function backoffDelayMs(attempts: number, baseDelayMs: number, maxDelayMs: number): number {
@@ -69,7 +78,8 @@ function errorMessage(err: unknown): string {
 }
 
 /**
- * Envia os e-mails pendentes e vencidos. Seguro com várias instâncias (`for update skip locked`).
+ * Envia os e-mails pendentes e vencidos. Seguro com várias instâncias: o lote é reivindicado com
+ * `for update skip locked` + lease; o SMTP roda fora de transação (entrega pelo menos uma vez).
  * Falhas de envio são registradas e reagendadas; nunca lança.
  */
 export async function processOutbox(
@@ -77,57 +87,81 @@ export async function processOutbox(
   mailer: Mailer,
   opts: ProcessOptions = {},
 ): Promise<ProcessResult> {
-  const { maxAttempts, baseDelayMs, maxDelayMs, batchSize } = { ...DEFAULTS, ...opts };
+  const { maxAttempts, baseDelayMs, maxDelayMs, batchSize, leaseMs } = { ...DEFAULTS, ...opts };
   const now = opts.now ?? (() => new Date());
   const logger = opts.logger ?? createLogger({ level: 'silent' });
   const result: ProcessResult = { sent: 0, retried: 0, failed: 0 };
 
   try {
-    await sql.begin(async (tx) => {
-      const rows = await tx<OutboxRow[]>`
-        select id, to_address, subject, html, text, attempts
+    // 1) Transação curta: reivindica o lote e empurra next_attempt_at para o fim do lease.
+    //    Se o processo cair depois disso, a linha volta a ser elegível quando o lease expira.
+    const rows = await sql.begin(async (tx) => {
+      const claimed = await tx<OutboxRow[]>`
+        select id, to_address, subject, html, text, attempts, dedupe_key
         from email_outbox
         where status = 'pending' and next_attempt_at <= ${now()}
         order by next_attempt_at, created_at
         limit ${batchSize}
         for update skip locked`;
+      if (claimed.length > 0) {
+        await tx`
+          update email_outbox
+          set next_attempt_at = ${new Date(now().getTime() + leaseMs)}
+          where id in ${tx(claimed.map((r) => r.id))}`;
+      }
+      return claimed;
+    });
 
-      for (const row of rows) {
-        const attempts = row.attempts + 1;
-        try {
-          await mailer.send({
-            to: row.to_address,
-            subject: row.subject,
-            html: row.html,
-            text: row.text,
-          });
+    for (const row of rows) {
+      const attempts = row.attempts + 1;
+      let failure: string | undefined;
+      try {
+        // 2) Envio fora de qualquer transação (nenhum lock de linha é mantido).
+        await mailer.send(
+          { to: row.to_address, subject: row.subject, html: row.html, text: row.text },
+          { emailId: row.id },
+        );
+      } catch (err) {
+        failure = errorMessage(err);
+      }
+
+      // 3) Transação curta por e-mail: grava o resultado (só se ainda estiver pendente).
+      if (failure === undefined) {
+        await sql.begin(async (tx) => {
           await tx`
             update email_outbox
             set status = 'sent', attempts = ${attempts}, sent_at = ${now()}, last_error = null
-            where id = ${row.id}`;
-          result.sent += 1;
-        } catch (err) {
-          const message = errorMessage(err);
-          const exhausted = attempts >= maxAttempts;
-          const nextAt = new Date(
-            now().getTime() + backoffDelayMs(attempts, baseDelayMs, maxDelayMs),
-          );
-          await tx`
-            update email_outbox
-            set status = ${exhausted ? 'failed' : 'pending'}, attempts = ${attempts},
-                last_error = ${message}, next_attempt_at = ${exhausted ? now() : nextAt}
-            where id = ${row.id}`;
-          if (exhausted) result.failed += 1;
-          else result.retried += 1;
-          logger.error(
-            { emailId: row.id, to: row.to_address, attempts, maxAttempts, exhausted, err: message },
-            exhausted
-              ? 'Falha definitiva no envio de e-mail (SMTP)'
-              : 'Falha no envio de e-mail (SMTP); nova tentativa agendada',
-          );
-        }
+            where id = ${row.id} and status = 'pending'`;
+        });
+        result.sent += 1;
+        continue;
       }
-    });
+      const exhausted = attempts >= maxAttempts;
+      const nextAt = new Date(now().getTime() + backoffDelayMs(attempts, baseDelayMs, maxDelayMs));
+      await sql.begin(async (tx) => {
+        await tx`
+          update email_outbox
+          set status = ${exhausted ? 'failed' : 'pending'}, attempts = ${attempts},
+              last_error = ${failure ?? null}, next_attempt_at = ${exhausted ? now() : nextAt}
+          where id = ${row.id} and status = 'pending'`;
+      });
+      if (exhausted) result.failed += 1;
+      else result.retried += 1;
+      // Sem PII: identifica o e-mail só por id/dedupe_key (nunca pelo destinatário).
+      logger.error(
+        {
+          emailId: row.id,
+          dedupeKey: row.dedupe_key,
+          attempts,
+          maxAttempts,
+          exhausted,
+          err: failure,
+        },
+        exhausted
+          ? 'Falha definitiva no envio de e-mail (SMTP)'
+          : 'Falha no envio de e-mail (SMTP); nova tentativa agendada',
+      );
+    }
   } catch (err) {
     logger.error({ err: errorMessage(err) }, 'Erro ao processar a outbox de e-mail');
   }

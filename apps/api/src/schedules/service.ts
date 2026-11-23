@@ -5,6 +5,47 @@ import type { ScheduleDto, ShiftDto, ShiftRangeQuery } from './types.js';
 
 export const MAX_RANGE_DAYS = 366;
 
+/*
+ * ORDEM CANONICA DE LOCKS (evita deadlock 40P01): toda transacao que trava escalas E plantoes
+ * trava primeiro `schedules` (id asc) e depois `shifts` (id asc), sempre via
+ * lockSchedulesThenShifts. Nunca faca `for update` em shifts antes das escalas. Locks de outras
+ * tabelas (ex.: swaps) vem antes; advisory locks de publish/generate sao tomados antes de tudo.
+ */
+export interface LockScope {
+  scheduleIds?: string[];
+  shiftIds?: string[];
+  /** Plantoes de escalas publicadas nestas datas. */
+  publishedDates?: string[];
+}
+
+/** Trava as escalas do escopo (id asc) e depois os plantoes (id asc). Retorna as escalas travadas. */
+export async function lockSchedulesThenShifts(
+  tx: Sql,
+  scope: LockScope,
+): Promise<Array<{ id: string; status: ScheduleDto['status'] }>> {
+  const scheduleIds = scope.scheduleIds ?? [];
+  const shiftIds = scope.shiftIds ?? [];
+  const dates = scope.publishedDates ?? [];
+  const schedules = await tx<{ id: string; status: ScheduleDto['status'] }[]>`
+    select id, status from schedules
+    where id in (
+      select id from schedules where id = any(${scheduleIds}::uuid[])
+      union select schedule_id from shifts where id = any(${shiftIds}::uuid[])
+      union select s.schedule_id from shifts s join schedules sc on sc.id = s.schedule_id
+        where sc.status = 'published' and s.date = any(${dates}::date[])
+    )
+    order by id
+    for update`;
+  const publishedIds = schedules.filter((s) => s.status === 'published').map((s) => s.id);
+  await tx`
+    select id from shifts
+    where id = any(${shiftIds}::uuid[])
+      or (date = any(${dates}::date[]) and schedule_id = any(${publishedIds}::uuid[]))
+    order by id
+    for update`;
+  return schedules;
+}
+
 interface ScheduleRow {
   id: string;
   start_date: string;

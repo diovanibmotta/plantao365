@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+import { recordAudit } from '../audit/index.js';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
 import { sessionMiddleware } from './middleware.js';
@@ -65,6 +66,12 @@ const DENIAL_MESSAGES: Record<Denial, { status: 400 | 403; message: string }> = 
   },
 };
 
+/** Mascara o e-mail para logs (a***@dominio); evita PII em claro. */
+const maskEmail = (email: string): string => {
+  const at = email.lastIndexOf('@');
+  return at < 1 ? '***' : `${email[0]}***${email.slice(at)}`;
+};
+
 const escapeHtml = (s: string): string => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 
 const page = (title: string, body: string): string =>
@@ -72,6 +79,7 @@ const page = (title: string, body: string): string =>
 
 interface UserRow {
   id: string;
+  name: string;
   oid: string | null;
   active: boolean;
 }
@@ -91,7 +99,7 @@ export function createAuthRouter({ db, logger, options, provider }: AuthRouterDe
 
   const deny = (c: Context, reason: Denial, email?: string) => {
     deleteCookie(c, STATE_COOKIE, { path: '/', secure: cookieSecure });
-    logger.warn({ reason, email }, 'login denied');
+    logger.warn({ reason, email: email ? maskEmail(email) : undefined }, 'login denied');
     const { status, message } = DENIAL_MESSAGES[reason];
     if (c.req.header('accept')?.includes('application/json')) {
       return c.json({ error: reason, message }, status);
@@ -169,15 +177,30 @@ export function createAuthRouter({ db, logger, options, provider }: AuthRouterDe
     }
 
     const email = identity.email.toLowerCase();
-    const [user] = await db<UserRow[]>`select id, oid, active from users where email = ${email}`;
+    const [user] = await db<
+      UserRow[]
+    >`select id, name, oid, active from users where email = ${email}`;
     if (!user) return deny(c, 'not_registered', email);
     if (!user.active) return deny(c, 'inactive', email);
     if (user.oid && user.oid !== identity.oid) return deny(c, 'identity_mismatch', email);
 
-    if (!user.oid || identity.name) {
-      await db`update users set oid = coalesce(oid, ${identity.oid}),
-        name = coalesce(${identity.name ?? null}, name), updated_at = now()
-        where id = ${user.id}`;
+    const newOid = user.oid ? null : identity.oid;
+    const newName = identity.name && identity.name !== user.name ? identity.name : null;
+    if (newOid || newName) {
+      await db.begin(async (tx) => {
+        await tx`update users set oid = coalesce(oid, ${identity.oid}),
+          name = coalesce(${newName}, name), updated_at = now()
+          where id = ${user.id}`;
+        await recordAudit(tx, {
+          actorId: user.id,
+          action: 'user.link_identity',
+          entityType: 'user',
+          entityId: user.id,
+          before: { oidLinked: user.oid !== null, name: user.name },
+          after: { oidLinked: true, name: newName ?? user.name },
+          reason: 'primeiro acesso',
+        });
+      });
     }
 
     const { token } = await createSession(db, user.id, sessionTtlSeconds);

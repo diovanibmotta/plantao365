@@ -4,6 +4,7 @@ import { recordAudit } from '../audit/index.js';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
 import { notifyShiftsChanged } from '../notifications/schedule-events.js';
+import { lockSchedulesThenShifts } from '../schedules/service.js';
 import { listUnavailableByDate } from '../unavailability/service.js';
 import { listHolidayDates, localDate } from './service.js';
 
@@ -28,6 +29,8 @@ export interface ShiftRecalcChange {
   hours: number;
   startsAt: string | null;
   endsAt: string | null;
+  /** Versão da mudança (updated_at do plantão com microssegundos); discrimina a notificação. */
+  version: string;
 }
 
 /** Ponto de extensão pós-commit: notifica responsáveis (Req. 4.6, 12.2). */
@@ -57,13 +60,13 @@ export async function recalculateHolidayShifts(
   const dates = [...new Set(input.dates)].sort();
   return db.begin(async (txRaw) => {
     const tx = txRaw as unknown as Sql;
+    await lockSchedulesThenShifts(tx, { publishedDates: dates });
     const rows = await tx<Row[]>`
       select s.id, s.schedule_id, s.date::text as date, s.day_type, s.hours,
         s.starts_at, s.ends_at, s.user_id
       from shifts s join schedules sc on sc.id = s.schedule_id
       where sc.status = 'published' and s.date in ${tx(dates)}
-      order by s.date, s.id
-      for update of s`;
+      order by s.date, s.id`;
     if (rows.length === 0) return [];
     const from = dates[0]!;
     const to = dates[dates.length - 1]!;
@@ -85,10 +88,11 @@ export async function recalculateHolidayShifts(
         iso(r.starts_at) === iso(startsAt) &&
         iso(r.ends_at) === iso(endsAt);
       if (same) continue;
-      await tx`
+      const [upd] = await tx<{ version: string }[]>`
         update shifts set day_type = ${next.dayType}, hours = ${next.hours},
           starts_at = ${startsAt}, ends_at = ${endsAt}, updated_at = now()
-        where id = ${r.id}`;
+        where id = ${r.id}
+        returning updated_at::text as version`;
       scheduleIds.add(r.schedule_id);
       const change: ShiftRecalcChange = {
         shiftId: r.id,
@@ -101,6 +105,7 @@ export async function recalculateHolidayShifts(
         hours: next.hours,
         startsAt: iso(startsAt),
         endsAt: iso(endsAt),
+        version: upd!.version,
       };
       changes.push(change);
       await recordAudit(tx, {
@@ -144,7 +149,7 @@ export function createOnShiftsRecalculated(deps: {
         previousUserId: c.userId,
         newUserId: c.userId,
         reason: RECALC_REASON,
-        changeKey: `holiday-recalc:${c.date}:${c.dayType}`,
+        changeKey: `holiday-recalc:${c.date}:${c.previousDayType}>${c.dayType}:${c.version}`,
       }));
     if (notices.length === 0) return;
     try {

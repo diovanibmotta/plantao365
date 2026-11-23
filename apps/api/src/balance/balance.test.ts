@@ -15,8 +15,8 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('balance (PostgreSQL)', () =>
   let ana: TestUser;
   let bia: TestUser;
 
-  const app = () =>
-    buildTestApp(sql, (a) => a.route('/', createBalanceRouter({ db: sql, now: () => NOW })));
+  const app = (now: Date = NOW) =>
+    buildTestApp(sql, (a) => a.route('/', createBalanceRouter({ db: sql, now: () => now })));
 
   const call = (method: string, url: string, user: TestUser | null, body?: unknown) =>
     app().request(url, {
@@ -226,6 +226,14 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('balance (PostgreSQL)', () =>
     });
     expect(missing.status).toBe(404);
     expect((await call('POST', '/balance/adjustments', ana, ok)).status).toBe(403);
+  });
+
+  it('usa o ano de America/Sao_Paulo como padrao (31/12 23:30 -03:00 e 2026)', async () => {
+    const res = await app(new Date('2026-12-31T23:30:00-03:00')).request('/me/balance', {
+      headers: { cookie: ana.cookie, ...csrfHeaders, origin: TEST_ORIGIN },
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ year: 2026 });
   });
 
   it('lista, exclui e audita ajustes na mesma transação', async () => {

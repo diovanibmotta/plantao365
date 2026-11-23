@@ -22,8 +22,13 @@ export interface EmailMessage extends OutgoingEmail {
   notBefore?: Date;
 }
 
+/** Metadados não pessoais do envio (para logs). */
+export interface SendContext {
+  emailId?: string;
+}
+
 export interface Mailer {
   readonly kind: 'smtp' | 'disabled';
-  send(message: OutgoingEmail): Promise<void>;
+  send(message: OutgoingEmail, context?: SendContext): Promise<void>;
   close(): void;
 }

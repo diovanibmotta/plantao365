@@ -5,7 +5,7 @@ import { requireRole } from '../auth/authz.js';
 import type { AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
 import { listUnavailableByDate } from '../unavailability/service.js';
-import { getSchedule, listShiftsOfSchedule } from './service.js';
+import { getSchedule, listShiftsOfSchedule, lockSchedulesThenShifts } from './service.js';
 import type { ScheduleDto, ShiftDto } from './types.js';
 
 export type ShiftWarningCode =
@@ -109,8 +109,9 @@ export function registerEditRoutes(
 
     const outcome = await deps.db.begin(async (txRaw): Promise<Outcome> => {
       const tx = txRaw as unknown as Sql;
+      await lockSchedulesThenShifts(tx, { scheduleIds: [id], shiftIds: [shiftId] });
       const [schedule] = await tx<{ status: ScheduleDto['status'] }[]>`
-        select status from schedules where id = ${id} for update`;
+        select status from schedules where id = ${id}`;
       if (!schedule) {
         return {
           kind: 'error',
@@ -120,7 +121,7 @@ export function registerEditRoutes(
       }
       const [shift] = await tx<ShiftRow[]>`
         select id, hours, date::text as date, user_id from shifts
-        where id = ${shiftId} and schedule_id = ${id} for update`;
+        where id = ${shiftId} and schedule_id = ${id}`;
       if (!shift) {
         return {
           kind: 'error',

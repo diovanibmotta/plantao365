@@ -264,6 +264,40 @@ describe.skipIf(!TEST_DATABASE_URL)('auth', () => {
       expect(u).toEqual({ oid: 'oid-1', name: 'Ana Souza' });
     });
 
+    it('audits the oid link and name update only when they change', async () => {
+      await addUser('ana@example.com');
+      const { provider } = stub({ email: 'ana@example.com', name: 'Ana Souza', oid: 'oid-1' });
+      const app = buildApp(provider);
+      for (let i = 0; i < 2; i++) {
+        const { cookies, state } = await startLogin(app);
+        await app.request(`/auth/callback?state=${state}&code=abc`, {
+          headers: { cookie: cookieHeader(cookies) },
+        });
+      }
+      const [u] = await t.sql<{ id: string }[]>`select id from users`;
+      const rows = await t.sql<
+        {
+          actor_id: string;
+          entity_id: string;
+          action: string;
+          before: unknown;
+          after: unknown;
+          reason: string;
+        }[]
+      >`select actor_id, entity_id, action, before, after, reason from audit_log
+        where entity_type = 'user' and entity_id = ${u!.id}`;
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        actor_id: u!.id,
+        entity_id: u!.id,
+        action: 'user.link_identity',
+        before: { oidLinked: false, name: 'Fulano' },
+        after: { oidLinked: true, name: 'Ana Souza' },
+        reason: 'primeiro acesso',
+      });
+      expect(JSON.stringify(rows[0])).not.toContain('oid-1');
+    });
+
     it('denies a different oid for an already linked user', async () => {
       await addUser('ana@example.com', { oid: 'oid-1' });
       const { provider } = stub({ email: 'ana@example.com', name: 'X', oid: 'oid-2' });

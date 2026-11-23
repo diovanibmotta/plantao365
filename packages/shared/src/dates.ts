@@ -99,3 +99,11 @@ export function localToInstant(
   instant = guess - second * 60000;
   return new Date(instant);
 }
+
+/** Ano civil de um instante no fuso do sistema (não em UTC). */
+export function yearOf(date: Date, timeZone: string = TIME_ZONE): number {
+  const year = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric' })
+    .formatToParts(date)
+    .find((p) => p.type === 'year');
+  return Number(year!.value);
+}
