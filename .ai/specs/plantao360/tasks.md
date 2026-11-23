@@ -137,7 +137,7 @@ Monorepo TypeScript (`apps/api` Hono, `apps/web` React, `packages/shared` domín
     - _Requisitos: 13.2, 13.4_
 
 - [ ] 11. Entrega
-  - [ ] 11.1 Checkpoint — backend completo
+  - [x] 11.1 Checkpoint — backend completo
     - Testes de API de todos os módulos, `npm run lint`, `npm run test`, `npm run build`.
     - _Depende de: 3.2, 4.3, 5.2, 6.4, 6.7, 7.1, 8.1, 9.2, 9.3, 9.4_
   - [ ] 11.2 Testes E2E do fluxo principal: login mock, gerar, revisar, publicar, membro vê escala, troca aprovada, saldo atualizado, e-mail capturado no SMTP de teste.

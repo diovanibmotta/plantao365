@@ -315,7 +315,10 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
           call('PATCH', `/users/${g2.id}`, g1.cookie, { role: 'member' }),
           call('PATCH', `/users/${g1.id}`, g2.cookie, { role: 'member' }),
         ]);
-        expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+        // quem perde a corrida leva 409 (bloqueio no banco) ou 403 (já deixou de ser gestor)
+        const statuses = results.map((r) => r.status).sort();
+        expect(statuses[0]).toBe(200);
+        expect([403, 409]).toContain(statuses[1]);
         const [{ n }] = await sql<{ n: number }[]>`
           select count(*)::int as n from users where role = 'manager' and active`;
         expect(n).toBe(1);
