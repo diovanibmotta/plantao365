@@ -52,7 +52,7 @@ Em desenvolvimento, `OIDC_MOCK=true` habilita um login simulado: informe um e-ma
 
 ### Variáveis de ambiente
 
-Veja [`.env.example`](.env.example). Em produção `OIDC_MOCK` é proibido e `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` e `OIDC_REDIRECT_URI` são obrigatórios. SMTP é opcional; sem ele os e-mails não são enviados.
+Veja [`.env.example`](.env.example) e a seção [Configuração](#configuração).
 
 ### Migrações
 
@@ -61,6 +61,65 @@ npm run migrate -w @plantao360/api -- status
 npm run migrate -w @plantao360/api -- up
 npm run migrate -w @plantao360/api -- down 1     # reverte N migrações (ou "all")
 ```
+
+## Docker
+
+Imagens da API (`apps/api/Dockerfile`) e do web (`apps/web/Dockerfile`, nginx), ambas construídas a partir da raiz do repositório. O `docker-compose.yml` sobe PostgreSQL, API e web:
+
+```bash
+cp .env.example .env     # defina POSTGRES_PASSWORD, APP_BASE_URL, MANAGER_EMAILS e OIDC_*
+docker compose build
+docker compose run --rm api node dist/migrate.js up   # migrações (não rodam sozinhas)
+docker compose up -d
+```
+
+A aplicação responde em `http://localhost:8080` (`WEB_PORT`). O nginx serve a SPA e repassa `/api` e `/auth` para a API (`API_UPSTREAM`, padrão `http://api:3000`). Healthchecks: API em `/health`, web em `/healthz`. Para atualizar, rode o `build` e as migrações novamente.
+
+Em `NODE_ENV=production` o cookie de sessão é `Secure`: publique o web atrás de HTTPS (proxy reverso ou balanceador com TLS) e use `APP_BASE_URL` com `https://`. Se a senha do banco tiver caracteres especiais, aplique URL-encode, pois ela compõe a `DATABASE_URL` montada no compose.
+
+> As imagens e o compose ainda não foram validados em um ambiente com Docker; o CI apenas as constrói.
+
+## Configuração
+
+| Variável              | Obrigatória     | Padrão                  | Descrição                                                    |
+| --------------------- | --------------- | ----------------------- | ------------------------------------------------------------ |
+| `NODE_ENV`            | não             | `development`           | `development`, `test` ou `production`                        |
+| `PORT`                | não             | `3000`                  | porta da API                                                 |
+| `LOG_LEVEL`           | não             | `info`                  | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
+| `APP_BASE_URL`        | não             | `http://localhost:5173` | URL pública do web (redirecionamentos e links dos e-mails)   |
+| `DATABASE_URL`        | sim             | -                       | `postgres://usuario:senha@host:5432/banco`                   |
+| `MANAGER_EMAILS`      | sim em produção | vazio                   | gestores iniciais, e-mails separados por vírgula             |
+| `SESSION_TTL_SECONDS` | não             | `28800`                 | duração da sessão em segundos (mínimo 60)                    |
+| `OIDC_MOCK`           | não             | `false`                 | login simulado; **proibido em produção**                     |
+| `OIDC_ISSUER`         | sim em produção | -                       | `https://login.microsoftonline.com/<tenant-id>/v2.0`         |
+| `OIDC_CLIENT_ID`      | sim em produção | -                       | ID do aplicativo (cliente) no Entra ID                       |
+| `OIDC_CLIENT_SECRET`  | sim em produção | -                       | segredo do cliente                                           |
+| `OIDC_REDIRECT_URI`   | sim em produção | -                       | `<URL pública>/auth/callback`                                |
+| `SMTP_HOST`           | não             | -                       | habilita o envio de e-mails                                  |
+| `SMTP_PORT`           | não             | `587`                   | porta SMTP                                                   |
+| `SMTP_SECURE`         | não             | `false`                 | `true` para TLS implícito (normalmente porta 465)            |
+| `SMTP_USER`           | não             | -                       | usuário SMTP                                                 |
+| `SMTP_PASSWORD`       | não             | -                       | senha SMTP                                                   |
+| `SMTP_FROM`           | com `SMTP_HOST` | -                       | remetente dos e-mails                                        |
+
+Somente no compose: `POSTGRES_USER`, `POSTGRES_PASSWORD` (obrigatória), `POSTGRES_DB` e `WEB_PORT`.
+
+### Registrar o app no Entra ID
+
+1. No portal Azure, abra **Microsoft Entra ID > Registros de aplicativo > Novo registro**.
+2. Tipo de conta: apenas este diretório (locatário único).
+3. Em **URI de redirecionamento**, plataforma **Web**, informe `https://<seu-dominio>/auth/callback` (o mesmo valor de `OIDC_REDIRECT_URI`). Para testes locais: `http://localhost:8080/auth/callback` (compose) ou `http://localhost:5173/auth/callback` (`npm run dev`).
+4. Em **Certificados e segredos**, crie um segredo do cliente e use o valor em `OIDC_CLIENT_SECRET`.
+5. Em **Visão geral**, copie o ID do aplicativo (`OIDC_CLIENT_ID`) e o ID do diretório (locatário) para montar `OIDC_ISSUER`.
+
+Escopos solicitados: `openid`, `profile` e `email`. Só entra quem tem o e-mail pré-cadastrado no sistema.
+
+### SMTP e gestores iniciais
+
+- Sem `SMTP_HOST` os e-mails são apenas registrados em log. Com ele, `SMTP_FROM` é obrigatório.
+- A cada subida, a API cria como gestores os e-mails de `MANAGER_EMAILS` que ainda não existem (usuários já cadastrados não são alterados). Os demais usuários são cadastrados por um gestor.
+
+> Nunca use `OIDC_MOCK=true` fora de desenvolvimento: qualquer pessoa entraria com o e-mail que quisesse. A API se recusa a subir em produção com essa opção.
 
 ## Scripts
 
