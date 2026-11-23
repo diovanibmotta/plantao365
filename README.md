@@ -144,11 +144,13 @@ Versionamento automático com [semantic-release](https://semantic-release.gitboo
 A cada release o workflow publica:
 
 - **Pacote TypeScript** `@diovanibmotta/plantao365-shared` (regras de domínio com tipos `.d.ts`) no GitHub Packages (npm).
+- **Pacote Node da API** `@diovanibmotta/plantao365-api` (`dist/` compilado + `migrations/`) no GitHub Packages (npm).
 - **Imagem da API** `ghcr.io/diovanibmotta/plantao365-api`, com as tags `X.Y.Z`, `X.Y` e `latest`.
 
 ```bash
 # .npmrc: @diovanibmotta:registry=https://npm.pkg.github.com
-npm install @diovanibmotta/plantao365-shared
+npm install @diovanibmotta/plantao365-shared @diovanibmotta/plantao365-api
+node node_modules/@diovanibmotta/plantao365-api/dist/index.js   # sobe a API (variáveis em .env.example)
 docker pull ghcr.io/diovanibmotta/plantao365-api:latest
 ```
 
