@@ -1,4 +1,6 @@
 export { createSchedulesRouter, type SchedulesRouterDeps } from './router.js';
+export type { ShiftChange, ShiftChangedHook, ShiftWarning } from './edit.js';
+export type { PublishedEvent, PublishedHook } from './publish.js';
 export {
   MAX_RANGE_DAYS,
   countPublishedShiftsOnDates,

@@ -3,7 +3,9 @@ import type { ZodError } from 'zod';
 import { requireAuth } from '../auth/authz.js';
 import type { AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
+import { registerEditRoutes, type ShiftChangedHook } from './edit.js';
 import { registerGenerateRoute } from './generate.js';
+import { registerPublishRoutes, type PublishedHook } from './publish.js';
 import {
   getSchedule,
   listSchedules,
@@ -16,6 +18,10 @@ import {
 export interface SchedulesRouterDeps {
   db: Sql;
   now?: () => Date;
+  /** Task 9.2: notifica após alteração de plantão em escala publicada. */
+  onShiftChanged?: ShiftChangedHook;
+  /** Task 9.2: notifica após a publicação de uma escala. */
+  onPublished?: PublishedHook;
 }
 
 const invalid = (error: ZodError) => ({
@@ -24,11 +30,18 @@ const invalid = (error: ZodError) => ({
   issues: error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
 });
 
-export function createSchedulesRouter({ db, now }: SchedulesRouterDeps): Hono<AuthEnv> {
+export function createSchedulesRouter({
+  db,
+  now,
+  onShiftChanged,
+  onPublished,
+}: SchedulesRouterDeps): Hono<AuthEnv> {
   const router = new Hono<AuthEnv>();
   router.use('*', requireAuth());
 
   registerGenerateRoute(router, { db, now });
+  registerPublishRoutes(router, { db, now, onPublished });
+  registerEditRoutes(router, { db, onShiftChanged });
 
   router.get('/schedules', async (c) => {
     const isManager = c.get('user')!.role === 'manager';

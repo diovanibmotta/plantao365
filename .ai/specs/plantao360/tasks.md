@@ -85,7 +85,7 @@ Monorepo TypeScript (`apps/api` Hono, `apps/web` React, `packages/shared` domín
   - [x] 6.3 API (gestor): gerar rascunho para um período livre usando feriados, exceções, preferências e histórico de horas realizadas (8.1); recusa se o período se sobrepõe a rascunho existente.
     - _Depende de: 6.1, 6.2, 4.1, 8.1_
     - _Requisitos: 7.1, 7.3, 7.8_
-  - [ ] 6.4 API (gestor): editar plantão, validar conflitos, publicar (exige confirmação se há dias sem responsável; recusa sobreposição com escala publicada; grava responsável e horas originais), alterar escala publicada com motivo obrigatório e registro; auditoria.
+  - [x] 6.4 API (gestor): editar plantão, validar conflitos, publicar (exige confirmação se há dias sem responsável; recusa sobreposição com escala publicada; grava responsável e horas originais), alterar escala publicada com motivo obrigatório e registro; auditoria.
     - _Depende de: 6.3, 10.1_
     - _Requisitos: 8.1, 8.2, 8.3, 8.4, 8.5, 8.7_
   - [ ] 6.5 Web (gestor): gerar, revisar em calendário, editar plantões com avisos de conflito e publicar; modo de edição de escala publicada com motivo obrigatório e aviso de notificação.
