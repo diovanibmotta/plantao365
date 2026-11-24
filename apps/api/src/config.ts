@@ -45,6 +45,8 @@ const schema = z
     SMTP_PASSWORD: optional(z.string()),
     SMTP_FROM: optional(z.email()),
     SMTP_SECURE: optional(bool),
+    /** Pasta do build do front (imagem única): a API serve a SPA no mesmo domínio. */
+    WEB_DIST_DIR: optional(z.string()),
     /** Força o atributo Secure do cookie de sessão; sem valor, vale true só em produção. */
     COOKIE_SECURE: optional(strictBool),
     /** Master key: usuário/senha de bootstrap para o primeiro acesso (ambos ou nenhum). */

@@ -63,10 +63,11 @@ npm run migrate -w @diovanibmotta/plantao365-api -- down 1     # reverte N migra
 
 ## Implantação
 
-| Ambiente                | Como                                                         |
-| ----------------------- | ------------------------------------------------------------ |
-| Desenvolvimento / teste | Docker Compose (abaixo)                                      |
-| Produção                | Manifests Kubernetes em [`deploy/k8s`](#kubernetes-produção) |
+| Ambiente                | Como                                                            |
+| ----------------------- | --------------------------------------------------------------- |
+| Desenvolvimento / teste | Docker Compose (abaixo)                                         |
+| Produção                | Manifests Kubernetes em [`deploy/k8s`](#kubernetes-produção)    |
+| Produção (simples)      | [Imagem única](#imagem-única-api--front) (API + front), sem CDN |
 
 ### Kubernetes (produção)
 
@@ -84,6 +85,19 @@ kubectl -n plantao365 wait --for=condition=complete job/plantao365-migrate --tim
 ```
 
 A imagem da API é publicada em `ghcr.io/diovanibmotta/plantao365-api`. O frontend (`npm run build -w @diovanibmotta/plantao365-web`, saída em `apps/web/dist`) é publicado em um CDN que serve a SPA e encaminha `/api/*` e `/auth/*` para o Ingress da API, mantendo tudo no mesmo domínio (o front usa URLs relativas e o cookie de sessão é `Secure` em produção).
+
+### Imagem única (API + front)
+
+Alternativa sem CDN: o `Dockerfile` da raiz gera uma imagem que contém a API **e** o front buildado; a API serve a SPA e as rotas `/api`, `/auth` e `/health` na mesma porta (`3000`) e no mesmo domínio. A imagem é publicada a cada release em `ghcr.io/diovanibmotta/plantao365` (tags `X.Y.Z`, `X.Y`, `latest`). Funciona com qualquer orquestrador; basta apontar um proxy/balanceador com TLS para a porta 3000.
+
+```bash
+docker run --rm --env-file .env ghcr.io/diovanibmotta/plantao365:latest node dist/migrate.js up   # migrações
+docker run -d --env-file .env -p 8080:3000 ghcr.io/diovanibmotta/plantao365:latest
+```
+
+- **Compose:** [`docker-compose.single.yml`](docker-compose.single.yml) sobe PostgreSQL e a imagem única (`docker compose -f docker-compose.single.yml up -d`, após `build` e migrações).
+- **Kubernetes:** `kubectl apply -k deploy/k8s/single` usa os mesmos manifests da API trocando a imagem e expondo o Ingress no domínio público (ajuste o host em `deploy/k8s/single/kustomization.yaml`).
+- Variável `WEB_DIST_DIR` (já definida na imagem): pasta do build do front. Sem ela a API não serve o front (modo com CDN ou nginx).
 
 ### Docker Compose (somente desenvolvimento)
 

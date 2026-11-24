@@ -1,0 +1,31 @@
+# Variante imagem única (API + front na mesma imagem, sem CDN).
+# Reaproveita os manifests da API e: troca a imagem e expõe o Ingress no domínio público.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../
+images:
+  - name: ghcr.io/diovanibmotta/plantao365-api
+    newName: ghcr.io/diovanibmotta/plantao365
+    newTag: latest
+patches:
+  - target:
+      kind: Ingress
+      name: plantao365
+    patch: |-
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: plantao.example.com
+      - op: replace
+        path: /spec/rules/0/host
+        value: plantao.example.com
+      - op: replace
+        path: /spec/rules/0/http/paths
+        value:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: plantao365-api
+                port:
+                  name: http
