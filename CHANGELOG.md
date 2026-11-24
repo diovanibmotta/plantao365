@@ -1,3 +1,8 @@
+# [v1.7.0](https://github.com/diovanibmotta/plantao365/compare/v1.6.0...v1.7.0) (2026-11-24)
+
+## ✨ New Features
+- [`e1741fd`](https://github.com/diovanibmotta/plantao365/commit/e1741fd)  feat(web): adiciona ícone da Microsoft no botão de login
+
 # [v1.6.0](https://github.com/diovanibmotta/plantao365/compare/v1.5.0...v1.6.0) (2026-11-24)
 
 ## ✨ New Features
