@@ -16,35 +16,12 @@
   grid-template-columns: 1fr;
   gap: 12px;
   margin-bottom: var(--space);
-  padding: var(--space);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.members-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.9em;
-  color: var(--muted);
-}
-
-.members-field input,
-.members-field select,
-.members-table select {
-  padding: 7px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
 }
 
 .members-error {
   margin: 0;
   color: var(--danger);
-  font-size: 0.9em;
+  font-size: 13px;
 }
 
 .members-check {
@@ -63,37 +40,17 @@
   margin: 0 0 var(--space);
 }
 
-.members-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.members-table th,
-.members-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-  vertical-align: middle;
-}
-
-.members-table th {
-  font-size: 0.85em;
-  color: var(--muted);
-  font-weight: 600;
-}
-
 .members-inactive td {
   color: var(--muted);
 }
 
 .members-badge {
-  display: inline-block;
   margin-left: 6px;
-  padding: 0 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 0.8em;
-  color: var(--muted);
+}
+
+.members-shifts {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
 }
 
 @media (min-width: 720px) {
@@ -107,43 +64,4 @@
   .members-form .alert {
     grid-column: 1 / -1;
   }
-}
-
-@media (max-width: 719px) {
-  .members-table thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-  }
-
-  .members-table,
-  .members-table tbody,
-  .members-table tr,
-  .members-table td {
-    display: block;
-  }
-
-  .members-table tr {
-    margin-top: 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
-
-  .members-table td {
-    border-bottom: 0;
-  }
-
-  .members-table td[data-label]::before {
-    content: attr(data-label);
-    display: block;
-    font-size: 0.8em;
-    color: var(--muted);
-  }
-}
-
-.members-shifts {
-  margin: 0.25rem 0 0;
-  padding-left: 1.25rem;
 }

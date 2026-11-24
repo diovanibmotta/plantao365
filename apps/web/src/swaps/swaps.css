@@ -2,26 +2,11 @@
   display: grid;
   gap: 10px;
   margin-top: 8px;
-  padding: var(--space);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
 }
 
 .swp-field {
   display: grid;
-  gap: 4px;
-}
-
-.swp-field select,
-.swp-field textarea,
-.swp-reason input {
-  padding: 7px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
+  gap: 6px;
 }
 
 .swp-actions {
@@ -41,9 +26,7 @@
 .swp-card {
   display: grid;
   gap: 6px;
-  padding: 10px var(--space);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  padding: 12px var(--space);
 }
 
 .swp-card-head {
@@ -53,21 +36,14 @@
   gap: 4px 12px;
 }
 
-.swp-status {
-  padding: 0 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 0.85em;
-}
-
 .swp-note {
   margin: 0;
   color: var(--muted);
-  font-size: 0.9em;
+  font-size: 13px;
 }
 
 .swp-reason {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   max-width: 420px;
 }

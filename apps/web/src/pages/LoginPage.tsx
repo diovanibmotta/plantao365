@@ -1,6 +1,7 @@
 import { Navigate, useSearchParams } from 'react-router';
 import { APP_NAME } from '@diovanibmotta/plantao365-shared';
 import { useAuth } from '../auth/AuthContext';
+import { BrandMark } from '../layout/icons';
 
 const DENIAL_MESSAGES: Record<string, string> = {
   invalid_state: 'A tentativa de login expirou ou é inválida. Tente entrar novamente.',
@@ -30,6 +31,9 @@ export function LoginPage() {
 
   return (
     <main className="login">
+      <span className="login-mark">
+        <BrandMark />
+      </span>
       <h1>{APP_NAME}</h1>
       <p className="muted">Escala de plantão da equipe. Entre com sua conta corporativa.</p>
       {message && (

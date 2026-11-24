@@ -7,40 +7,17 @@
 }
 
 .holidays-header h1 {
-  margin: 0;
   flex: 1 1 auto;
-}
-
-.holidays-year {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.9em;
-  color: var(--muted);
-}
-
-.holidays-year select,
-.holidays-form input,
-.holidays-form select {
-  padding: 7px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
+  margin: 0;
 }
 
 .holidays-hint {
   margin: 0 0 var(--space);
-  font-size: 0.9em;
+  font-size: 13px;
 }
 
 .holidays-warning {
   margin-bottom: var(--space);
-  padding: 10px 12px;
-  border: 1px solid #b45309;
-  border-radius: var(--radius);
-  background: var(--surface);
 }
 
 .holidays-warning ul {
@@ -61,23 +38,11 @@
   grid-template-columns: 1fr;
   gap: 12px;
   margin-bottom: var(--space);
-  padding: var(--space);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
 }
 
 .holidays-form h2 {
   margin: 0;
   font-size: 1rem;
-}
-
-.holidays-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.9em;
-  color: var(--muted);
 }
 
 .holidays-field-error {
@@ -88,22 +53,6 @@
   margin: 0;
 }
 
-.holidays-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.holidays-item {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
-}
-
 .holidays-info {
   display: flex;
   flex-direction: column;
@@ -111,17 +60,12 @@
 }
 
 .holidays-date {
-  font-size: 0.85em;
   color: var(--muted);
+  font-size: 13px;
 }
 
 .holidays-scope {
   margin-left: 8px;
-  padding: 1px 8px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 0.8em;
-  color: var(--muted);
 }
 
 .holidays-confirm {
@@ -129,11 +73,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-}
-
-.holidays-danger {
-  border-color: var(--danger);
-  color: var(--danger);
 }
 
 @media (min-width: 720px) {
