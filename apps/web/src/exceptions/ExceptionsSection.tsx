@@ -3,7 +3,7 @@ import { UnavailabilityManager } from './UnavailabilityManager';
 export function ExceptionsSection() {
   return (
     <UnavailabilityManager
-      collective={false}
+      mode="member"
       heading="h2"
       title="Exceções"
       newLabel="Nova exceção"

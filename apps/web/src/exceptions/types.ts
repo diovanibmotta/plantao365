@@ -42,6 +42,11 @@ export interface FormValues {
   endDate: string;
   note: string;
   userId: string;
+  /** Só na tela de Férias: false = individual, true = coletiva. */
+  collective: boolean;
+  /** Coletiva: true = todo o time; false = só os `userIds`. */
+  allTeam: boolean;
+  userIds: string[];
 }
 
 export const KIND_OPTIONS: {

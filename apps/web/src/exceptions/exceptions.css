@@ -43,6 +43,15 @@
   padding: 0;
 }
 
+.exc-fieldset ul {
+  flex-basis: 100%;
+  max-height: 224px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: auto;
+}
+
 .exc-form .exc-check {
   flex-direction: row;
   align-items: center;

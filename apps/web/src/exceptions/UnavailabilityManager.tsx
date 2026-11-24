@@ -13,7 +13,8 @@ import type {
 import './exceptions.css';
 
 interface Props {
-  collective: boolean;
+  /** 'vacations' = tela de Férias do gestor (individuais e coletivas). */
+  mode: 'member' | 'vacations';
   heading: 'h1' | 'h2';
   title: string;
   newLabel: string;
@@ -24,14 +25,15 @@ type Editing = { mode: 'create' } | { mode: 'edit'; item: Unavailability } | nul
 type Loaded = { error: string } | { items: Unavailability[] };
 
 export function UnavailabilityManager({
-  collective,
+  mode,
   heading: Heading,
   title,
   newLabel,
   emptyText,
 }: Props) {
   const { user } = useAuth();
-  const showMembers = user?.role === 'manager' && !collective;
+  const vacations = mode === 'vacations';
+  const showMembers = user?.role === 'manager';
   const [loaded, setLoaded] = useState<{ key: number; data: Loaded } | null>(null);
   const [reload, setReload] = useState(0);
   const [members, setMembers] = useState<MemberOption[]>([]);
@@ -50,7 +52,11 @@ export function UnavailabilityManager({
         setLoaded({
           key: reload,
           data: {
-            items: res.items.filter((i) => (i.kind === 'collective_vacation') === collective),
+            items: res.items.filter((i) =>
+              vacations
+                ? i.kind === 'vacation' || i.kind === 'collective_vacation'
+                : i.kind !== 'collective_vacation',
+            ),
           },
         }),
       )
@@ -62,7 +68,7 @@ export function UnavailabilityManager({
         });
       });
     return () => controller.abort();
-  }, [collective, reload]);
+  }, [vacations, reload]);
 
   useEffect(() => {
     if (!showMembers) return;
@@ -98,12 +104,16 @@ export function UnavailabilityManager({
     try {
       if (editing.mode === 'create') {
         const body: Record<string, unknown> = {
-          kind: collective ? 'collective_vacation' : values.kind,
+          kind: vacations ? (values.collective ? 'collective_vacation' : 'vacation') : values.kind,
           startDate: values.startDate,
           endDate: values.endDate,
           note,
         };
-        if (showMembers && values.userId && values.userId !== user?.id) body.userId = values.userId;
+        if (vacations && values.collective) {
+          if (!values.allTeam) body.userIds = values.userIds;
+        } else if (showMembers && values.userId && values.userId !== user?.id) {
+          body.userId = values.userId;
+        }
         finish(await api.post<UnavailabilityMutation>('/api/unavailabilities', body));
       } else {
         const body: Record<string, unknown> = {
@@ -111,7 +121,7 @@ export function UnavailabilityManager({
           endDate: values.endDate,
           note,
         };
-        if (!collective) body.kind = values.kind;
+        if (!vacations) body.kind = values.kind;
         finish(
           await api.patch<UnavailabilityMutation>(`/api/unavailabilities/${editing.item.id}`, body),
         );
@@ -185,7 +195,8 @@ export function UnavailabilityManager({
         <UnavailabilityForm
           key={editing.mode === 'edit' ? editing.item.id : 'new'}
           title={editing.mode === 'create' ? newLabel : 'Editar'}
-          withKind={!collective}
+          withKind={!vacations}
+          withScope={vacations && editing.mode === 'create'}
           members={showMembers && editing.mode === 'create' ? members : null}
           selfId={user?.id ?? ''}
           initial={
@@ -196,6 +207,9 @@ export function UnavailabilityManager({
                   endDate: editing.item.endDate,
                   note: editing.item.note ?? '',
                   userId: editing.item.userId ?? '',
+                  collective: editing.item.kind === 'collective_vacation',
+                  allTeam: true,
+                  userIds: [],
                 }
               : null
           }
@@ -237,6 +251,7 @@ export function UnavailabilityManager({
                   {showMembers && i.userId && (
                     <span className="exc-meta">{nameOf(i.userId) ?? 'Membro'}</span>
                   )}
+                  {vacations && !i.userId && <span className="exc-meta">Todo o time</span>}
                   {i.note && <span className="exc-meta">{i.note}</span>}
                 </div>
                 {removingId === i.id ? (

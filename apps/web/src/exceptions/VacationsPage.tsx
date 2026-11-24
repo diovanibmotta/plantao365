@@ -1,22 +1,22 @@
 import { useAuth } from '../auth/AuthContext';
 import { UnavailabilityManager } from './UnavailabilityManager';
 
-export function CollectiveVacationsPage() {
+export function VacationsPage() {
   const { user } = useAuth();
   if (user?.role !== 'manager') {
     return (
       <p className="alert" role="alert">
-        Apenas o gestor gerencia férias coletivas.
+        Apenas o gestor gerencia férias.
       </p>
     );
   }
   return (
     <UnavailabilityManager
-      collective
+      mode="vacations"
       heading="h1"
-      title="Férias coletivas"
-      newLabel="Novas férias coletivas"
-      emptyText="Nenhuma férias coletiva cadastrada."
+      title="Férias"
+      newLabel="Novas férias"
+      emptyText="Nenhuma férias cadastrada."
     />
   );
 }

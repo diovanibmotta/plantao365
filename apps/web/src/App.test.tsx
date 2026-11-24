@@ -91,8 +91,18 @@ describe('menu por papel', () => {
     mockApi(user('manager'));
     renderAt('/perfil');
     const nav = await screen.findByRole('navigation', { name: 'Principal' });
-    for (const label of ['Equipe', 'Feriados', 'Auditoria'])
+    for (const label of ['Equipe', 'Feriados', 'Férias', 'Auditoria'])
       expect(nav.textContent).toContain(label);
+    expect(nav.textContent).not.toContain('Férias coletivas');
+  });
+
+  it('perfil abre pela foto do usuário, não por item do menu', async () => {
+    mockApi(user('member'));
+    renderAt('/minha-escala');
+    const nav = await screen.findByRole('navigation', { name: 'Principal' });
+    expect(nav.textContent).not.toContain('Perfil');
+    const link = screen.getByRole('link', { name: /Meu perfil|Membro/ });
+    expect(link.getAttribute('href')).toBe('/perfil');
   });
 });
 

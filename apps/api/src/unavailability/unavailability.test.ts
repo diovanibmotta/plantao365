@@ -164,6 +164,34 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('unavailability (PostgreSQL)'
     expect(only.items).toHaveLength(1);
   });
 
+  it('coletiva com userIds cria férias só para os membros escolhidos', async () => {
+    const period = { startDate: '2026-12-24', endDate: '2026-12-31' };
+    const res = await call('POST', '/unavailabilities', manager, {
+      kind: 'collective_vacation',
+      userIds: [ana.id, bia.id, ana.id],
+      ...period,
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.unavailabilities).toHaveLength(2);
+    expect(body.unavailabilities.map((u: { userId: string }) => u.userId).sort()).toEqual(
+      [ana.id, bia.id].sort(),
+    );
+    expect(body.unavailabilities.every((u: { kind: string }) => u.kind === 'vacation')).toBe(true);
+
+    const bad = (b: object) => call('POST', '/unavailabilities', manager, { ...period, ...b });
+    expect(
+      (await bad({ kind: 'collective_vacation', userIds: [crypto.randomUUID()] })).status,
+    ).toBe(404);
+    expect((await bad({ kind: 'vacation', userIds: [ana.id] })).status).toBe(400);
+    const asAna = await call('POST', '/unavailabilities', ana, {
+      ...period,
+      kind: 'collective_vacation',
+      userIds: [bia.id],
+    });
+    expect(asAna.status).toBe(403);
+  });
+
   it('gestor altera e exclui exceção de membro e coletiva', async () => {
     const u = (await (await call('POST', '/unavailabilities', ana, mine)).json()).unavailability;
     expect((await call('PATCH', `/unavailabilities/${u.id}`, manager, { note: 'ok' })).status).toBe(

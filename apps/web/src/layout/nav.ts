@@ -12,7 +12,7 @@ export type NavIcon =
   | 'shield'
   | 'user';
 
-export type NavGroup = 'schedule' | 'admin' | 'account';
+export type NavGroup = 'schedule' | 'admin';
 
 export interface NavItem {
   to: string;
@@ -25,7 +25,6 @@ export interface NavItem {
 export const NAV_GROUP_LABELS: Record<NavGroup, string> = {
   schedule: 'Plantão',
   admin: 'Gestão',
-  account: 'Conta',
 };
 
 export const NAV_ITEMS: NavItem[] = [
@@ -43,15 +42,17 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/equipe', label: 'Equipe', icon: 'users', group: 'admin', role: 'manager' },
   { to: '/feriados', label: 'Feriados', icon: 'flag', group: 'admin', role: 'manager' },
   {
-    to: '/ferias-coletivas',
-    label: 'Férias coletivas',
+    to: '/ferias',
+    label: 'Férias',
     icon: 'sun',
     group: 'admin',
     role: 'manager',
   },
   { to: '/auditoria', label: 'Auditoria', icon: 'shield', group: 'admin', role: 'manager' },
-  { to: '/perfil', label: 'Perfil', icon: 'user', group: 'account' },
 ];
+
+/** Perfil não tem item no menu: abre pela foto/nome do usuário no rodapé. */
+export const PROFILE_PATH = '/perfil';
 
 export const navItemsFor = (role: Role): NavItem[] =>
   NAV_ITEMS.filter((item) => !item.role || item.role === role);
