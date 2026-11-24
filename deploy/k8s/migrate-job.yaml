@@ -1,0 +1,41 @@
+# Job imutável: apague antes de reaplicar (kubectl delete job plantao365-migrate --ignore-not-found).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: plantao365-migrate
+  labels:
+    app.kubernetes.io/name: plantao365-migrate
+    app.kubernetes.io/part-of: plantao365
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: plantao365-migrate
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: ghcr.io/diovanibmotta/plantao365-api
+          command: [node, dist/migrate.js, up]
+          envFrom:
+            - configMapRef:
+                name: plantao365-config
+            - secretRef:
+                name: plantao365-secret
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
