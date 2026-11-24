@@ -1,0 +1,56 @@
+# CLAUDE.md
+
+Convenções do Plantão365 para agentes e pessoas. Visão geral e setup no [README](README.md); fluxo de contribuição no [CONTRIBUTING](CONTRIBUTING.md).
+
+## Monorepo
+
+- npm workspaces: `apps/api` (Hono), `apps/web` (React 19 + Vite + React Router), `packages/shared` (domínio puro).
+- Node >= 22, ESM (`"type": "module"`). Na API, imports relativos levam extensão `.js`.
+- Em worktree/clone novo, rode `npm ci` e `npm run build -w @diovanibmotta/plantao365-shared` antes dos testes; web e API importam o `dist` do shared.
+
+## Idioma
+
+- **Código em inglês**: identificadores, nomes de arquivo, rotas do front, endpoints da API, chaves JSON, códigos de erro (`{ error: 'unauthenticated' }`), nomes de tabela/coluna.
+- **Texto para o usuário em pt-BR**: labels, mensagens de erro exibidas, e-mails, títulos de página.
+- Comentários, nomes de teste (`describe`/`it`), commits e docs em pt-BR.
+
+## Rotas e endpoints
+
+- Sempre em inglês, kebab-case, substantivos no plural para coleções.
+- **Front** (`apps/web/src/App.tsx`, menu em `apps/web/src/layout/nav.ts`): `/my-schedule`, `/schedule`, `/swaps`, `/balance`, `/profile`, e de gestor `/members`, `/vacations`, `/schedule-admin`, `/holidays`, `/audit`.
+  - Ao renomear uma rota, adicione a antiga em `LEGACY_PATHS` (App.tsx) para não quebrar links de e-mails já enviados e favoritos.
+  - Links do front gerados pela API (e-mails em `apps/api/src/notifications`) usam os mesmos paths; mude os dois juntos.
+- **API**: tudo sob `/api` (`app.route('/api', ...)` em `apps/api/src/app.ts`), exceto `/auth/*` e `/health`. Ex.: `/api/schedules/:id/publish`, `/api/me/preferences`, `/api/users/:id/balance`. Recursos do usuário logado ficam em `/api/me/...`.
+- Proxy de `/api` e `/auth` para a API: `apps/web/vite.config.ts` (dev) e `apps/web/nginx.conf.template` (prod).
+
+## API (`apps/api/src`)
+
+- Um módulo por domínio (`audit`, `balance`, `holidays`, `schedules`, `swaps`, `users`, ...) com `router.ts` (HTTP, validação zod), `service.ts` (regras + SQL), `types.ts` e `index.ts` (exports públicos). Quando o módulo tem `index.ts`, os outros importam só dele.
+- Routers são fábricas `createXRouter(deps)` com dependências injetadas (db, hooks de evento) — facilita teste.
+- Autorização: `requireAuth()` / `requireRole('manager')` de `auth/`. Mutação exige header CSRF (`X-Requested-With`).
+- SQL com `postgres.js` (template tag), sem ORM. Ações do gestor que alteram dados gravam `recordAudit` na mesma transação.
+- Efeitos colaterais (e-mail) via hooks `createOn...` e fila `email_outbox`; nunca envie e-mail direto no request.
+- Migrações: novo par numerado `NNNN_nome.up.sql` / `.down.sql` em `apps/api/migrations`. Nunca edite migração aplicada.
+- Logs com pino (`logger`); não logue e-mail completo (use `maskEmail`).
+
+## Web (`apps/web/src`)
+
+- Uma pasta por funcionalidade (`balance/`, `schedule/`, `holidays/`, ...) com componentes, `types.ts` e CSS próprio; páginas roteáveis em `pages/`.
+- Chamadas HTTP sempre por `api/client.ts` (trata CSRF, 401/403 e erros de rede).
+- Guardas de rota em `auth/guards.tsx` (`RequireAuth`, `RequireRole`).
+
+## Domínio (`packages/shared`)
+
+- TypeScript puro e determinístico: sem `Date.now`, `Math.random`, I/O. Datas/turnos no fuso `America/Sao_Paulo`.
+
+## Testes
+
+- Vitest, arquivo `*.test.ts(x)` ao lado do código. Web usa Testing Library (`// @vitest-environment jsdom`).
+- Testes de API que usam banco pulam sem `TEST_DATABASE_URL`; o CI sobe Postgres e roda todos.
+- Antes de PR: `npm run format:check && npm run lint && npm run typecheck && npm test && npm run build`.
+
+## Git
+
+- Commits Gitmoji + Conventional Commits (`✨ feat(web): ...`); o gitmoji define a versão (semantic-release). Detalhes no CONTRIBUTING.
+- Não edite `CHANGELOG.md` nem commits `🔖 chore(release)` à mão.
+- Nunca commite `.env` ou credenciais.

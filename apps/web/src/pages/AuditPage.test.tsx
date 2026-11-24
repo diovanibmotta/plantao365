@@ -67,7 +67,7 @@ const auditCalls = (fetchMock: ReturnType<typeof vi.fn>): URL[] =>
 
 function renderAudit() {
   return render(
-    <MemoryRouter initialEntries={['/auditoria']}>
+    <MemoryRouter initialEntries={['/audit']}>
       <AuthProvider>
         <App />
       </AuthProvider>

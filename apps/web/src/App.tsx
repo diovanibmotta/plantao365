@@ -14,26 +14,43 @@ import { ProfilePage } from './pages/ProfilePage';
 import { SwapsPage } from './pages/SwapsPage';
 import { TeamSchedulePage } from './pages/TeamSchedulePage';
 
+/** Rotas antigas em português: mantêm vivos links de e-mails já enviados e favoritos. */
+const LEGACY_PATHS: Record<string, string> = {
+  'minha-escala': '/my-schedule',
+  escala: '/schedule',
+  trocas: '/swaps',
+  saldo: '/balance',
+  perfil: '/profile',
+  equipe: '/members',
+  ferias: '/vacations',
+  'ferias-coletivas': '/vacations',
+  'gerenciar-escala': '/schedule-admin',
+  feriados: '/holidays',
+  auditoria: '/audit',
+};
+
 export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="/minha-escala" replace />} />
-          <Route path="minha-escala" element={<MySchedulePage />} />
-          <Route path="escala" element={<TeamSchedulePage />} />
-          <Route path="trocas" element={<SwapsPage />} />
-          <Route path="saldo" element={<BalancePage />} />
-          <Route path="perfil" element={<ProfilePage />} />
+          <Route index element={<Navigate to="/my-schedule" replace />} />
+          <Route path="my-schedule" element={<MySchedulePage />} />
+          <Route path="schedule" element={<TeamSchedulePage />} />
+          <Route path="swaps" element={<SwapsPage />} />
+          <Route path="balance" element={<BalancePage />} />
+          <Route path="profile" element={<ProfilePage />} />
           <Route element={<RequireRole role="manager" />}>
-            <Route path="equipe" element={<MembersPage />} />
-            <Route path="ferias" element={<VacationsPage />} />
-            <Route path="ferias-coletivas" element={<Navigate to="/ferias" replace />} />
-            <Route path="gerenciar-escala" element={<ScheduleAdminPage />} />
-            <Route path="feriados" element={<HolidaysPage />} />
-            <Route path="auditoria" element={<AuditPage />} />
+            <Route path="members" element={<MembersPage />} />
+            <Route path="vacations" element={<VacationsPage />} />
+            <Route path="schedule-admin" element={<ScheduleAdminPage />} />
+            <Route path="holidays" element={<HolidaysPage />} />
+            <Route path="audit" element={<AuditPage />} />
           </Route>
+          {Object.entries(LEGACY_PATHS).map(([from, to]) => (
+            <Route key={from} path={from} element={<Navigate to={to} replace />} />
+          ))}
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

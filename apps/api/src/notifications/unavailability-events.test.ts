@@ -66,7 +66,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
       expect(rows[0]!.subject).toBe('Exceção conflita com plantão publicado: Ana');
       expect(rows[0]!.text).toContain('01/12/2026 a 05/12/2026');
       expect(rows[0]!.text).toContain('2 de dezembro de 2026');
-      expect(rows[0]!.text).toContain(`${BASE}/escala`);
+      expect(rows[0]!.text).toContain(`${BASE}/schedule`);
       expect(rows[0]!.dedupe_key).toMatch(/^unavailability-conflict:3333.*:2026-12-02,2026-12-04:/);
     });
 

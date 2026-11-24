@@ -95,7 +95,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('notificações de troca (Pos
     expect(rows[0]!.subject).toBe('Pedido de troca de plantão: 10/03/2026');
     expect(rows[0]!.text).toContain('das 08:00 às 20:00, 12 h');
     expect(rows[0]!.text).toContain('20 de março de 2026, 14 h');
-    expect(rows[0]!.text).toContain(`${BASE}/trocas`);
+    expect(rows[0]!.text).toContain(`${BASE}/swaps`);
     expect(rows[0]!.dedupe_key).toBe(`swap-requested:${swap().id}:counterpart`);
   });
 

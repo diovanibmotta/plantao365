@@ -83,7 +83,7 @@ describe('templates', () => {
       subject: 'Escala publicada',
       paragraphs: ['Sua escala de março foi publicada.'],
       shifts: [dayShift, nightShift],
-      action: { label: 'Abrir minha escala', url: 'https://plantao.example/minha-escala' },
+      action: { label: 'Abrir minha escala', url: 'https://plantao.example/my-schedule' },
     });
     expect(out.subject).toBe('Escala publicada');
     for (const body of [out.html, out.text]) {
@@ -92,7 +92,7 @@ describe('templates', () => {
       expect(body).toContain('12 h');
     }
     expect(out.text).toContain('- sábado, 14 de março de 2026, das 08:00 às 20:00, 12 h');
-    expect(out.html).toContain('href="https://plantao.example/minha-escala"');
+    expect(out.html).toContain('href="https://plantao.example/my-schedule"');
   });
 
   it('escapa conteúdo dinâmico nos parágrafos', () => {
@@ -110,12 +110,12 @@ describe('templates de eventos de escala', () => {
       startDate: '2026-03-01',
       endDate: '2026-03-31',
       shifts: [shift, { ...shift, date: '2026-03-20', startsAt: null, endsAt: null }],
-      appUrl: 'https://plantao.example/minha-escala',
+      appUrl: 'https://plantao.example/my-schedule',
     });
     expect(out.subject).toBe('Escala publicada: 01/03/2026 a 31/03/2026');
     expect(out.text).toContain('- sábado, 14 de março de 2026, das 08:00 às 20:00, 12 h');
     expect(out.text).toContain('- sexta-feira, 20 de março de 2026, 12 h');
-    expect(out.html).toContain('href="https://plantao.example/minha-escala"');
+    expect(out.html).toContain('href="https://plantao.example/my-schedule"');
   });
 
   it('alteração informa perda/recebimento e o motivo escapado', () => {
@@ -196,12 +196,12 @@ describe('templates de eventos de troca', () => {
       event: 'rejected',
       audience: 'requester',
       reason: 'Falta <cobertura>',
-      appUrl: 'https://plantao.example/minha-escala',
+      appUrl: 'https://plantao.example/my-schedule',
     });
     expect(rej.subject).toBe('Troca rejeitada: 14/03/2026');
     expect(rej.text).toContain('Motivo: Falta <cobertura>');
     expect(rej.html).toContain('Motivo: Falta &lt;cobertura&gt;');
-    expect(rej.html).toContain('href="https://plantao.example/minha-escala"');
+    expect(rej.html).toContain('href="https://plantao.example/my-schedule"');
     const ok = renderSwapEmail({ ...base, event: 'approved', audience: 'counterpart' });
     expect(ok.subject).toBe('Troca aprovada: 14/03/2026');
     expect(ok.text).not.toContain('Motivo');
@@ -215,13 +215,13 @@ describe('renderUnavailabilityConflictEmail', () => {
       startDate: '2026-12-01',
       endDate: '2026-12-05',
       dates: ['2026-12-02', '2026-12-04'],
-      appUrl: 'https://plantao.example/escala',
+      appUrl: 'https://plantao.example/schedule',
     });
     expect(out.subject).toBe('Exceção conflita com plantão publicado: Ana <b>');
     expect(out.text).toContain('(01/12/2026 a 05/12/2026)');
     expect(out.text).toContain('2 de dezembro de 2026');
     expect(out.text).toContain('4 de dezembro de 2026');
     expect(out.html).toContain('Ana &lt;b&gt;');
-    expect(out.html).toContain('href="https://plantao.example/escala"');
+    expect(out.html).toContain('href="https://plantao.example/schedule"');
   });
 });

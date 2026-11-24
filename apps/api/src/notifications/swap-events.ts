@@ -48,7 +48,7 @@ export async function notifySwapEvent(
 ): Promise<number> {
   const { swap } = event;
   const now = opts.now ?? new Date();
-  const appUrl = opts.appBaseUrl ? new URL('/trocas', opts.appBaseUrl).href : undefined;
+  const appUrl = opts.appBaseUrl ? new URL('/swaps', opts.appBaseUrl).href : undefined;
 
   const targets: { user: Recipient; audience: SwapEmailAudience }[] = [];
   const members = await activeUsers(sql, [swap.requesterId, swap.counterpartId]);

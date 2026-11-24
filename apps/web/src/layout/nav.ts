@@ -28,31 +28,31 @@ export const NAV_GROUP_LABELS: Record<NavGroup, string> = {
 };
 
 export const NAV_ITEMS: NavItem[] = [
-  { to: '/minha-escala', label: 'Minha escala', icon: 'calendar-check', group: 'schedule' },
-  { to: '/escala', label: 'Calendário', icon: 'grid', group: 'schedule' },
-  { to: '/trocas', label: 'Trocas', icon: 'repeat', group: 'schedule' },
-  { to: '/saldo', label: 'Saldo', icon: 'clock', group: 'schedule' },
+  { to: '/my-schedule', label: 'Minha escala', icon: 'calendar-check', group: 'schedule' },
+  { to: '/schedule', label: 'Calendário', icon: 'grid', group: 'schedule' },
+  { to: '/swaps', label: 'Trocas', icon: 'repeat', group: 'schedule' },
+  { to: '/balance', label: 'Saldo', icon: 'clock', group: 'schedule' },
   {
-    to: '/gerenciar-escala',
+    to: '/schedule-admin',
     label: 'Escala',
     icon: 'sliders',
     group: 'admin',
     role: 'manager',
   },
-  { to: '/equipe', label: 'Equipe', icon: 'users', group: 'admin', role: 'manager' },
-  { to: '/feriados', label: 'Feriados', icon: 'flag', group: 'admin', role: 'manager' },
+  { to: '/members', label: 'Equipe', icon: 'users', group: 'admin', role: 'manager' },
+  { to: '/holidays', label: 'Feriados', icon: 'flag', group: 'admin', role: 'manager' },
   {
-    to: '/ferias',
+    to: '/vacations',
     label: 'Férias',
     icon: 'sun',
     group: 'admin',
     role: 'manager',
   },
-  { to: '/auditoria', label: 'Auditoria', icon: 'shield', group: 'admin', role: 'manager' },
+  { to: '/audit', label: 'Auditoria', icon: 'shield', group: 'admin', role: 'manager' },
 ];
 
 /** Perfil não tem item no menu: abre pela foto/nome do usuário no rodapé. */
-export const PROFILE_PATH = '/perfil';
+export const PROFILE_PATH = '/profile';
 
 export const navItemsFor = (role: Role): NavItem[] =>
   NAV_ITEMS.filter((item) => !item.role || item.role === role);
