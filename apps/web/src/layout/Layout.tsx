@@ -95,7 +95,7 @@ function LayoutShell() {
     : { manager: 'Gestor', member: 'Membro', guest: 'Convidado' }[role];
   const current = pathname.startsWith(PROFILE_PATH)
     ? { label: 'Perfil' }
-    : items.find((item) => pathname.startsWith(item.to));
+    : items.find((item) => pathname === item.to || pathname.startsWith(`${item.to}/`));
 
   return (
     <div className="app">

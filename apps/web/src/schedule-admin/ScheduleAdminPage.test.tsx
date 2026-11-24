@@ -106,6 +106,7 @@ describe('ScheduleAdminPage', () => {
     const fetchMock = mockApi('draft');
     const user = userEvent.setup();
     render(<ScheduleAdminPage />);
+    await user.click(screen.getByRole('tab', { name: 'Horários dos plantões' }));
     const start = await screen.findByLabelText('Início — Dia útil');
     expect((start as HTMLSelectElement).value).toBe('18');
     expect(screen.getByRole('row', { name: /Dia útil/ }).textContent).toContain('14h');
@@ -123,6 +124,7 @@ describe('ScheduleAdminPage', () => {
     const fetchMock = mockApi('draft');
     const user = userEvent.setup();
     render(<ScheduleAdminPage />);
+    await user.click(screen.getByRole('tab', { name: 'Jornada de trabalho' }));
     const end = await screen.findByLabelText('Fim do período 2');
     fireEvent.change(end, { target: { value: '17:30' } });
     await user.click(screen.getByRole('button', { name: 'Adicionar período' }));
@@ -197,6 +199,7 @@ describe('ScheduleAdminPage', () => {
     });
     const user = userEvent.setup();
     render(<ScheduleAdminPage />);
+    await user.click(screen.getByRole('button', { name: 'Gerar escala' }));
     await user.type(screen.getByLabelText('De'), '2026-03-02');
     await user.type(screen.getByLabelText('Até'), '2026-03-03');
     await user.click(screen.getByRole('button', { name: 'Gerar rascunho' }));
@@ -211,6 +214,17 @@ describe('ScheduleAdminPage', () => {
       to: '2026-03-03',
     });
     await screen.findByRole('heading', { name: /Rascunho: 02\/03\/2026/ });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('fecha o diálogo de gerar escala ao cancelar', async () => {
+    mockApi('draft');
+    const user = userEvent.setup();
+    render(<ScheduleAdminPage />);
+    await user.click(screen.getByRole('button', { name: 'Gerar escala' }));
+    expect(screen.getByRole('dialog', { name: 'Gerar escala' })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('edita plantão do rascunho e exibe avisos de conflito', async () => {
