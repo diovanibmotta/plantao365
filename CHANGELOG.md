@@ -1,3 +1,8 @@
+# [v1.15.0](https://github.com/diovanibmotta/plantao365/compare/v1.14.0...v1.15.0) (2026-11-24)
+
+## ✨ New Features
+- [`79657f8`](https://github.com/diovanibmotta/plantao365/commit/79657f8) : feat(api): múltiplas equipes com seletor no menu lateral (#22) (Issues: [`#22`](https://github.com/diovanibmotta/plantao365/issues/22))
+
 # [v1.14.0](https://github.com/diovanibmotta/plantao365/compare/v1.13.0...v1.14.0) (2026-11-24)
 
 ## ✨ New Features
