@@ -6,6 +6,14 @@ import { useAuth } from '../auth/AuthContext';
 export interface Team {
   id: string;
   name: string;
+  dashboardUrl?: string | null;
+  avatar?: string | null;
+}
+
+export interface TeamInput {
+  name: string;
+  dashboardUrl: string | null;
+  avatar: string | null;
 }
 
 export interface TeamState {
@@ -14,8 +22,8 @@ export interface TeamState {
   activeTeam: Team | null;
   loading: boolean;
   select: (id: string) => void;
-  create: (name: string) => Promise<void>;
-  rename: (id: string, name: string) => Promise<void>;
+  create: (input: TeamInput) => Promise<Team>;
+  update: (id: string, input: TeamInput) => Promise<Team>;
   remove: (id: string) => Promise<void>;
 }
 
@@ -80,25 +88,27 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   );
 
   const create = useCallback(
-    async (name: string) => {
-      const team = await api.post<Team>('/api/teams', { name });
+    async (input: TeamInput) => {
+      const team = await api.post<Team>('/api/teams', input);
       apply(
         [...teams, team].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
         activeId ?? team.id,
       );
+      return team;
     },
     [teams, activeId, apply],
   );
 
-  const rename = useCallback(
-    async (id: string, name: string) => {
-      const team = await api.patch<Team>(`/api/teams/${id}`, { name });
+  const update = useCallback(
+    async (id: string, input: TeamInput) => {
+      const team = await api.patch<Team>(`/api/teams/${id}`, input);
       apply(
         teams
           .map((t) => (t.id === id ? team : t))
           .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
         activeId,
       );
+      return team;
     },
     [teams, activeId, apply],
   );
@@ -121,10 +131,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       loading,
       select,
       create,
-      rename,
+      update,
       remove,
     }),
-    [teams, activeId, loading, select, create, rename, remove],
+    [teams, activeId, loading, select, create, update, remove],
   );
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 }

@@ -27,7 +27,7 @@ export function MembersPage() {
       .then((members) => setLoaded({ members: sortMembers(members) }))
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
-        setLoaded({ error: describeError(err, 'Não foi possível carregar a equipe.') });
+        setLoaded({ error: describeError(err, 'Não foi possível carregar os membros.') });
       });
     return () => controller.abort();
   }, []);
@@ -87,7 +87,7 @@ export function MembersPage() {
   return (
     <section>
       <div className="members-head">
-        <h1>Equipe</h1>
+        <h1>Membros</h1>
         {!showForm && (
           <button
             type="button"

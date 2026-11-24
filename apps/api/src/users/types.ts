@@ -21,6 +21,8 @@ export interface UserListItemDto {
   participatesInRotation: boolean;
   createdAt: string;
   linked: boolean;
+  /** Equipes às quais o usuário está vinculado. */
+  teamIds: string[];
 }
 
 export interface UpdateProfileInput {

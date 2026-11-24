@@ -62,6 +62,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   has_future_published_shifts:
     'Não é possível desativar: o membro tem plantões futuros publicados. Reatribua-os antes.',
   last_manager: 'Não é possível remover ou desativar o último gestor ativo.',
+  member_has_shifts:
+    'Não é possível desvincular: o membro possui plantões nas escalas desta equipe.',
 };
 
 export function describeError(err: unknown, fallback: string): string {

@@ -2,14 +2,14 @@ import type { Role } from '../auth/AuthContext';
 
 export type NavIcon =
   | 'calendar-check'
-  | 'grid'
+  | 'calendar-days'
   | 'repeat'
   | 'clock'
   | 'sliders'
   | 'users'
   | 'layers'
-  | 'flag'
-  | 'sun'
+  | 'calendar-star'
+  | 'plane'
   | 'shield'
   | 'user';
 
@@ -30,7 +30,7 @@ export const NAV_GROUP_LABELS: Record<NavGroup, string> = {
 
 export const NAV_ITEMS: NavItem[] = [
   { to: '/my-schedule', label: 'Plantão', icon: 'calendar-check', group: 'schedule' },
-  { to: '/schedule', label: 'Calendário', icon: 'grid', group: 'schedule', role: 'guest' },
+  { to: '/schedule', label: 'Calendário', icon: 'calendar-days', group: 'schedule', role: 'guest' },
   { to: '/swaps', label: 'Trocas', icon: 'repeat', group: 'schedule' },
   { to: '/balance', label: 'Saldo', icon: 'clock', group: 'schedule' },
   {
@@ -41,12 +41,12 @@ export const NAV_ITEMS: NavItem[] = [
     role: 'manager',
   },
   { to: '/teams', label: 'Equipes', icon: 'layers', group: 'admin', role: 'manager' },
-  { to: '/members', label: 'Equipe', icon: 'users', group: 'admin', role: 'manager' },
-  { to: '/holidays', label: 'Feriados', icon: 'flag', group: 'admin', role: 'manager' },
+  { to: '/members', label: 'Membros', icon: 'users', group: 'admin', role: 'manager' },
+  { to: '/holidays', label: 'Feriados', icon: 'calendar-star', group: 'admin', role: 'manager' },
   {
     to: '/vacations',
     label: 'Férias',
-    icon: 'sun',
+    icon: 'plane',
     group: 'admin',
     role: 'manager',
   },

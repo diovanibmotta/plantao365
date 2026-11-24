@@ -132,4 +132,59 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('equipes (PostgreSQL)', () =>
     });
     expect(again.status).toBe(409);
   });
+
+  it('salva URL do dashboard e ícone; recusa URL inválida', async () => {
+    const gestor = await loginAs(sql, { email: 'g6@x.com', role: 'manager' });
+    const ok = await call('POST', '/teams', gestor.cookie, undefined, {
+      name: 'Perfil',
+      dashboardUrl: 'https://grafana.x/d/1',
+      avatar: '🚀',
+    });
+    expect(ok.status).toBe(201);
+    const team = (await ok.json()) as { id: string };
+    expect(team).toMatchObject({ dashboardUrl: 'https://grafana.x/d/1', avatar: '🚀' });
+    const bad = await call('PATCH', `/teams/${team.id}`, gestor.cookie, undefined, {
+      name: 'Perfil',
+      dashboardUrl: 'javascript:alert(1)',
+    });
+    expect(bad.status).toBe(400);
+    const cleared = await call('PATCH', `/teams/${team.id}`, gestor.cookie, undefined, {
+      name: 'Perfil',
+    });
+    expect(await cleared.json()).toMatchObject({ dashboardUrl: null, avatar: null });
+  });
+
+  it('gestor vincula e desvincula membro; recusa equipe alheia e retorna teamIds', async () => {
+    const gestor = await loginAs(sql, { email: 'g5@x.com', role: 'manager' });
+    const { id } = (await (
+      await call('POST', '/teams', gestor.cookie, undefined, { name: 'Vínculos' })
+    ).json()) as { id: string };
+    const alvo = await loginAs(sql, { email: 'alvo@x.com' });
+
+    expect((await call('PUT', `/teams/${id}/members/${alvo.id}`, gestor.cookie)).status).toBe(204);
+    // idempotente
+    expect((await call('PUT', `/teams/${id}/members/${alvo.id}`, gestor.cookie)).status).toBe(204);
+    const members = (await (await call('GET', `/teams/${id}/members`, gestor.cookie)).json()) as {
+      email: string;
+    }[];
+    expect(members.map((m) => m.email)).toContain('alvo@x.com');
+    const users = (await (await call('GET', '/users', gestor.cookie, id)).json()) as {
+      email: string;
+      teamIds: string[];
+    }[];
+    expect(users.find((u) => u.email === 'alvo@x.com')?.teamIds).toContain(id);
+
+    const outro = await loginAs(sql, { email: 'o5@x.com', role: 'manager' });
+    expect((await call('PUT', `/teams/${id}/members/${alvo.id}`, outro.cookie)).status).toBe(404);
+    expect((await call('DELETE', `/teams/${id}/members/${alvo.id}`, outro.cookie)).status).toBe(
+      404,
+    );
+
+    expect((await call('DELETE', `/teams/${id}/members/${alvo.id}`, gestor.cookie)).status).toBe(
+      204,
+    );
+    expect((await call('DELETE', `/teams/${id}/members/${alvo.id}`, gestor.cookie)).status).toBe(
+      404,
+    );
+  });
 });

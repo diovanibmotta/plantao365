@@ -106,7 +106,7 @@ const toProfile = (r: UserRow): ProfileDto => ({
   remindersEnabled: r.reminders_enabled,
 });
 
-const toListItem = (r: UserRow): UserListItemDto => ({
+const toListItem = (r: UserRow, teamIds: string[]): UserListItemDto => ({
   id: r.id,
   name: r.name,
   email: r.email,
@@ -115,7 +115,14 @@ const toListItem = (r: UserRow): UserListItemDto => ({
   participatesInRotation: r.participates_in_rotation,
   createdAt: r.created_at.toISOString(),
   linked: r.oid !== null,
+  teamIds,
 });
+
+async function teamIdsOf(db: Sql | Tx, userId: string): Promise<string[]> {
+  const rows = await (db as Sql)<{ team_id: string }[]>`
+    select team_id from team_members where user_id = ${userId} order by team_id`;
+  return rows.map((r) => r.team_id);
+}
 
 const snapshot = (p: ProfileDto): AuditJson => ({ ...p });
 
@@ -158,7 +165,15 @@ export async function listUsers(db: Sql, teamId: string): Promise<UserListItemDt
       and (role = 'guest'
         or id in (select user_id from team_members where team_id = ${teamId}))
     order by lower(name), email`;
-  return rows.map(toListItem);
+  const links = await db<{ user_id: string; team_id: string }[]>`
+    select user_id, team_id from team_members
+    where user_id = any(${rows.map((r) => r.id)}::uuid[]) order by team_id`;
+  return rows.map((r) =>
+    toListItem(
+      r,
+      links.filter((l) => l.user_id === r.id).map((l) => l.team_id),
+    ),
+  );
 }
 
 /**
@@ -218,7 +233,7 @@ export async function createUser(
         entityId: opts.teamId,
         after: { userId: existing.id, email: existing.email },
       });
-      return toListItem(existing);
+      return toListItem(existing, await teamIdsOf(tx, existing.id));
     }
     await tx`
       insert into team_members (team_id, user_id) values (${opts.teamId}, ${row!.id})
@@ -233,7 +248,7 @@ export async function createUser(
       ...invite,
       dedupeKey: `invite:${row!.id}:${role}`,
     });
-    return toListItem(row!);
+    return toListItem(row!, await teamIdsOf(tx, row!.id));
   });
 }
 
@@ -353,6 +368,6 @@ export async function updateUser(
       before: snapshot(toProfile(before)),
       after: snapshot(toProfile(after!)),
     });
-    return toListItem(after!);
+    return toListItem(after!, await teamIdsOf(tx, after!.id));
   });
 }

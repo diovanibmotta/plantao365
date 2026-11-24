@@ -14,8 +14,136 @@
 .teams-form {
   display: grid;
   gap: 12px;
-  max-width: 420px;
-  margin-bottom: var(--space);
+  max-width: 520px;
+}
+
+.teams-lead {
+  margin: 4px 0 0;
+}
+
+.teams-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin: 0 0 var(--space);
+  padding: 0;
+  list-style: none;
+}
+
+.teams-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.teams-card-selected {
+  border-color: var(--text);
+}
+
+.teams-card-body {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-width: 0;
+}
+
+.teams-name {
+  font-weight: 600;
+}
+
+.team-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-tint);
+  font-weight: 600;
+}
+
+.team-avatar-lg {
+  width: 44px;
+  height: 44px;
+  font-size: 22px;
+}
+
+.teams-editor {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.teams-editor-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.teams-editor-head h2 {
+  flex: 1 1 auto;
+  margin: 0;
+}
+
+.teams-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.teams-tab {
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.teams-tab[aria-selected='true'] {
+  border-bottom-color: var(--text);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.teams-tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.teams-avatars {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.teams-avatar-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.teams-avatar-option {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.teams-avatar-option[aria-pressed='true'] {
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px var(--text);
 }
 
 .teams-form label {
@@ -30,23 +158,25 @@
   gap: 8px;
 }
 
-.teams-list {
+.teams-members {
   display: grid;
   gap: 8px;
+}
+
+.teams-members-list {
+  display: grid;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.teams-item {
+.teams-members-list li {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
 }
 
 .teams-badge {
