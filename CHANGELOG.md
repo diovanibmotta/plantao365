@@ -1,3 +1,8 @@
+# [v1.6.0](https://github.com/diovanibmotta/plantao365/compare/v1.5.0...v1.6.0) (2026-11-24)
+
+## ✨ New Features
+- [`09b3294`](https://github.com/diovanibmotta/plantao365/commit/09b3294)  feat(web): perfil pela foto do usuário e tela única de Férias
+
 # [v1.5.0](https://github.com/diovanibmotta/plantao365/compare/v1.4.1...v1.5.0) (2026-11-24)
 
 ## ✨ New Features
