@@ -15,6 +15,27 @@ const emailList = z
   )
   .pipe(z.array(z.email()));
 
+const originList = z
+  .string()
+  .default('')
+  .transform((v) =>
+    v
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
+  )
+  .pipe(
+    z.array(
+      z
+        .string()
+        .refine(
+          (o) => URL.canParse(o) && /^https?:$/.test(new URL(o).protocol),
+          'use uma URL http:// ou https://',
+        )
+        .transform((o) => new URL(o).origin),
+    ),
+  );
+
 const bool = z
   .enum(['true', 'false', '1', '0'])
   .default('false')
@@ -45,6 +66,11 @@ const schema = z
     SMTP_PASSWORD: optional(z.string()),
     SMTP_FROM: optional(z.email()),
     SMTP_SECURE: optional(bool),
+    /**
+     * Origens do front servidas em outro domínio que a API (ex.: CDN em plantao.exemplo.com e API
+     * em api.exemplo.com), separadas por vírgula. Habilita CORS com credenciais. Vazio: mesmo domínio.
+     */
+    CORS_ALLOWED_ORIGINS: originList,
     /** Força o atributo Secure do cookie de sessão; sem valor, vale true só em produção. */
     COOKIE_SECURE: optional(strictBool),
     /** Master key: usuário/senha de bootstrap para o primeiro acesso (ambos ou nenhum). */

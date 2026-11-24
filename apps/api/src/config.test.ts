@@ -33,6 +33,27 @@ describe('loadConfig', () => {
     expect(c.SMTP_PORT).toBeUndefined();
   });
 
+  it('parses CORS_ALLOWED_ORIGINS into normalized origins', () => {
+    expect(loadConfig(base).CORS_ALLOWED_ORIGINS).toEqual([]);
+    const c = loadConfig({
+      ...base,
+      CORS_ALLOWED_ORIGINS: ' https://plantao.example.com/ , http://localhost:5173/app,',
+    });
+    expect(c.CORS_ALLOWED_ORIGINS).toEqual([
+      'https://plantao.example.com',
+      'http://localhost:5173',
+    ]);
+  });
+
+  it('rejects invalid CORS_ALLOWED_ORIGINS', () => {
+    expect(() => loadConfig({ ...base, CORS_ALLOWED_ORIGINS: 'plantao.example.com' })).toThrow(
+      ConfigError,
+    );
+    expect(() => loadConfig({ ...base, CORS_ALLOWED_ORIGINS: 'ftp://x.example.com' })).toThrow(
+      ConfigError,
+    );
+  });
+
   it('requires SMTP_FROM when SMTP_HOST is set', () => {
     expect(() => loadConfig({ ...base, SMTP_HOST: 'smtp.example.com' })).toThrow(/SMTP_FROM/);
     expect(

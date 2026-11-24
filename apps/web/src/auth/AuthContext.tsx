@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { apiUrl } from '../api/base-url';
 import { api, UnauthorizedError } from '../api/client';
 
 export type Role = 'manager' | 'member' | 'guest';
@@ -48,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(() => {
-    window.location.assign('/auth/login');
+    window.location.assign(apiUrl('/auth/login'));
   }, []);
 
   const logout = useCallback(async () => {
