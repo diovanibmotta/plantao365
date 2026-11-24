@@ -19,6 +19,7 @@ import { listHolidayDates } from '../holidays/service.js';
 import { listPreferences } from '../preferences/service.js';
 import { listUnavailableByDate } from '../unavailability/service.js';
 import { MAX_RANGE_DAYS, getSchedule, listShiftsOfSchedule } from './service.js';
+import { getShiftTimes } from './settings.js';
 import type { ScheduleDto, ShiftDto } from './types.js';
 
 /** Início do histórico de horas realizadas (anterior a qualquer dado possível). */
@@ -127,6 +128,7 @@ export async function generateDraft(
   const shiftContext: ShiftContext = {
     holidays,
     collectiveVacations: unavailable.collectiveVacations,
+    shiftTimes: await getShiftTimes(tx),
   };
   const members: RotationMember[] = users.map((u) => {
     const prefs = preferences.get(u.id);

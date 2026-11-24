@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { DEFAULT_SHIFT_TIMES } from '@diovanibmotta/plantao365-shared';
 import { ScheduleAdminPage } from '../pages/ScheduleAdminPage';
 import type { ShiftDto } from '../schedule/types';
 
@@ -43,6 +44,12 @@ function mockApi(status: 'draft' | 'published', handler: Handler = () => undefin
     if (custom) return Promise.resolve(custom);
     const method = init.method ?? 'GET';
     if (url === '/api/users') return Promise.resolve(json(users));
+    if (url === '/api/shift-settings' && method === 'GET') {
+      return Promise.resolve(json(DEFAULT_SHIFT_TIMES));
+    }
+    if (url === '/api/shift-settings' && method === 'PUT') {
+      return Promise.resolve(new Response(init.body as string, { status: 200 }));
+    }
     if (url === '/api/schedules' && method === 'GET')
       return Promise.resolve(json([schedule(status)]));
     if (url === '/api/schedules/s1' && method === 'GET') {
@@ -80,6 +87,23 @@ afterEach(() => {
 });
 
 describe('ScheduleAdminPage', () => {
+  it('configura horário do plantão por tipo de dia', async () => {
+    const fetchMock = mockApi('draft');
+    const user = userEvent.setup();
+    render(<ScheduleAdminPage />);
+    const start = await screen.findByLabelText('Início — Dia útil');
+    expect((start as HTMLSelectElement).value).toBe('18');
+    expect(screen.getByRole('row', { name: /Dia útil/ }).textContent).toContain('14h');
+    await user.selectOptions(screen.getByLabelText('Fim — Fim de semana'), '20');
+    expect(screen.getByRole('row', { name: /Fim de semana/ }).textContent).toContain('12h');
+    await user.click(screen.getByRole('button', { name: 'Salvar horários' }));
+    await screen.findByText(/Horários salvos/);
+    expect(bodyOf(fetchMock, '/api/shift-settings', 'PUT')).toEqual({
+      ...DEFAULT_SHIFT_TIMES,
+      weekend: { startHour: 8, endHour: 20 },
+    });
+  });
+
   it('gera rascunho e mostra dias sem responsável, violações e resumo', async () => {
     const fetchMock = mockApi('draft', (url, init) => {
       if (url === '/api/schedules/generate' && init.method === 'POST') {

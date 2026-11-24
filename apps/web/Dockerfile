@@ -1,4 +1,4 @@
-# Build a partir da raiz do monorepo: docker build -f apps/web/Dockerfile -t plantao360-web .
+# Build a partir da raiz do monorepo: docker build -f apps/web/Dockerfile -t plantao365-web .
 FROM node:22-alpine AS build
 WORKDIR /repo
 COPY package.json package-lock.json tsconfig.base.json tsconfig.json ./

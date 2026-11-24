@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { GenerateForm } from '../schedule-admin/GenerateForm';
 import { ScheduleEditor } from '../schedule-admin/ScheduleEditor';
+import { ShiftSettingsForm } from '../schedule-admin/ShiftSettingsForm';
 import { describe, scheduleLabel } from '../schedule-admin/types';
 import type {
   GenerateResult,
@@ -60,6 +61,7 @@ export function ScheduleAdminPage() {
           {error}
         </p>
       )}
+      <ShiftSettingsForm />
       <GenerateForm
         names={names}
         result={result}

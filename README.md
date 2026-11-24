@@ -1,6 +1,6 @@
-<p align="center"><img src="apps/web/public/favicon.svg" width="56" alt="Plantão360" /></p>
+<p align="center"><img src="apps/web/public/favicon.svg" width="56" alt="Plantão365" /></p>
 
-# Plantão360
+# Plantão365
 
 Gestão de escala de plantão (sobreaviso) para equipes: rodízio automático com revisão do gestor, preferências e exceções dos membros, saldo de horas previsto x realizado e avisos por e-mail.
 
@@ -111,7 +111,9 @@ Somente no compose: `POSTGRES_USER`, `POSTGRES_PASSWORD` (obrigatória), `POSTGR
 4. Em **Certificados e segredos**, crie um segredo do cliente e use o valor em `OIDC_CLIENT_SECRET`.
 5. Em **Visão geral**, copie o ID do aplicativo (`OIDC_CLIENT_ID`) e o ID do diretório (locatário) para montar `OIDC_ISSUER`.
 
-Escopos solicitados: `openid`, `profile` e `email`. Só entra quem tem o e-mail pré-cadastrado no sistema.
+Escopos solicitados: `openid`, `profile`, `email` e `User.Read` (Microsoft Graph). Só entra quem tem o e-mail pré-cadastrado no sistema.
+
+`User.Read` é usado para baixar a foto do usuário (`/me/photos/96x96/$value`) a cada login; ela aparece no menu lateral e na escala. Em **Permissões de API**, confirme que **Microsoft Graph > User.Read (delegada)** está concedida (vem por padrão em novos registros). Sem a permissão ou sem foto no diretório, o sistema mostra as iniciais.
 
 ### SMTP e gestores iniciais
 

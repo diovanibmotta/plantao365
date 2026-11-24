@@ -418,5 +418,19 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
       expect(((await res.json()) as Array<{ name: string }>).map((u) => u.name)).toEqual(['Ana']);
       expect((await call2('GET', '/users/colleagues', '')).status).toBe(401);
     });
+
+    it('serves a colleague photo to any member, 404 when absent', async () => {
+      const me = await loginAs(sql, { email: 'foto-me@x.com' });
+      const other = await loginAs(sql, { email: 'foto-a@x.com' });
+      await sql`update users set photo = ${Buffer.from([7, 8])}, photo_type = 'image/png'
+        where id = ${other.id}`;
+      const res = await call2('GET', `/users/${other.id}/photo`, me.cookie);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toBe('image/png');
+      expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([7, 8]);
+      expect((await call2('GET', `/users/${me.id}/photo`, me.cookie)).status).toBe(404);
+      expect((await call2('GET', '/users/nope/photo', me.cookie)).status).toBe(404);
+      expect((await call2('GET', `/users/${other.id}/photo`, '')).status).toBe(401);
+    });
   });
 });

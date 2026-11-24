@@ -38,7 +38,7 @@ describe('API', () => {
     expect(res.headers.get('x-request-id')).toBe('abc-123');
     const entry = logs().find((l) => l['msg'] === 'request');
     expect(entry).toMatchObject({
-      service: 'plantao360-api',
+      service: 'plantao365-api',
       requestId: 'abc-123',
       method: 'GET',
       path: '/health',

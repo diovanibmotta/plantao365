@@ -94,7 +94,7 @@ export async function notifySwapEvent(
       counterpartShift: swap.counterpartShift ? toShift(swap.counterpartShift) : null,
       reason: event.type === 'rejected' ? (event.reason ?? swap.decisionReason) : null,
       appUrl,
-      ...(audience === 'manager' ? { actionLabel: 'Abrir o Plantão360' } : {}),
+      ...(audience === 'manager' ? { actionLabel: 'Abrir o Plantão365' } : {}),
     };
     const r = await enqueueEmail(
       sql,
