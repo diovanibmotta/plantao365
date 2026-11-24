@@ -112,6 +112,14 @@
   font-weight: 500;
 }
 
+.sched-day--weekend {
+  background: var(--day-weekend);
+}
+
+.sched-day--holiday {
+  background: var(--day-holiday);
+}
+
 .sched-day--today {
   border-color: var(--border-strong);
 }

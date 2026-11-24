@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isWeekend } from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
 import {
   WEEK_HEADERS,
@@ -159,7 +160,17 @@ export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: Sc
           const shift = shifts.get(date);
           const vacation = shift?.dayType === 'collective_vacation';
           return (
-            <li key={date} className="sad-day" data-testid={`sad-day-${date}`}>
+            <li
+              key={date}
+              className={`sad-day${
+                shift?.dayType === 'holiday'
+                  ? ' sad-day--holiday'
+                  : isWeekend(date)
+                    ? ' sad-day--weekend'
+                    : ''
+              }`}
+              data-testid={`sad-day-${date}`}
+            >
               <span className="sad-day-number">{Number(date.slice(8, 10))}</span>
               {vacation && <span className="muted">Férias coletivas</span>}
               {shift && !vacation && (

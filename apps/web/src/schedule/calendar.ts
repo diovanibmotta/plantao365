@@ -19,7 +19,7 @@ const MONTHS = [
   'dezembro',
 ];
 
-export const WEEK_HEADERS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
+export const WEEK_HEADERS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
 export function monthKeyOf(date: LocalDate): MonthKey {
   return date.slice(0, 7);
@@ -43,11 +43,11 @@ export function monthRange(month: MonthKey): { from: LocalDate; to: LocalDate } 
   return { from, to: addDays(from, days - 1) };
 }
 
-/** Grade do mês com semana começando na segunda-feira; `null` completa as semanas. */
+/** Grade do mês com semana começando no domingo; `null` completa as semanas. */
 export function buildMonthGrid(month: MonthKey): Array<LocalDate | null> {
   const { from, to } = monthRange(month);
   const cells: Array<LocalDate | null> = [];
-  for (let i = 0; i < (dayOfWeek(from) + 6) % 7; i++) cells.push(null);
+  for (let i = 0; i < dayOfWeek(from); i++) cells.push(null);
   for (let d = from; d <= to; d = addDays(d, 1)) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
   return cells;

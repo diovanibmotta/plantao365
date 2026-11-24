@@ -19,6 +19,8 @@
   --success: light-dark(oklch(0.5 0.14 150), oklch(0.78 0.16 150));
   --warning: light-dark(oklch(0.55 0.13 70), oklch(0.8 0.14 80));
   --ring: light-dark(oklch(0.5 0.19 255 / 0.28), oklch(0.75 0.13 250 / 0.4));
+  --day-weekend: color-mix(in oklch, var(--surface) 88%, var(--muted));
+  --day-holiday: color-mix(in oklch, var(--surface) 85%, var(--warning));
   --primary: var(--text);
   --on-primary: var(--bg);
 

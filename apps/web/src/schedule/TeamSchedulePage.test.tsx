@@ -134,6 +134,11 @@ describe('TeamSchedulePage', () => {
     expect(within(screen.getByTestId('day-2026-03-25')).getByText('Férias coletivas')).toBeTruthy();
     expect(within(screen.getByTestId('day-2026-03-10')).queryByText('Férias coletivas')).toBeNull();
     expect(screen.getByTestId('day-2026-03-05').className).toContain('sched-day--empty');
+
+    expect(other.className).toContain('sched-day--holiday');
+    expect(screen.getByTestId('day-2026-03-07').className).toContain('sched-day--weekend');
+    expect(screen.getByTestId('day-2026-03-08').className).toContain('sched-day--weekend');
+    expect(mine.className).not.toMatch(/sched-day--(weekend|holiday)/);
   });
 
   it('filtra por membro presente no mês', async () => {
