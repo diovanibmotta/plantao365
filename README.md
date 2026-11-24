@@ -76,7 +76,7 @@ A aplicação responde em `http://localhost:8080` (`WEB_PORT`). O nginx serve a 
 
 Em `NODE_ENV=production` o cookie de sessão é `Secure`: publique o web atrás de HTTPS (proxy reverso ou balanceador com TLS) e use `APP_BASE_URL` com `https://`. Se a senha do banco tiver caracteres especiais, aplique URL-encode, pois ela compõe a `DATABASE_URL` montada no compose.
 
-> As imagens e o compose ainda não foram validados em um ambiente com Docker; o CI apenas as constrói.
+> Imagens e compose validados com Docker Compose v2: build, migrações, subida dos três serviços, `/healthz` do web e login master. Guia completo na [wiki](https://github.com/diovanibmotta/plantao365/wiki).
 
 ## Configuração
 
