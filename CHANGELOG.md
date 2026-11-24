@@ -1,3 +1,8 @@
+# [v1.17.0](https://github.com/diovanibmotta/plantao365/compare/v1.16.0...v1.17.0) (2026-11-24)
+
+## ✨ New Features
+- [`fd4080f`](https://github.com/diovanibmotta/plantao365/commit/fd4080f) : feat(web): abas e diálogo de geração na tela de Escala (#27) (Issues: [`#27`](https://github.com/diovanibmotta/plantao365/issues/27))
+
 # [v1.16.0](https://github.com/diovanibmotta/plantao365/compare/v1.15.0...v1.16.0) (2026-11-24)
 
 ## ✨ New Features
