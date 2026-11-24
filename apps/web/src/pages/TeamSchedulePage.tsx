@@ -99,7 +99,7 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
 
   return (
     <section>
-      <h1>Escala</h1>
+      <h1>Calendário</h1>
       <div className="sched-toolbar">
         <div className="sched-nav">
           <button

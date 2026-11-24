@@ -76,7 +76,9 @@ const bodyOf = (fetchMock: ReturnType<typeof vi.fn>, url: string, method: string
 async function openSchedule() {
   const user = userEvent.setup();
   render(<ScheduleAdminPage />);
-  await user.click(await screen.findByRole('button', { name: /02\/03\/2026 a 03\/03\/2026/ }));
+  await user.click(
+    await screen.findByRole('button', { name: /Alterar escala de 02\/03\/2026 a 03\/03\/2026/ }),
+  );
   await screen.findByRole('list', { name: 'Escala de março de 2026' });
   return user;
 }
@@ -102,6 +104,48 @@ describe('ScheduleAdminPage', () => {
       ...DEFAULT_SHIFT_TIMES,
       weekend: { startHour: 8, endHour: 20 },
     });
+  });
+
+  it('pesquisa escalas por situação e data', async () => {
+    mockApi('draft');
+    const user = userEvent.setup();
+    render(<ScheduleAdminPage />);
+    const row = /Alterar escala de 02\/03\/2026/;
+    await screen.findByRole('button', { name: row });
+    await user.selectOptions(screen.getByLabelText('Situação'), 'published');
+    expect(screen.queryByRole('button', { name: row })).toBeNull();
+    expect(screen.getByText('Nenhuma escala encontrada.')).toBeTruthy();
+    await user.selectOptions(screen.getByLabelText('Situação'), 'draft');
+    await user.type(screen.getByLabelText('Contém a data'), '2026-03-03');
+    expect(screen.getByRole('button', { name: row })).toBeTruthy();
+    await user.clear(screen.getByLabelText('Contém a data'));
+    await user.type(screen.getByLabelText('Contém a data'), '2026-03-04');
+    expect(screen.queryByRole('button', { name: row })).toBeNull();
+  });
+
+  it('exclui rascunho pela lista após confirmação', async () => {
+    let deleted = false;
+    mockApi('draft', (url, init) => {
+      if (url === '/api/schedules/s1' && init.method === 'DELETE') {
+        deleted = true;
+        return new Response(null, { status: 204 });
+      }
+      if (url === '/api/schedules' && deleted) return json([]);
+      return undefined;
+    });
+    const user = userEvent.setup();
+    render(<ScheduleAdminPage />);
+    await user.click(await screen.findByRole('button', { name: /Excluir escala de 02\/03\/2026/ }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar exclusão' }));
+    await screen.findByText('Nenhuma escala criada.');
+    expect(deleted).toBe(true);
+  });
+
+  it('não oferece exclusão de escala publicada', async () => {
+    mockApi('published');
+    render(<ScheduleAdminPage />);
+    await screen.findByRole('button', { name: /Alterar escala de 02\/03\/2026/ });
+    expect(screen.queryByRole('button', { name: /Excluir escala/ })).toBeNull();
   });
 
   it('gera rascunho e mostra dias sem responsável, violações e resumo', async () => {
