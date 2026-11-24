@@ -1,4 +1,4 @@
-export const APP_NAME = 'Plantão360';
+export const APP_NAME = 'Plantão365';
 
 export interface HealthStatus {
   status: 'ok';

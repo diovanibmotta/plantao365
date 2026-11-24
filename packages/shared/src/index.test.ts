@@ -3,7 +3,7 @@ import { APP_NAME } from './index.js';
 
 describe('shared', () => {
   it('exports the app name', () => {
-    expect(APP_NAME).toBe('Plantão360');
+    expect(APP_NAME).toBe('Plantão365');
   });
 });
 

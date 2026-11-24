@@ -54,7 +54,7 @@ const DENIAL_MESSAGES: Record<Denial, { status: 400 | 403; message: string }> = 
   },
   not_registered: {
     status: 403,
-    message: 'Seu e-mail não está cadastrado no Plantão360. Procure um gestor para ser incluído.',
+    message: 'Seu e-mail não está cadastrado no Plantão365. Procure um gestor para ser incluído.',
   },
   inactive: {
     status: 403,

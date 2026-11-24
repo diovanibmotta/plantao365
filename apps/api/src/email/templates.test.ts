@@ -74,7 +74,7 @@ describe('templates', () => {
     expect(html).toContain('<html lang="pt-BR">');
     expect(html).toContain('<p>corpo</p>');
     expect(text).toBe(
-      'Olá\n\ncorpo\n\n--\nPlantão360 · mensagem automática, não responda este e-mail.\n',
+      'Olá\n\ncorpo\n\n--\nPlantão365 · mensagem automática, não responda este e-mail.\n',
     );
   });
 

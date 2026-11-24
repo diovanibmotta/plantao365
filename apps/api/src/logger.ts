@@ -12,7 +12,7 @@ export function createLogger({ level = 'info', destination }: LoggerOptions = {}
   return pino(
     {
       level,
-      base: { service: 'plantao360-api' },
+      base: { service: 'plantao365-api' },
       timestamp: pino.stdTimeFunctions.isoTime,
       redact: {
         paths: ['req.headers.authorization', 'req.headers.cookie', '*.password', '*.token'],

@@ -8,7 +8,7 @@ const DENIAL_MESSAGES: Record<string, string> = {
   idp_error: 'O login não foi concluído. Tente entrar novamente.',
   invalid_token: 'Não foi possível validar sua identidade. Tente entrar novamente.',
   not_registered:
-    'Acesso negado. Seu e-mail não está cadastrado no Plantão360. Procure um gestor para ser incluído.',
+    'Acesso negado. Seu e-mail não está cadastrado no Plantão365. Procure um gestor para ser incluído.',
   inactive: 'Acesso negado. Seu usuário está inativo. Procure um gestor para reativar o acesso.',
   identity_mismatch:
     'Acesso negado. Esta conta corporativa não corresponde ao cadastro. Procure um gestor.',
