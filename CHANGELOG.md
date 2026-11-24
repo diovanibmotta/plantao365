@@ -1,3 +1,8 @@
+# [v1.13.0](https://github.com/diovanibmotta/plantao365/compare/v1.12.0...v1.13.0) (2026-11-24)
+
+## ✨ New Features
+- [`7535af7`](https://github.com/diovanibmotta/plantao365/commit/7535af7)  feat(web): filtro &quot;Meus plantões&quot; no calendário (#17) (Issues: [`#17`](https://github.com/diovanibmotta/plantao365/issues/17))
+
 # [v1.12.0](https://github.com/diovanibmotta/plantao365/compare/v1.11.0...v1.12.0) (2026-11-24)
 
 ## ✨ New Features
