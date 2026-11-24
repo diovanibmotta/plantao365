@@ -13,6 +13,8 @@ const authOptions: AuthOptions = {
   oidc: {},
 };
 
+const DEFAULT_TEAM = '00000000-0000-0000-0000-000000000001';
+
 describe.skipIf(!TEST_DATABASE_URL)('authz integration', () => {
   let t: TestDb;
   let app: Hono;
@@ -22,6 +24,8 @@ describe.skipIf(!TEST_DATABASE_URL)('authz integration', () => {
   async function login(email: string, role: string): Promise<string> {
     const [u] = await t.sql<{ id: string }[]>`
       insert into users (email, name, role) values (${email}, 'Fulano', ${role}) returning id`;
+    await t.sql`insert into team_members (team_id, user_id)
+      values (${DEFAULT_TEAM}, ${u!.id})`;
     const { token } = await createSession(t.sql, u!.id, 3600);
     return `${SESSION_COOKIE}=${token}`;
   }

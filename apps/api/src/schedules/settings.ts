@@ -14,10 +14,10 @@ import type { AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
 
 /** Horário configurado por tipo de dia; tipos sem linha usam o padrão. */
-export async function getShiftTimes(sql: Sql): Promise<ShiftTimes> {
+export async function getShiftTimes(sql: Sql, teamId: string): Promise<ShiftTimes> {
   const rows = await sql<{ dayType: ShiftDayType; startHour: number; endHour: number }[]>`
     select day_type as "dayType", start_hour as "startHour", end_hour as "endHour"
-    from shift_settings`;
+    from shift_settings where team_id = ${teamId}`;
   const times: ShiftTimes = { ...DEFAULT_SHIFT_TIMES };
   for (const r of rows) times[r.dayType] = { startHour: r.startHour, endHour: r.endHour };
   return times;
@@ -37,11 +37,11 @@ const putBody = z
 
 const toJson = (t: ShiftTimes) => Object.fromEntries(SHIFT_DAY_TYPES.map((k) => [k, { ...t[k] }]));
 
-/** Jornada de trabalho do time, em ordem cronológica. */
-export async function getWorkPeriods(sql: Sql): Promise<WorkPeriod[]> {
+/** Jornada de trabalho da equipe, em ordem cronológica. */
+export async function getWorkPeriods(sql: Sql, teamId: string): Promise<WorkPeriod[]> {
   return sql<WorkPeriod[]>`
     select start_minute as "startMinute", end_minute as "endMinute"
-    from work_periods order by position`;
+    from work_periods where team_id = ${teamId} order by position`;
 }
 
 const minute = z
@@ -58,10 +58,10 @@ const workHoursBody = z
 /** GET/PUT /shift-settings. Vale para escalas geradas depois; plantões existentes não mudam. */
 export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql }): void {
   const { db } = deps;
-  router.get('/shift-settings', async (c) => c.json(await getShiftTimes(db)));
+  router.get('/shift-settings', async (c) => c.json(await getShiftTimes(db, c.get('teamId')!)));
 
   router.get('/work-hours', async (c) =>
-    c.json({ periods: (await getWorkPeriods(db)).map((p) => ({ ...p })) }),
+    c.json({ periods: (await getWorkPeriods(db, c.get('teamId')!)).map((p) => ({ ...p })) }),
   );
 
   router.put('/work-hours', requireRole('manager'), async (c) => {
@@ -73,12 +73,14 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
       return c.json({ error: 'validation_error', message: problem ?? 'Dados inválidos' }, 400);
     }
     const next = parsed.data.periods;
+    const teamId = c.get('teamId')!;
     await db.begin(async (txRaw) => {
       const tx = txRaw as unknown as Sql;
-      const before = await getWorkPeriods(tx);
-      await tx`delete from work_periods`;
+      const before = await getWorkPeriods(tx, teamId);
+      await tx`delete from work_periods where team_id = ${teamId}`;
       if (next.length > 0) {
         const rows = next.map((p, position) => ({
+          team_id: teamId,
           position,
           start_minute: p.startMinute,
           end_minute: p.endMinute,
@@ -110,16 +112,18 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
       );
     }
     const next = parsed.data;
+    const teamId = c.get('teamId')!;
     await db.begin(async (txRaw) => {
       const tx = txRaw as unknown as Sql;
-      const before = await getShiftTimes(tx);
+      const before = await getShiftTimes(tx, teamId);
       const rows = SHIFT_DAY_TYPES.map((t) => ({
+        team_id: teamId,
         day_type: t,
         start_hour: next[t].startHour,
         end_hour: next[t].endHour,
       }));
       await tx`insert into shift_settings ${tx(rows)}
-        on conflict (day_type) do update set start_hour = excluded.start_hour,
+        on conflict (team_id, day_type) do update set start_hour = excluded.start_hour,
           end_hour = excluded.end_hour, updated_at = now()`;
       await recordAudit(tx, {
         actorId: c.get('user')!.id,

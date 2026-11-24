@@ -102,7 +102,9 @@ export function createBalanceRouter({
     if (!id.success) return fail(c, 404, 'user_not_found', 'Usuário não encontrado');
     const parsed = yearQuery.safeParse(c.req.query());
     if (!parsed.success) return invalid(c, parsed.error);
-    const [target] = await db<{ id: string }[]>`select id from users where id = ${id.data}`;
+    const [target] = await db<{ id: string }[]>`
+      select user_id as id from team_members
+      where user_id = ${id.data} and team_id = ${c.get('teamId')}`;
     if (!target) return fail(c, 404, 'user_not_found', 'Usuário não encontrado');
     return c.json(await memberBalance(id.data, parsed.data.year ?? yearOf(now())));
   });
@@ -115,9 +117,11 @@ export function createBalanceRouter({
     const all = await computeBalance(db, { year: y, now: now() });
     const balances = new Map(all.map((b) => [b.userId, b]));
     const users = await db<{ id: string; name: string }[]>`
-      select id, name from users
-      where active and (participates_in_rotation or id = any(${[...balances.keys()]}::uuid[]))
-      order by name, id`;
+      select u.id, u.name from users u
+      join team_members m on m.user_id = u.id and m.team_id = ${c.get('teamId')}
+      where u.active
+        and (u.participates_in_rotation or u.id = any(${[...balances.keys()]}::uuid[]))
+      order by u.name, u.id`;
     const members = users.map((u) => {
       const months = balances.get(u.id)?.months ?? emptyMonths(y);
       return { userId: u.id, name: u.name, ...totalsOf(months), months };
@@ -142,7 +146,9 @@ export function createBalanceRouter({
     const parsed = adjustmentBody.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return invalid(c, parsed.error);
     const input = parsed.data;
-    const [target] = await db<{ id: string }[]>`select id from users where id = ${input.userId}`;
+    const [target] = await db<{ id: string }[]>`
+      select user_id as id from team_members
+      where user_id = ${input.userId} and team_id = ${c.get('teamId')}`;
     if (!target) return fail(c, 404, 'user_not_found', 'Usuário não encontrado');
     const adjustment = await db.begin(async (tx) => {
       const created = await insertAdjustment(tx, { ...input, createdBy: user.id });

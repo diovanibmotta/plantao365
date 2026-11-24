@@ -134,23 +134,29 @@ export const myShiftsQuerySchema = rangeChecks(z.object({ from: localDate, to: l
 
 export async function listSchedules(
   sql: Sql,
-  opts: { publishedOnly?: boolean } = {},
+  opts: { publishedOnly?: boolean; teamId?: string } = {},
 ): Promise<ScheduleDto[]> {
   const rows = await sql<ScheduleRow[]>`
     select id, start_date::text as start_date, end_date::text as end_date, status, created_by,
       published_at, created_at, updated_at
     from schedules
-    ${opts.publishedOnly ? sql`where status = 'published'` : sql``}
+    where true
+      ${opts.publishedOnly ? sql`and status = 'published'` : sql``}
+      ${opts.teamId ? sql`and team_id = ${opts.teamId}` : sql``}
     order by start_date desc, created_at desc`;
   return rows.map(toScheduleDto);
 }
 
-export async function getSchedule(sql: Sql, id: string): Promise<ScheduleDto | null> {
+export async function getSchedule(
+  sql: Sql,
+  id: string,
+  teamId?: string,
+): Promise<ScheduleDto | null> {
   if (!z.uuid().safeParse(id).success) return null;
   const [row] = await sql<ScheduleRow[]>`
     select id, start_date::text as start_date, end_date::text as end_date, status, created_by,
       published_at, created_at, updated_at
-    from schedules where id = ${id}`;
+    from schedules where id = ${id} ${teamId ? sql`and team_id = ${teamId}` : sql``}`;
   return row ? toScheduleDto(row) : null;
 }
 
@@ -175,6 +181,7 @@ export async function listShiftsInRange(sql: Sql, q: ShiftRangeQuery): Promise<S
     where s.date between ${q.from}::date and ${q.to}::date
       ${status === 'all' ? sql`` : sql`and sc.status = ${status}`}
       ${q.userId ? sql`and s.user_id = ${q.userId}` : sql``}
+      ${q.teamId ? sql`and sc.team_id = ${q.teamId}` : sql``}
     order by s.date, sc.created_at, s.id`;
   return rows.map(toShiftDto);
 }
@@ -182,12 +189,14 @@ export async function listShiftsInRange(sql: Sql, q: ShiftRangeQuery): Promise<S
 export async function countPublishedShiftsOnDates(
   sql: Sql,
   dates: LocalDate[],
+  teamId?: string,
 ): Promise<Array<{ date: LocalDate; count: number }>> {
   if (dates.length === 0) return [];
   const rows = await sql<{ date: string; count: number }[]>`
     select s.date::text as date, count(*)::int as count
     from shifts s join schedules sc on sc.id = s.schedule_id
     where sc.status = 'published' and s.date = any(${dates}::date[])
+      ${teamId ? sql`and sc.team_id = ${teamId}` : sql``}
     group by s.date order by s.date`;
   return rows.map((r) => ({ date: r.date, count: r.count }));
 }

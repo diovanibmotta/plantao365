@@ -45,6 +45,7 @@ export function registerPublishRoutes(
       return c.json(err('not_found', 'Escala não encontrada'), 404);
     }
     const actorId = c.get('user')!.id;
+    const teamId = c.get('teamId')!;
     const publishedAt = now();
 
     const outcome = await deps.db.begin(async (txRaw): Promise<PublishOutcome> => {
@@ -52,7 +53,7 @@ export function registerPublishRoutes(
       await tx`select pg_advisory_xact_lock(hashtext('schedules.publish'))`;
       const [row] = await tx<{ status: string; start: string; end: string }[]>`
         select status, start_date::text as start, end_date::text as "end"
-        from schedules where id = ${id} for update`;
+        from schedules where id = ${id} and team_id = ${teamId} for update`;
       if (!row) {
         return { kind: 'error', status: 404, body: err('not_found', 'Escala não encontrada') };
       }
@@ -61,7 +62,7 @@ export function registerPublishRoutes(
       }
       const [overlap] = await tx<{ id: string }[]>`
         select id from schedules
-        where status = 'published' and id <> ${id}
+        where status = 'published' and id <> ${id} and team_id = ${teamId}
           and start_date <= ${row.end}::date and end_date >= ${row.start}::date
         limit 1`;
       if (overlap) {
@@ -135,11 +136,12 @@ export function registerPublishRoutes(
       return c.json(err('not_found', 'Escala não encontrada'), 404);
     }
     const actorId = c.get('user')!.id;
+    const teamId = c.get('teamId')!;
     const status = await deps.db.begin(async (txRaw) => {
       const tx = txRaw as unknown as Sql;
       const [row] = await tx<{ status: string; start: string; end: string }[]>`
         select status, start_date::text as start, end_date::text as "end"
-        from schedules where id = ${id} for update`;
+        from schedules where id = ${id} and team_id = ${teamId} for update`;
       if (!row) return 404 as const;
       if (row.status !== 'draft') return 409 as const;
       await tx`delete from schedules where id = ${id}`;

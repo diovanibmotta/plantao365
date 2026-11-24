@@ -3,7 +3,7 @@ import type { SqlOrTx } from '../audit/index.js';
 import type { UnavailabilityDto, UnavailabilityKind, UnavailableByDate } from './types.js';
 
 const columns = (sql: Sql) => sql`
-  id, user_id as "userId", kind, start_date::text as "startDate", end_date::text as "endDate",
+  id, user_id as "userId", team_id as "teamId", kind, start_date::text as "startDate", end_date::text as "endDate",
   note, created_by as "createdBy", created_at::text as "createdAt", updated_at::text as "updatedAt"`;
 
 export interface ListFilters {
@@ -11,16 +11,24 @@ export interface ListFilters {
   to?: string | undefined;
   userId?: string | undefined;
   visibleTo?: string | undefined;
+  /** Férias coletivas desta equipe (ou legadas, sem equipe) e exceções de qualquer usuário. */
+  teamId?: string | undefined;
 }
 
 export async function listUnavailabilities(
   db: Sql,
-  { from, to, userId, visibleTo }: ListFilters,
+  { from, to, userId, visibleTo, teamId }: ListFilters,
 ): Promise<UnavailabilityDto[]> {
   return db<UnavailabilityDto[]>`
     select ${columns(db)} from unavailabilities
     where true
       ${visibleTo ? db`and (user_id = ${visibleTo} or user_id is null)` : db``}
+      ${
+        teamId
+          ? db`and ((user_id is null and (team_id is null or team_id = ${teamId}))
+            or user_id in (select user_id from team_members where team_id = ${teamId}))`
+          : db``
+      }
       ${userId ? db`and user_id = ${userId}` : db``}
       ${from ? db`and end_date >= ${from}::date` : db``}
       ${to ? db`and start_date <= ${to}::date` : db``}
@@ -48,13 +56,14 @@ export async function insertUnavailability(
     endDate: string;
     note: string | null;
     createdBy: string;
+    teamId?: string | null;
   },
 ): Promise<UnavailabilityDto> {
   const sql = db as Sql;
   const [row] = await sql<UnavailabilityDto[]>`
-    insert into unavailabilities (user_id, kind, start_date, end_date, note, created_by)
+    insert into unavailabilities (user_id, kind, start_date, end_date, note, created_by, team_id)
     values (${v.userId}, ${v.kind}, ${v.startDate}::date, ${v.endDate}::date, ${v.note},
-      ${v.createdBy})
+      ${v.createdBy}, ${v.userId === null ? (v.teamId ?? null) : null})
     returning ${columns(sql)}`;
   return row!;
 }
@@ -84,12 +93,14 @@ export async function listUnavailableByDate(
   sql: Sql,
   from: string,
   to: string,
+  teamId?: string,
 ): Promise<UnavailableByDate> {
   const collective = await sql<{ start: string; end: string }[]>`
     select greatest(start_date, ${from}::date)::text as start,
       least(end_date, ${to}::date)::text as "end"
     from unavailabilities
     where user_id is null and end_date >= ${from}::date and start_date <= ${to}::date
+      ${teamId ? sql`and (team_id is null or team_id = ${teamId})` : sql``}
     order by start_date, end_date`;
   const days = await sql<{ userId: string; day: string }[]>`
     select distinct u.user_id as "userId", d::date::text as day

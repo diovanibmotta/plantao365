@@ -108,21 +108,28 @@ const select = (sql: Sql) => sql`
   join shifts rs on rs.id = s.requester_shift_id
   left join shifts cs on cs.id = s.counterpart_shift_id`;
 
-export async function getSwap(db: SqlOrTx, id: string): Promise<SwapDto | null> {
+export async function getSwap(db: SqlOrTx, id: string, teamId?: string): Promise<SwapDto | null> {
   const sql = db as Sql;
-  const [row] = await sql<SwapRow[]>`${select(sql)} where s.id = ${id}`;
+  const [row] = await sql<SwapRow[]>`
+    ${select(sql)} where s.id = ${id}
+    ${teamId ? sql`and rs.schedule_id in (select id from schedules where team_id = ${teamId})` : sql``}`;
   return row ? toDto(row) : null;
 }
 
 export async function listSwaps(
   db: Sql,
-  filters: { userId?: string | undefined; status?: SwapStatus | undefined },
+  filters: {
+    userId?: string | undefined;
+    status?: SwapStatus | undefined;
+    teamId?: string | undefined;
+  },
 ): Promise<SwapDto[]> {
   const rows = await db<SwapRow[]>`
     ${select(db)}
     where true
       ${filters.userId ? db`and (s.requester_id = ${filters.userId} or s.counterpart_id = ${filters.userId})` : db``}
       ${filters.status ? db`and s.status = ${filters.status}` : db``}
+      ${filters.teamId ? db`and rs.schedule_id in (select id from schedules where team_id = ${filters.teamId})` : db``}
     order by s.created_at desc, s.id`;
   return rows.map(toDto);
 }
@@ -240,14 +247,26 @@ export interface CreateInput {
   counterpartShiftId: string | null;
   note: string | null;
   now: Date;
+  /** Equipe ativa: plantões e colega precisam pertencer a ela. */
+  teamId?: string;
 }
 
 export async function createSwap(tx: Sql, i: CreateInput): Promise<Result<SwapDto>> {
   if (i.requesterId === i.counterpartId) {
     return fail(422, 'invalid_counterpart', 'Escolha outro membro para a troca');
   }
-  const [cp] = await tx`select 1 from users where id = ${i.counterpartId}`;
+  const [cp] = i.teamId
+    ? await tx`select 1 from team_members where user_id = ${i.counterpartId} and team_id = ${i.teamId}`
+    : await tx`select 1 from users where id = ${i.counterpartId}`;
   if (!cp) return fail(404, 'user_not_found', 'Colega não encontrado');
+  if (i.teamId) {
+    const shiftIds = [i.shiftId, ...(i.counterpartShiftId ? [i.counterpartShiftId] : [])];
+    const [other] = await tx`
+      select 1 from shifts sh join schedules sc on sc.id = sh.schedule_id
+      where sh.id = any(${shiftIds}::uuid[]) and sc.team_id <> ${i.teamId} limit 1`;
+    if (other)
+      return fail(422, 'shift_unavailable', 'O plantão não está mais disponível para troca');
+  }
 
   const feasible = await checkFeasibility(tx, {
     kind: i.kind,

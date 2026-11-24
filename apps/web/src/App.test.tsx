@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { App } from './App';
@@ -97,7 +97,7 @@ describe('menu por papel', () => {
     mockApi(user('member'));
     renderAt('/profile');
     const nav = await screen.findByRole('navigation', { name: 'Principal' });
-    expect(nav.textContent).toContain('Minha escala');
+    expect(nav.textContent).toContain('Plantão');
     expect(nav.textContent).not.toContain('Equipe');
     expect(nav.textContent).not.toContain('Auditoria');
   });
@@ -128,8 +128,8 @@ describe('convidado', () => {
     expect(await screen.findByRole('heading', { name: 'Calendário' })).toBeTruthy();
     const nav = screen.getByRole('navigation', { name: 'Principal' });
     expect(nav.textContent).toContain('Calendário');
-    for (const label of ['Minha escala', 'Trocas', 'Saldo', 'Equipe'])
-      expect(nav.textContent).not.toContain(label);
+    for (const label of ['Plantão', 'Trocas', 'Saldo', 'Equipe'])
+      expect(within(nav).queryByRole('link', { name: label })).toBeNull();
     expect(screen.getByText('Convidado')).toBeTruthy();
   });
 

@@ -102,22 +102,25 @@ async function loadLastAssignments(sql: Sql, from: LocalDate) {
 /** Gera o rascunho dentro da transação `tx`; lança ScheduleOverlapError se houver sobreposição. */
 export async function generateDraft(
   tx: Sql,
-  input: { body: GenerateBody; actorId: string; now: Date },
+  input: { body: GenerateBody; actorId: string; now: Date; teamId: string },
 ): Promise<GenerateResult> {
   const { from, to } = input.body;
+  const { teamId } = input;
   // Serializa gerações concorrentes para que a checagem de sobreposição seja confiável.
   await tx`select pg_advisory_xact_lock(hashtext('schedules.generate'))`;
   const [overlap] = await tx<{ id: string }[]>`
     select id from schedules
-    where status = 'draft' and start_date <= ${to}::date and end_date >= ${from}::date
+    where status = 'draft' and team_id = ${teamId}
+      and start_date <= ${to}::date and end_date >= ${from}::date
     limit 1`;
   if (overlap) throw new ScheduleOverlapError(overlap.id);
 
   const holidays = await listHolidayDates(tx, from, to);
-  const unavailable = await listUnavailableByDate(tx, from, to);
+  const unavailable = await listUnavailableByDate(tx, from, to, teamId);
   const users = await tx<{ id: string; name: string; active: boolean; participates: boolean }[]>`
     select id, name, active, participates_in_rotation as participates
-    from users where active and participates_in_rotation order by id`;
+    from users u join team_members m on m.user_id = u.id and m.team_id = ${teamId}
+    where active and participates_in_rotation order by id`;
   const history = await loadHistory(tx, from, input.now);
   const lastAssignments = await loadLastAssignments(tx, from);
   const preferences = await listPreferences(
@@ -128,7 +131,7 @@ export async function generateDraft(
   const shiftContext: ShiftContext = {
     holidays,
     collectiveVacations: unavailable.collectiveVacations,
-    shiftTimes: await getShiftTimes(tx),
+    shiftTimes: await getShiftTimes(tx, teamId),
   };
   const members: RotationMember[] = users.map((u) => {
     const prefs = preferences.get(u.id);
@@ -152,8 +155,8 @@ export async function generateDraft(
   const result = generateRotation({ from, to, shiftContext, members, lastAssignments });
 
   const [created] = await tx<{ id: string }[]>`
-    insert into schedules (start_date, end_date, status, created_by)
-    values (${from}::date, ${to}::date, 'draft', ${input.actorId})
+    insert into schedules (start_date, end_date, status, created_by, team_id)
+    values (${from}::date, ${to}::date, 'draft', ${input.actorId}, ${teamId})
     returning id`;
   const scheduleId = created!.id;
 
@@ -225,6 +228,7 @@ export function registerGenerateRoute(
           body: parsed.data,
           actorId: c.get('user')!.id,
           now: now(),
+          teamId: c.get('teamId')!,
         }),
       );
       return c.json(result, 201);
