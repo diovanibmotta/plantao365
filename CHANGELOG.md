@@ -1,3 +1,8 @@
+# [v1.11.0](https://github.com/diovanibmotta/plantao365/compare/v1.10.1...v1.11.0) (2026-11-24)
+
+## ✨ New Features
+- [`7f05baf`](https://github.com/diovanibmotta/plantao365/commit/7f05baf)  feat(auth): master key, convite por e-mail e papel convidado (#15) (Issues: [`#15`](https://github.com/diovanibmotta/plantao365/issues/15))
+
 # [v1.10.1](https://github.com/diovanibmotta/plantao365/compare/v1.10.0...v1.10.1) (2026-11-24)
 
 ## 🔒 Security Issues
