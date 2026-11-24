@@ -1,3 +1,8 @@
+# [v1.16.0](https://github.com/diovanibmotta/plantao365/compare/v1.15.0...v1.16.0) (2026-11-24)
+
+## ✨ New Features
+- [`b5122a2`](https://github.com/diovanibmotta/plantao365/commit/b5122a2) : feat(web): CRUD de equipes com papel e rodízio por equipe (#24) (Issues: [`#24`](https://github.com/diovanibmotta/plantao365/issues/24))
+
 # [v1.15.0](https://github.com/diovanibmotta/plantao365/compare/v1.14.0...v1.15.0) (2026-11-24)
 
 ## ✨ New Features
