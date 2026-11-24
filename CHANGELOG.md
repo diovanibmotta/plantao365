@@ -2,6 +2,12 @@
 
 ## ✨ New Features
 - [`d4107be`](https://github.com/diovanibmotta/plantao365/commit/d4107be)  feat(web): URL da API configurável para front em outro domínio (#20) (Issues: [`#20`](https://github.com/diovanibmotta/plantao365/issues/20))
+- [`a943cbf`](https://github.com/diovanibmotta/plantao365/commit/a943cbf)  feat(api): imagem única com API e front (#21) (Issues: [`#21`](https://github.com/diovanibmotta/plantao365/issues/21))
+
+# [v1.14.0](https://github.com/diovanibmotta/plantao365/compare/v1.13.0...v1.14.0) (2026-11-24)
+
+## ✨ New Features
+- [`d4107be`](https://github.com/diovanibmotta/plantao365/commit/d4107be)  feat(web): URL da API configurável para front em outro domínio (#20) (Issues: [`#20`](https://github.com/diovanibmotta/plantao365/issues/20))
 
 # [v1.13.0](https://github.com/diovanibmotta/plantao365/compare/v1.12.0...v1.13.0) (2026-11-24)
 
