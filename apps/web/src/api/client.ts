@@ -1,3 +1,5 @@
+import { apiCredentials, apiUrl } from './base-url';
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -56,7 +58,7 @@ export async function request<T = unknown>(
   const verb = method.toUpperCase();
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (verb !== 'GET') headers[CSRF_HEADER] = CSRF_VALUE;
-  const init: RequestInit = { method: verb, headers, credentials: 'same-origin' };
+  const init: RequestInit = { method: verb, headers, credentials: apiCredentials() };
   if (signal) init.signal = signal;
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
@@ -65,7 +67,7 @@ export async function request<T = unknown>(
 
   let res: Response;
   try {
-    res = await fetch(path, init);
+    res = await fetch(apiUrl(path), init);
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
     throw new NetworkError();

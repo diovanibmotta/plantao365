@@ -83,7 +83,7 @@ kubectl apply -k deploy/k8s
 kubectl -n plantao365 wait --for=condition=complete job/plantao365-migrate --timeout=300s
 ```
 
-A imagem da API é publicada em `ghcr.io/diovanibmotta/plantao365-api`. O frontend (`npm run build -w @diovanibmotta/plantao365-web`, saída em `apps/web/dist`) é publicado em um CDN que serve a SPA e encaminha `/api/*` e `/auth/*` para o Ingress da API, mantendo tudo no mesmo domínio (o front usa URLs relativas e o cookie de sessão é `Secure` em produção).
+A imagem da API é publicada em `ghcr.io/diovanibmotta/plantao365-api`. O frontend (`npm run build -w @diovanibmotta/plantao365-web`, saída em `apps/web/dist`) é publicado em um CDN que serve a SPA e encaminha `/api/*` e `/auth/*` para o Ingress da API, mantendo tudo no mesmo domínio (padrão: o front usa URLs relativas). Alternativa: front e API em subdomínios distintos, com `VITE_API_BASE_URL` no build do front e `CORS_ALLOWED_ORIGINS` na API (veja [API em outro domínio](#api-em-outro-domínio)).
 
 ### Docker Compose (somente desenvolvimento)
 
@@ -104,27 +104,38 @@ Em `NODE_ENV=production` o cookie de sessão é `Secure`: publique o web atrás 
 
 ## Configuração
 
-| Variável                              | Obrigatória      | Padrão                  | Descrição                                                                     |
-| ------------------------------------- | ---------------- | ----------------------- | ----------------------------------------------------------------------------- |
-| `NODE_ENV`                            | não              | `development`           | `development`, `test` ou `production`                                         |
-| `PORT`                                | não              | `3000`                  | porta da API                                                                  |
-| `LOG_LEVEL`                           | não              | `info`                  | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`                  |
-| `APP_BASE_URL`                        | não              | `http://localhost:5173` | URL pública do web (redirecionamentos e links dos e-mails)                    |
-| `DATABASE_URL`                        | sim              | -                       | `postgres://usuario:senha@host:5432/banco`                                    |
-| `MANAGER_EMAILS`                      | sim em produção¹ | vazio                   | gestores iniciais, e-mails separados por vírgula                              |
-| `MASTER_USERNAME` / `MASTER_PASSWORD` | não¹             | vazio                   | master key: usuário e senha (12+ caracteres) do primeiro acesso               |
-| `SESSION_TTL_SECONDS`                 | não              | `28800`                 | duração da sessão em segundos (mínimo 60)                                     |
-| `COOKIE_SECURE`                       | não              | produção: `true`        | força o atributo Secure do cookie de sessão (use `true` em staging com HTTPS) |
-| `OIDC_ISSUER`                         | sim em produção  | -                       | `https://login.microsoftonline.com/<tenant-id>/v2.0`                          |
-| `OIDC_CLIENT_ID`                      | sim em produção  | -                       | ID do aplicativo (cliente) no Entra ID                                        |
-| `OIDC_CLIENT_SECRET`                  | sim em produção  | -                       | segredo do cliente                                                            |
-| `OIDC_REDIRECT_URI`                   | sim em produção  | -                       | `<URL pública>/auth/callback`                                                 |
-| `SMTP_HOST`                           | não              | -                       | habilita o envio de e-mails                                                   |
-| `SMTP_PORT`                           | não              | `587`                   | porta SMTP                                                                    |
-| `SMTP_SECURE`                         | não              | `false`                 | `true` para TLS implícito (normalmente porta 465)                             |
-| `SMTP_USER`                           | não              | -                       | usuário SMTP                                                                  |
-| `SMTP_PASSWORD`                       | não              | -                       | senha SMTP                                                                    |
-| `SMTP_FROM`                           | com `SMTP_HOST`  | -                       | remetente dos e-mails                                                         |
+| Variável                              | Obrigatória      | Padrão                  | Descrição                                                                                                         |
+| ------------------------------------- | ---------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                            | não              | `development`           | `development`, `test` ou `production`                                                                             |
+| `PORT`                                | não              | `3000`                  | porta da API                                                                                                      |
+| `LOG_LEVEL`                           | não              | `info`                  | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`                                                      |
+| `APP_BASE_URL`                        | não              | `http://localhost:5173` | URL pública do web (redirecionamentos e links dos e-mails)                                                        |
+| `DATABASE_URL`                        | sim              | -                       | `postgres://usuario:senha@host:5432/banco`                                                                        |
+| `MANAGER_EMAILS`                      | sim em produção¹ | vazio                   | gestores iniciais, e-mails separados por vírgula                                                                  |
+| `MASTER_USERNAME` / `MASTER_PASSWORD` | não¹             | vazio                   | master key: usuário e senha (12+ caracteres) do primeiro acesso                                                   |
+| `SESSION_TTL_SECONDS`                 | não              | `28800`                 | duração da sessão em segundos (mínimo 60)                                                                         |
+| `COOKIE_SECURE`                       | não              | produção: `true`        | força o atributo Secure do cookie de sessão (use `true` em staging com HTTPS)                                     |
+| `CORS_ALLOWED_ORIGINS`                | não              | vazio                   | origens do front quando servido em outro domínio que a API, separadas por vírgula (habilita CORS com credenciais) |
+| `OIDC_ISSUER`                         | sim em produção  | -                       | `https://login.microsoftonline.com/<tenant-id>/v2.0`                                                              |
+| `OIDC_CLIENT_ID`                      | sim em produção  | -                       | ID do aplicativo (cliente) no Entra ID                                                                            |
+| `OIDC_CLIENT_SECRET`                  | sim em produção  | -                       | segredo do cliente                                                                                                |
+| `OIDC_REDIRECT_URI`                   | sim em produção  | -                       | `<URL pública>/auth/callback`                                                                                     |
+| `SMTP_HOST`                           | não              | -                       | habilita o envio de e-mails                                                                                       |
+| `SMTP_PORT`                           | não              | `587`                   | porta SMTP                                                                                                        |
+| `SMTP_SECURE`                         | não              | `false`                 | `true` para TLS implícito (normalmente porta 465)                                                                 |
+| `SMTP_USER`                           | não              | -                       | usuário SMTP                                                                                                      |
+| `SMTP_PASSWORD`                       | não              | -                       | senha SMTP                                                                                                        |
+| `SMTP_FROM`                           | com `SMTP_HOST`  | -                       | remetente dos e-mails                                                                                             |
+
+Variável de build do front: `VITE_API_BASE_URL` (opcional, ex.: `https://api.suaempresa.com`). Vazia, o front chama `/api` e `/auth` no mesmo domínio.
+
+### API em outro domínio
+
+Por padrão o front e a API respondem no mesmo domínio (CDN com roteamento de `/api/*` e `/auth/*`). Para servir o front em `https://plantao.suaempresa.com` e a API em `https://api.suaempresa.com`:
+
+1. Build do front: `VITE_API_BASE_URL=https://api.suaempresa.com npm run build -w @diovanibmotta/plantao365-web`.
+2. API: `APP_BASE_URL=https://plantao.suaempresa.com` (domínio do front), `CORS_ALLOWED_ORIGINS=https://plantao.suaempresa.com` e `OIDC_REDIRECT_URI=https://api.suaempresa.com/auth/callback` (o callback é tratado pela API; registre esse URI no Entra ID).
+3. Os dois domínios precisam ser **do mesmo site** (subdomínios do mesmo domínio registrável, como acima): o cookie de sessão é `SameSite=Lax` e só acompanha as chamadas entre origens quando o site é o mesmo. Domínios totalmente distintos não são suportados.
 
 Somente no compose: `POSTGRES_USER`, `POSTGRES_PASSWORD` (obrigatória), `POSTGRES_DB` e `WEB_PORT`.
 

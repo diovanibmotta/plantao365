@@ -51,7 +51,7 @@ await syncMasterUser(db, authOptions.master);
 const mailer = createMailer(smtp, logger);
 const worker = startOutboxWorker({ sql: db, mailer, logger });
 const reminders = startReminderJob({ sql: db, logger, appBaseUrl: config.APP_BASE_URL });
-const app = createApp({ logger, db, authOptions });
+const app = createApp({ logger, db, authOptions, corsOrigins: config.CORS_ALLOWED_ORIGINS });
 
 const server = serve({ fetch: app.fetch, port: config.PORT }, (info) => {
   logger.info({ port: info.port }, 'api listening');
