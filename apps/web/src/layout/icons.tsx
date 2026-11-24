@@ -96,11 +96,18 @@ export function Icon({ name, size = 16 }: { name: keyof typeof PATHS; size?: num
   );
 }
 
-/** Marca do app: triângulo preenchido, no estilo do logotipo da Vercel. */
+/**
+ * Marca do app: "p" de Plantão. O anel é o ciclo de 360° do rodízio, a haste é o posto
+ * e o ponto é quem está de plantão. Mesma geometria do favicon (apps/web/public/favicon.svg).
+ */
 export function BrandMark() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M12 3 22 20H2z" fill="currentColor" />
+    <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+      <g fill="none" stroke="currentColor" strokeWidth="3.4">
+        <path d="M8.8 5.1V27" />
+        <circle cx="16" cy="14" r="7.2" />
+      </g>
+      <circle cx="16" cy="14" r="1.9" fill="currentColor" />
     </svg>
   );
 }

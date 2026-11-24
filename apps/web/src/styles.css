@@ -621,6 +621,11 @@ input[type='radio'] {
   color: var(--on-primary);
 }
 
+.login-mark svg {
+  width: 28px;
+  height: 28px;
+}
+
 .login h1 {
   margin: 0;
 }
