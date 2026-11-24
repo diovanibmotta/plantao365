@@ -167,6 +167,28 @@ describe('TeamSchedulePage', () => {
     expect(within(screen.getByTestId('day-2026-03-03')).getByText('Bruno Lima')).toBeTruthy();
   });
 
+  it('filtra "Meus plantões": esmaece dias sem plantão do usuário logado', async () => {
+    mockApi({
+      shifts: [shift('2026-03-02', 'u1', 'Ana Souza'), shift('2026-03-03', 'u2', 'Bruno Lima')],
+      holidays: [{ id: 'h', date: '2026-03-03', name: 'Dia Teste', scope: 'national' }],
+    });
+    renderPage('2026-03-10');
+    await screen.findByTestId('day-2026-03-02');
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Meus plantões' }));
+
+    const mine = screen.getByTestId('day-2026-03-02');
+    expect(within(mine).getByText(/Ana Souza/)).toBeTruthy();
+    expect(mine.className).not.toContain('sched-day--dimmed');
+    const other = screen.getByTestId('day-2026-03-03');
+    expect(other.className).toContain('sched-day--dimmed');
+    expect(within(other).queryByText('Bruno Lima')).toBeNull();
+    expect(within(other).queryByText(/Feriado/)).toBeNull();
+    expect(screen.getByTestId('day-2026-03-05').className).toContain('sched-day--dimmed');
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Meus plantões' }));
+    expect(within(screen.getByTestId('day-2026-03-03')).getByText(/Bruno Lima/)).toBeTruthy();
+  });
+
   it('navega entre meses, inclusive virada de ano, consultando o intervalo certo', async () => {
     const fetchMock = mockApi();
     renderPage('2026-12-15');

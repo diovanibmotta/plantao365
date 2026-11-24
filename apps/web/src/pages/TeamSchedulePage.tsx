@@ -79,6 +79,7 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
   const [view, setView] = useState<CalendarView>('month');
   const [anchor, setAnchor] = useState<LocalDate>(today);
   const [member, setMember] = useState('');
+  const [onlyMine, setOnlyMine] = useState(false);
   const [loaded, setLoaded] = useState<{ key: string; outcome: Outcome } | null>(null);
   const [shiftTimes, setShiftTimes] = useState<ShiftTimes | null>(null);
   const [workPeriods, setWorkPeriods] = useState<WorkPeriod[]>([...DEFAULT_WORK_PERIODS]);
@@ -147,7 +148,9 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
     return [...byId].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'));
   }, [data]);
 
-  const activeMember = members.some(([id]) => id === member) ? member : '';
+  const selectedMember = members.some(([id]) => id === member) ? member : '';
+  // "Meus plantões" prevalece sobre o filtro por membro.
+  const activeMember = onlyMine && user ? user.id : selectedMember;
 
   return (
     <section>
@@ -190,9 +193,23 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
             </button>
           ))}
         </div>
-        <label className="sched-filter">
+        {user && !isGuest && (
+          <label className="sched-filter sched-filter--mine">
+            <input
+              type="checkbox"
+              checked={onlyMine}
+              onChange={(e) => setOnlyMine(e.target.checked)}
+            />
+            Meus plantões
+          </label>
+        )}
+        <label className="sched-filter sched-filter--member">
           Membro
-          <select value={activeMember} onChange={(e) => setMember(e.target.value)}>
+          <select
+            value={onlyMine ? '' : selectedMember}
+            disabled={onlyMine}
+            onChange={(e) => setMember(e.target.value)}
+          >
             <option value="">Todos</option>
             {members.map(([id, name]) => (
               <option key={id} value={id}>
@@ -287,19 +304,22 @@ function MonthCalendar({ month, data, today, userId, member, shiftTimes }: Month
           else if (isWeekend(date)) classes.push('sched-day--weekend');
           if (mine) classes.push('sched-day--mine');
           if (date === today) classes.push('sched-day--today');
-          if (shifts.length === 0 && !holiday && !vacation) classes.push('sched-day--empty');
+          // Com filtro de membro, só os dias dele ficam em destaque; os demais esmaecem sem detalhes.
+          const dimmed = member !== '' && shifts.length === 0;
+          if (dimmed) classes.push('sched-day--dimmed');
+          else if (shifts.length === 0 && !holiday && !vacation) classes.push('sched-day--empty');
           return (
             <li key={date} className={classes.join(' ')} data-testid={`day-${date}`}>
               <time dateTime={date} className="sched-day-number" aria-label={formatDayShort(date)}>
                 {Number(date.slice(8, 10))}
               </time>
-              {typeLabel && (
+              {typeLabel && !dimmed && (
                 <span className="sched-day-type" data-testid={`day-type-${date}`}>
                   {typeLabel}
                 </span>
               )}
-              {holiday && <span className="sched-day-note">Feriado: {holiday}</span>}
-              {vacation && <span className="sched-day-note">Férias coletivas</span>}
+              {holiday && !dimmed && <span className="sched-day-note">Feriado: {holiday}</span>}
+              {vacation && !dimmed && <span className="sched-day-note">Férias coletivas</span>}
               {shifts.map((s) => (
                 <span key={s.id} className="sched-day-shift">
                   {s.userId && <Avatar userId={s.userId} name={s.userName ?? ''} />}

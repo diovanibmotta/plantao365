@@ -107,6 +107,19 @@
   display: none;
 }
 
+.sched-day--dimmed {
+  opacity: 0.35;
+}
+
+.sched-filter--mine {
+  margin-left: auto;
+  cursor: pointer;
+}
+
+.sched-filter--mine + .sched-filter--member {
+  margin-left: 0;
+}
+
 .sched-day-number {
   color: var(--muted);
   font-weight: 500;
