@@ -64,7 +64,7 @@ export function MySchedulePage({ today: todayProp, renderActions }: MySchedulePa
 
   return (
     <section>
-      <h1>Minha escala</h1>
+      <h1>Plantão</h1>
       {outcome === null && (
         <p className="status" role="status">
           Carregando…

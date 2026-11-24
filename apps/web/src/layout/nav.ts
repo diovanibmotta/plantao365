@@ -28,7 +28,7 @@ export const NAV_GROUP_LABELS: Record<NavGroup, string> = {
 };
 
 export const NAV_ITEMS: NavItem[] = [
-  { to: '/my-schedule', label: 'Minha escala', icon: 'calendar-check', group: 'schedule' },
+  { to: '/my-schedule', label: 'Plantão', icon: 'calendar-check', group: 'schedule' },
   { to: '/schedule', label: 'Calendário', icon: 'grid', group: 'schedule', role: 'guest' },
   { to: '/swaps', label: 'Trocas', icon: 'repeat', group: 'schedule' },
   { to: '/balance', label: 'Saldo', icon: 'clock', group: 'schedule' },

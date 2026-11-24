@@ -97,7 +97,7 @@ describe('menu por papel', () => {
     mockApi(user('member'));
     renderAt('/profile');
     const nav = await screen.findByRole('navigation', { name: 'Principal' });
-    expect(nav.textContent).toContain('Minha escala');
+    expect(nav.textContent).toContain('Plantão');
     expect(nav.textContent).not.toContain('Equipe');
     expect(nav.textContent).not.toContain('Auditoria');
   });
@@ -128,7 +128,7 @@ describe('convidado', () => {
     expect(await screen.findByRole('heading', { name: 'Calendário' })).toBeTruthy();
     const nav = screen.getByRole('navigation', { name: 'Principal' });
     expect(nav.textContent).toContain('Calendário');
-    for (const label of ['Minha escala', 'Trocas', 'Saldo', 'Equipe'])
+    for (const label of ['Plantão', 'Trocas', 'Saldo', 'Equipe'])
       expect(nav.textContent).not.toContain(label);
     expect(screen.getByText('Convidado')).toBeTruthy();
   });
