@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { isWeekend } from '@diovanibmotta/plantao365-shared';
-import { api } from '../api/client';
+import { api, describeApiError } from '../api/client';
+import type { ApiError } from '../api/client';
+import { toast } from '../toast/toast-store';
 import {
   WEEK_HEADERS,
   addMonths,
@@ -11,7 +13,7 @@ import {
 import type { MonthKey } from '../schedule/calendar';
 import { formatDayShort, formatHours } from '../schedule/format';
 import type { ShiftDto } from '../schedule/types';
-import { describe, errorCode, errorDates, formatDate } from './types';
+import { errorCode, errorDates, formatDate } from './types';
 import type { EditResult, MemberOption, ScheduleDetail } from './types';
 
 interface ScheduleEditorProps {
@@ -21,7 +23,10 @@ interface ScheduleEditorProps {
   onDiscarded: () => void;
 }
 
-type Notice = { kind: 'ok' | 'error'; text: string };
+const publishError = (err: ApiError): string =>
+  errorCode(err) === 'schedule_overlap_published'
+    ? 'O período se sobrepõe a uma escala já publicada.'
+    : describeApiError(err);
 
 export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: ScheduleEditorProps) {
   const published = schedule.status === 'published';
@@ -30,8 +35,6 @@ export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: Sc
   const [userId, setUserId] = useState('');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<Notice | null>(null);
-  const [warnings, setWarnings] = useState<string[]>([]);
   const [confirmDates, setConfirmDates] = useState<string[] | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
 
@@ -42,31 +45,25 @@ export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: Sc
     setSelectedId(s.id);
     setUserId(s.userId ?? '');
     setReason('');
-    setWarnings([]);
-    setNotice(null);
   };
 
   const save = async () => {
     if (!selected) return;
     if (published && !reason.trim()) {
-      setNotice({ kind: 'error', text: 'Informe o motivo da alteração.' });
+      toast.warning('Informe o motivo da alteração.');
       return;
     }
     setBusy(true);
-    setNotice(null);
     try {
       const body: { userId: string | null; reason?: string } = { userId: userId || null };
       if (reason.trim()) body.reason = reason.trim();
-      const res = await api.patch<EditResult>(
-        `/api/schedules/${schedule.id}/shifts/${selected.id}`,
-        body,
-      );
-      setWarnings(res.warnings.map((w) => w.message));
-      setNotice({ kind: 'ok', text: res.notice ?? 'Plantão atualizado.' });
+      await api.patch<EditResult>(`/api/schedules/${schedule.id}/shifts/${selected.id}`, body, {
+        successMessage: 'Plantão atualizado.',
+      });
       setReason('');
       onChanged();
-    } catch (err) {
-      setNotice({ kind: 'error', text: describe(err, 'Não foi possível alterar o plantão.') });
+    } catch {
+      // erro exibido pelo toast
     } finally {
       setBusy(false);
     }
@@ -74,14 +71,17 @@ export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: Sc
 
   const publish = async (confirmUnassigned: boolean) => {
     setBusy(true);
-    setNotice(null);
     try {
       await api.post(
         `/api/schedules/${schedule.id}/publish`,
         confirmUnassigned ? { confirmUnassigned: true } : {},
+        {
+          successMessage: 'Escala publicada.',
+          errorMessage: publishError,
+          silentError: (err) => errorCode(err) === 'confirmation_required',
+        },
       );
       setConfirmDates(null);
-      setNotice({ kind: 'ok', text: 'Escala publicada.' });
       onChanged();
     } catch (err) {
       const code = errorCode(err);
@@ -89,13 +89,6 @@ export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: Sc
         setConfirmDates(errorDates(err));
       } else {
         setConfirmDates(null);
-        setNotice({
-          kind: 'error',
-          text:
-            code === 'schedule_overlap_published'
-              ? 'O período se sobrepõe a uma escala já publicada.'
-              : describe(err, 'Não foi possível publicar a escala.'),
-        });
       }
     } finally {
       setBusy(false);
@@ -105,11 +98,10 @@ export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: Sc
   const discard = async () => {
     setBusy(true);
     try {
-      await api.delete(`/api/schedules/${schedule.id}`);
+      await api.delete(`/api/schedules/${schedule.id}`, { successMessage: 'Rascunho descartado.' });
       onDiscarded();
-    } catch (err) {
+    } catch {
       setConfirmDiscard(false);
-      setNotice({ kind: 'error', text: describe(err, 'Não foi possível descartar o rascunho.') });
     } finally {
       setBusy(false);
     }
@@ -222,20 +214,6 @@ export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: Sc
             Salvar plantão
           </button>
         </form>
-      )}
-
-      {warnings.length > 0 && (
-        <ul className="sad-warnings" aria-label="Avisos de conflito">
-          {warnings.map((w) => (
-            <li key={w}>Aviso: {w}</li>
-          ))}
-        </ul>
-      )}
-      {notice?.kind === 'ok' && <p role="status">{notice.text}</p>}
-      {notice?.kind === 'error' && (
-        <p className="alert" role="alert">
-          {notice.text}
-        </p>
       )}
 
       {!published && (

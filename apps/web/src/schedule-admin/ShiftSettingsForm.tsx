@@ -7,13 +7,13 @@ import { DAY_TYPE_LABEL, formatHours } from '../schedule/format';
 import { describe } from './types';
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
-const hh = (h: number) => `${String(h).padStart(2, '0')}h`;
+const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
 /** Horário do plantão por tipo de dia; vale para os próximos rascunhos gerados. */
 export function ShiftSettingsForm() {
   const [times, setTimes] = useState<ShiftTimes | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -22,14 +22,13 @@ export function ShiftSettingsForm() {
       .then(setTimes)
       .catch((err: unknown) => {
         if (!controller.signal.aborted) {
-          setMessage({ ok: false, text: describe(err, 'Não foi possível carregar os horários.') });
+          setLoadError(describe(err, 'Não foi possível carregar os horários.'));
         }
       });
     return () => controller.abort();
   }, []);
 
   const set = (type: ShiftDayType, key: 'startHour' | 'endHour', value: number) => {
-    setMessage(null);
     setTimes((t) => t && { ...t, [type]: { ...t[type], [key]: value } });
   };
 
@@ -38,10 +37,13 @@ export function ShiftSettingsForm() {
     if (!times) return;
     setBusy(true);
     try {
-      setTimes(await api.put<ShiftTimes>('/api/shift-settings', times));
-      setMessage({ ok: true, text: 'Horários salvos. Valem para os próximos rascunhos gerados.' });
-    } catch (err) {
-      setMessage({ ok: false, text: describe(err, 'Não foi possível salvar os horários.') });
+      setTimes(
+        await api.put<ShiftTimes>('/api/shift-settings', times, {
+          successMessage: 'Horários salvos. Valem para os próximos rascunhos gerados.',
+        }),
+      );
+    } catch {
+      // erro exibido pelo toast
     } finally {
       setBusy(false);
     }
@@ -50,7 +52,7 @@ export function ShiftSettingsForm() {
   return (
     <section aria-labelledby="sad-times-title" className="sad-block">
       <h2 id="sad-times-title">Horário dos plantões</h2>
-      {times === null && !message && (
+      {times === null && !loadError && (
         <p className="status" role="status">
           Carregando…
         </p>
@@ -103,9 +105,9 @@ export function ShiftSettingsForm() {
           </button>
         </form>
       )}
-      {message && (
-        <p className={message.ok ? 'status' : 'alert'} role={message.ok ? 'status' : 'alert'}>
-          {message.text}
+      {loadError && (
+        <p className="alert" role="alert">
+          {loadError}
         </p>
       )}
     </section>

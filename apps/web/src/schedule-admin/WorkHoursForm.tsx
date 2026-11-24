@@ -9,13 +9,14 @@ import {
 } from '@diovanibmotta/plantao365-shared';
 import type { WorkPeriod } from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
+import { toast } from '../toast/toast-store';
 import { describe } from './types';
 
-/** Jornada de trabalho do time (ex.: 08h00–12h00 | 13h30–18h00), exibida no calendário. */
+/** Jornada de trabalho do time (ex.: 08:00–12:00 | 13:30–18:00), exibida no calendário. */
 export function WorkHoursForm() {
   const [periods, setPeriods] = useState<WorkPeriod[] | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -24,7 +25,7 @@ export function WorkHoursForm() {
       .then((r) => setPeriods(r.periods))
       .catch((err: unknown) => {
         if (!controller.signal.aborted) {
-          setMessage({ ok: false, text: describe(err, 'Não foi possível carregar a jornada.') });
+          setLoadError(describe(err, 'Não foi possível carregar a jornada.'));
         }
       });
     return () => controller.abort();
@@ -33,12 +34,10 @@ export function WorkHoursForm() {
   const update = (index: number, key: keyof WorkPeriod, text: string) => {
     const value = parseMinute(text);
     if (value === null) return;
-    setMessage(null);
     setPeriods((list) => list && list.map((p, i) => (i === index ? { ...p, [key]: value } : p)));
   };
 
   const add = () => {
-    setMessage(null);
     setPeriods((list) => {
       const last = list?.at(-1)?.endMinute ?? 480;
       const start = Math.min(last + 60, 1380);
@@ -47,7 +46,6 @@ export function WorkHoursForm() {
   };
 
   const remove = (index: number) => {
-    setMessage(null);
     setPeriods((list) => list && list.filter((_, i) => i !== index));
   };
 
@@ -56,16 +54,19 @@ export function WorkHoursForm() {
     if (!periods) return;
     const problem = validateWorkPeriods(periods);
     if (problem) {
-      setMessage({ ok: false, text: problem });
+      toast.warning(problem);
       return;
     }
     setBusy(true);
     try {
-      const saved = await api.put<{ periods: WorkPeriod[] }>('/api/work-hours', { periods });
+      const saved = await api.put<{ periods: WorkPeriod[] }>(
+        '/api/work-hours',
+        { periods },
+        { successMessage: 'Jornada salva.' },
+      );
       setPeriods(saved.periods);
-      setMessage({ ok: true, text: 'Jornada salva.' });
-    } catch (err) {
-      setMessage({ ok: false, text: describe(err, 'Não foi possível salvar a jornada.') });
+    } catch {
+      // erro exibido pelo toast
     } finally {
       setBusy(false);
     }
@@ -80,7 +81,7 @@ export function WorkHoursForm() {
         Períodos em que todo o time está trabalhando. Aparecem destacados nas visões de dia e semana
         do calendário.
       </p>
-      {periods === null && !message && (
+      {periods === null && !loadError && (
         <p className="status" role="status">
           Carregando…
         </p>
@@ -132,9 +133,9 @@ export function WorkHoursForm() {
           </div>
         </form>
       )}
-      {message && (
-        <p className={message.ok ? 'status' : 'alert'} role={message.ok ? 'status' : 'alert'}>
-          {message.text}
+      {loadError && (
+        <p className="alert" role="alert">
+          {loadError}
         </p>
       )}
     </section>

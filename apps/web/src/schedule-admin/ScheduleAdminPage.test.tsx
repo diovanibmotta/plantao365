@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ToastViewport } from '../toast/ToastViewport';
+import { toast } from '../toast/toast-store';
 import { DEFAULT_SHIFT_TIMES } from '@diovanibmotta/plantao365-shared';
 import { ScheduleAdminPage } from '../pages/ScheduleAdminPage';
 import type { ShiftDto } from '../schedule/types';
@@ -88,7 +90,12 @@ const bodyOf = (fetchMock: ReturnType<typeof vi.fn>, url: string, method: string
 
 async function openSchedule() {
   const user = userEvent.setup();
-  render(<ScheduleAdminPage />);
+  render(
+    <>
+      <ScheduleAdminPage />
+      <ToastViewport />
+    </>,
+  );
   await user.click(
     await screen.findByRole('button', { name: /Alterar escala de 02\/03\/2026 a 03\/03\/2026/ }),
   );
@@ -98,6 +105,7 @@ async function openSchedule() {
 
 afterEach(() => {
   cleanup();
+  toast.clear();
   vi.unstubAllGlobals();
 });
 
@@ -105,7 +113,13 @@ describe('ScheduleAdminPage', () => {
   it('configura horário do plantão por tipo de dia', async () => {
     const fetchMock = mockApi('draft');
     const user = userEvent.setup();
-    render(<ScheduleAdminPage />);
+    render(
+      <>
+        <ScheduleAdminPage />
+        <ToastViewport />
+      </>,
+    );
+    await user.click(screen.getByRole('tab', { name: 'Horários dos plantões' }));
     const start = await screen.findByLabelText('Início — Dia útil');
     expect((start as HTMLSelectElement).value).toBe('18');
     expect(screen.getByRole('row', { name: /Dia útil/ }).textContent).toContain('14h');
@@ -122,7 +136,13 @@ describe('ScheduleAdminPage', () => {
   it('edita e salva a jornada de trabalho do time', async () => {
     const fetchMock = mockApi('draft');
     const user = userEvent.setup();
-    render(<ScheduleAdminPage />);
+    render(
+      <>
+        <ScheduleAdminPage />
+        <ToastViewport />
+      </>,
+    );
+    await user.click(screen.getByRole('tab', { name: 'Jornada de trabalho' }));
     const end = await screen.findByLabelText('Fim do período 2');
     fireEvent.change(end, { target: { value: '17:30' } });
     await user.click(screen.getByRole('button', { name: 'Adicionar período' }));
@@ -140,7 +160,12 @@ describe('ScheduleAdminPage', () => {
   it('pesquisa escalas por situação e data', async () => {
     mockApi('draft');
     const user = userEvent.setup();
-    render(<ScheduleAdminPage />);
+    render(
+      <>
+        <ScheduleAdminPage />
+        <ToastViewport />
+      </>,
+    );
     const row = /Alterar escala de 02\/03\/2026/;
     await screen.findByRole('button', { name: row });
     await user.selectOptions(screen.getByLabelText('Situação'), 'published');
@@ -165,7 +190,12 @@ describe('ScheduleAdminPage', () => {
       return undefined;
     });
     const user = userEvent.setup();
-    render(<ScheduleAdminPage />);
+    render(
+      <>
+        <ScheduleAdminPage />
+        <ToastViewport />
+      </>,
+    );
     await user.click(await screen.findByRole('button', { name: /Excluir escala de 02\/03\/2026/ }));
     await user.click(screen.getByRole('button', { name: 'Confirmar exclusão' }));
     await screen.findByText('Nenhuma escala criada.');
@@ -174,7 +204,12 @@ describe('ScheduleAdminPage', () => {
 
   it('não oferece exclusão de escala publicada', async () => {
     mockApi('published');
-    render(<ScheduleAdminPage />);
+    render(
+      <>
+        <ScheduleAdminPage />
+        <ToastViewport />
+      </>,
+    );
     await screen.findByRole('button', { name: /Alterar escala de 02\/03\/2026/ });
     expect(screen.queryByRole('button', { name: /Excluir escala/ })).toBeNull();
   });
@@ -196,7 +231,13 @@ describe('ScheduleAdminPage', () => {
       return undefined;
     });
     const user = userEvent.setup();
-    render(<ScheduleAdminPage />);
+    render(
+      <>
+        <ScheduleAdminPage />
+        <ToastViewport />
+      </>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Gerar escala' }));
     await user.type(screen.getByLabelText('De'), '2026-03-02');
     await user.type(screen.getByLabelText('Até'), '2026-03-03');
     await user.click(screen.getByRole('button', { name: 'Gerar rascunho' }));
@@ -211,6 +252,22 @@ describe('ScheduleAdminPage', () => {
       to: '2026-03-03',
     });
     await screen.findByRole('heading', { name: /Rascunho: 02\/03\/2026/ });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('fecha o diálogo de gerar escala ao cancelar', async () => {
+    mockApi('draft');
+    const user = userEvent.setup();
+    render(
+      <>
+        <ScheduleAdminPage />
+        <ToastViewport />
+      </>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Gerar escala' }));
+    expect(screen.getByRole('dialog', { name: 'Gerar escala' })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('edita plantão do rascunho e exibe avisos de conflito', async () => {
