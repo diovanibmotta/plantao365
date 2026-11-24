@@ -1,3 +1,8 @@
+# [v1.8.0](https://github.com/diovanibmotta/plantao365/compare/v1.7.0...v1.8.0) (2026-11-24)
+
+## ✨ New Features
+- [`7eaa27f`](https://github.com/diovanibmotta/plantao365/commit/7eaa27f)  feat: horário do plantão por tipo de dia e foto do usuário via Entra ID
+
 # [v1.7.0](https://github.com/diovanibmotta/plantao365/compare/v1.6.0...v1.7.0) (2026-11-24)
 
 ## ✨ New Features
