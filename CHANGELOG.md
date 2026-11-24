@@ -1,3 +1,8 @@
+# [v1.10.1](https://github.com/diovanibmotta/plantao365/compare/v1.10.0...v1.10.1) (2026-11-24)
+
+## 🔒 Security Issues
+- [`0372ada`](https://github.com/diovanibmotta/plantao365/commit/0372ada) ️ fix(api): COOKIE_SECURE configurável para o cookie de sessão (#14) (Issues: [`#14`](https://github.com/diovanibmotta/plantao365/issues/14))
+
 # [v1.10.0](https://github.com/diovanibmotta/plantao365/compare/v1.9.0...v1.10.0) (2026-11-24)
 
 ## ✨ New Features
