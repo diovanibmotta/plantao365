@@ -21,7 +21,6 @@ export interface AuthEnv {
 }
 
 export interface OidcOptions {
-  mock: boolean;
   issuer?: string | undefined;
   clientId?: string | undefined;
   clientSecret?: string | undefined;

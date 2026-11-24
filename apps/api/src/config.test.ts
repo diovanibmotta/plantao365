@@ -10,7 +10,6 @@ describe('loadConfig', () => {
       NODE_ENV: 'development',
       PORT: 3000,
       LOG_LEVEL: 'info',
-      OIDC_MOCK: false,
       MANAGER_EMAILS: [],
     });
   });
@@ -42,12 +41,10 @@ describe('loadConfig', () => {
     ).toBe('smtp.example.com');
   });
 
-  it('production requires OIDC settings and a manager, and forbids the OIDC mock', () => {
+  it('production requires OIDC settings and a manager', () => {
     const prod = { ...base, NODE_ENV: 'production' };
     expect(() => loadConfig(prod)).toThrow(/OIDC_ISSUER[\s\S]*MANAGER_EMAILS/);
-    expect(() =>
-      loadConfig({ ...prod, OIDC_MOCK: 'true', MANAGER_EMAILS: 'ana@empresa.com' }),
-    ).toThrow(/OIDC_MOCK/);
+    expect(() => loadConfig({ ...prod, MANAGER_EMAILS: 'ana@empresa.com' })).toThrow(/OIDC_ISSUER/);
     const ok = loadConfig({
       ...prod,
       MANAGER_EMAILS: 'ana@empresa.com',

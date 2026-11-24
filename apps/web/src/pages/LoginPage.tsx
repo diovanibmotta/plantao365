@@ -26,7 +26,7 @@ function denialMessage(reason: string | null): string | null {
   return Object.hasOwn(DENIAL_MESSAGES, reason) ? DENIAL_MESSAGES[reason]! : GENERIC_MESSAGE;
 }
 
-function MasterLogin() {
+function MasterLogin({ open }: { open: boolean }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +52,7 @@ function MasterLogin() {
   };
 
   return (
-    <details className="master-login">
+    <details className="master-login" open={open || undefined}>
       <summary>Acesso master</summary>
       <form onSubmit={(e) => void submit(e)} aria-label="Acesso master">
         <label>
@@ -90,12 +90,12 @@ function MasterLogin() {
 export function LoginPage() {
   const { status, login } = useAuth();
   const [params] = useSearchParams();
-  const [masterEnabled, setMasterEnabled] = useState(false);
+  const [config, setConfig] = useState<{ masterLogin: boolean; sso: boolean } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     api
-      .get<{ masterLogin: boolean }>('/auth/config', controller.signal)
-      .then((cfg) => setMasterEnabled(cfg.masterLogin))
+      .get<{ masterLogin: boolean; sso: boolean }>('/auth/config', controller.signal)
+      .then(setConfig)
       .catch(() => undefined);
     return () => controller.abort();
   }, []);
@@ -114,16 +114,29 @@ export function LoginPage() {
           {message}
         </p>
       )}
-      <button type="button" className="btn primary" onClick={login} disabled={status === 'loading'}>
-        <svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true">
-          <rect x="1" y="1" width="9" height="9" fill="#f25022" />
-          <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
-          <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
-          <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
-        </svg>
-        Entrar com Microsoft
-      </button>
-      {masterEnabled && <MasterLogin />}
+      {config && !config.sso && (
+        <p className="muted">
+          Login corporativo (SSO) não configurado neste ambiente.
+          {config.masterLogin ? ' Use o acesso master.' : ' Procure o administrador.'}
+        </p>
+      )}
+      {(!config || config.sso) && (
+        <button
+          type="button"
+          className="btn primary"
+          onClick={login}
+          disabled={status === 'loading'}
+        >
+          <svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true">
+            <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+            <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+            <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+            <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+          </svg>
+          Entrar com Microsoft
+        </button>
+      )}
+      {config?.masterLogin && <MasterLogin open={!config.sso} />}
     </main>
   );
 }

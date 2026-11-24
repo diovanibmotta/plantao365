@@ -3,6 +3,7 @@ import { csrfProtection, sessionMiddleware, SESSION_COOKIE } from './auth/index.
 import type { AuthEnv } from './auth/index.js';
 import { createSession } from './auth/sessions.js';
 import type { Sql } from './db.js';
+import { OidcError, type OidcProvider } from './auth/oidc.js';
 
 export const TEST_ORIGIN = 'http://localhost:5173';
 
@@ -44,4 +45,18 @@ export function buildTestApp(sql: Sql, mount: (app: Hono<AuthEnv>) => void): Hon
   app.use(sessionMiddleware({ db: sql, cookieOptions: { secure: false } }));
   mount(app);
   return app;
+}
+
+/** IdP de teste: o e-mail vem do parâmetro `email` do callback; só existe nos testes. */
+export function createTestIdp(): OidcProvider {
+  return {
+    authorizationUrl: ({ state }) =>
+      Promise.resolve(new URL(`https://idp.test/authorize?state=${state}`)),
+    exchange(params, { state }) {
+      if (params.get('state') !== state) throw new OidcError('Estado inválido.');
+      const email = params.get('email')?.trim().toLowerCase();
+      if (!email?.includes('@')) throw new OidcError('Informe um e-mail válido.');
+      return Promise.resolve({ email, name: undefined, oid: `test:${email}` });
+    },
+  };
 }

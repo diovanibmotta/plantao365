@@ -10,7 +10,7 @@ const authOptions: AuthOptions = {
   appBaseUrl: 'http://localhost:5173',
   cookieSecure: false,
   sessionTtlSeconds: 3600,
-  oidc: { mock: true },
+  oidc: {},
 };
 
 describe.skipIf(!TEST_DATABASE_URL)('authz integration', () => {

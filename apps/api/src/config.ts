@@ -35,7 +35,6 @@ const schema = z
       .regex(/^postgres(ql)?:\/\//, 'deve começar com postgres:// ou postgresql://'),
     /** E-mails dos gestores iniciais, separados por vírgula (Requisito 1.6). */
     MANAGER_EMAILS: emailList,
-    OIDC_MOCK: bool,
     OIDC_ISSUER: optional(z.url()),
     OIDC_CLIENT_ID: optional(z.string()),
     OIDC_CLIENT_SECRET: optional(z.string()),
@@ -54,14 +53,7 @@ const schema = z
     SESSION_TTL_SECONDS: z.coerce.number().int().min(60).default(28800),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV === 'production' && env.OIDC_MOCK) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['OIDC_MOCK'],
-        message: 'não pode ser true em produção',
-      });
-    }
-    if (!env.OIDC_MOCK && env.NODE_ENV === 'production') {
+    if (env.NODE_ENV === 'production') {
       for (const k of [
         'OIDC_ISSUER',
         'OIDC_CLIENT_ID',

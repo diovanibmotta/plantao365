@@ -24,7 +24,7 @@ const json = (body: unknown, status = 200) =>
 function mockApi(me: AuthUser | null, masterLogin = false) {
   const fetchMock = vi.fn((url: string) => {
     if (url === '/auth/me') return Promise.resolve(me ? json(me) : json({}, 401));
-    if (url === '/auth/config') return Promise.resolve(json({ masterLogin }));
+    if (url === '/auth/config') return Promise.resolve(json({ masterLogin, sso: true }));
     return Promise.resolve(json({ ok: true }));
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -140,6 +140,23 @@ describe('convidado', () => {
       expect(await screen.findByRole('heading', { name: 'Acesso restrito' })).toBeTruthy();
       unmount();
     }
+  });
+});
+
+describe('login sem SSO', () => {
+  it('esconde o botão Microsoft e abre o acesso master', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        Promise.resolve(
+          url === '/auth/config' ? json({ masterLogin: true, sso: false }) : json({}, 401),
+        ),
+      ),
+    );
+    renderAt('/login');
+    expect(await screen.findByText(/SSO\) não configurado/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Entrar com Microsoft' })).toBeNull();
+    expect(screen.getByLabelText('Usuário')).toBeTruthy();
   });
 });
 

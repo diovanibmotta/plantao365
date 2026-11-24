@@ -8,7 +8,6 @@ import { createLoginLimiter, syncMasterUser, verifyMasterCredentials } from './m
 import { sessionMiddleware } from './middleware.js';
 import {
   createEntraProvider,
-  createMockProvider,
   OidcError,
   pkceChallenge,
   type OidcIdentity,
@@ -77,14 +76,12 @@ interface UserRow {
 
 export function createAuthRouter({ db, logger, options, provider }: AuthRouterDeps): Hono<AuthEnv> {
   const { oidc, cookieSecure, sessionTtlSeconds, appBaseUrl } = options;
-  if (oidc.mock && process.env['NODE_ENV'] === 'production') {
-    throw new Error('OIDC mock não pode ser usado em produção.');
-  }
-  const idp =
+  const ssoConfigured = Boolean(oidc.issuer && oidc.clientId && oidc.clientSecret);
+  const idp: OidcProvider | undefined =
     provider ??
-    (oidc.mock
-      ? createMockProvider()
-      : createEntraProvider(oidc, oidc.redirectUri ?? new URL('/auth/callback', appBaseUrl).href));
+    (ssoConfigured
+      ? createEntraProvider(oidc, oidc.redirectUri ?? new URL('/auth/callback', appBaseUrl).href)
+      : undefined);
   const cookieOptions = { secure: cookieSecure };
   const router = new Hono<AuthEnv>();
   const limiter = createLoginLimiter();
@@ -138,6 +135,12 @@ export function createAuthRouter({ db, logger, options, provider }: AuthRouterDe
   };
 
   router.get('/auth/login', async (c) => {
+    if (!idp) {
+      return c.json(
+        { error: 'sso_not_configured', message: 'Login SSO não configurado neste ambiente.' },
+        503,
+      );
+    }
     await db`delete from oidc_login_states where expires_at <= now()`;
     const state = newToken();
     const nonce = newToken();
@@ -152,14 +155,6 @@ export function createAuthRouter({ db, logger, options, provider }: AuthRouterDe
       maxAge: STATE_TTL_SECONDS,
     });
 
-    if (idp.mock) {
-      return c.html(
-        page(
-          'Login de desenvolvimento (IdP simulado)',
-          `<form method="get" action="/auth/callback"><input type="hidden" name="state" value="${escapeHtml(state)}"><label>E-mail <input type="email" name="email" required autofocus></label> <button type="submit">Entrar</button></form>`,
-        ),
-      );
-    }
     try {
       const url = await idp.authorizationUrl({
         state,
@@ -174,6 +169,7 @@ export function createAuthRouter({ db, logger, options, provider }: AuthRouterDe
   });
 
   router.get('/auth/callback', async (c) => {
+    if (!idp) return deny(c, 'idp_error');
     const params = new URL(c.req.url).searchParams;
     const state = params.get('state');
     const cookieState = getCookie(c, STATE_COOKIE);
@@ -240,7 +236,9 @@ export function createAuthRouter({ db, logger, options, provider }: AuthRouterDe
     return c.redirect(appBaseUrl, 302);
   });
 
-  router.get('/auth/config', (c) => c.json({ masterLogin: options.master !== undefined }));
+  router.get('/auth/config', (c) =>
+    c.json({ masterLogin: options.master !== undefined, sso: idp !== undefined }),
+  );
 
   router.post('/auth/master-login', async (c) => {
     const master = options.master;

@@ -6,7 +6,7 @@ Gestão de escala de plantão (sobreaviso) para equipes: rodízio automático co
 
 ## Funcionalidades
 
-- Login corporativo via SSO Microsoft Entra ID (OIDC), com IdP simulado em desenvolvimento.
+- Login corporativo via SSO Microsoft Entra ID (OIDC), com acesso master (master key) para o primeiro acesso.
 - Papéis **gestor** e **membro**; acesso apenas para e-mails pré-cadastrados.
 - Calendário de feriados e férias coletivas cadastrados no sistema.
 - Regras de turno: dia útil 14h (18h–08h); fim de semana e feriado 24h (08h–08h); férias coletivas 0h. Fuso `America/Sao_Paulo`.
@@ -47,7 +47,7 @@ npm run migrate -w @diovanibmotta/plantao365-api -- up
 npm run dev                 # API em :3000 e web em :5173
 ```
 
-Em desenvolvimento, `OIDC_MOCK=true` habilita um login simulado: informe um e-mail pré-cadastrado (os de `MANAGER_EMAILS` são criados como gestores na subida da API).
+Em desenvolvimento sem SSO, defina `MASTER_USERNAME`/`MASTER_PASSWORD` e entre por "Acesso master" na tela de login; os e-mails de `MANAGER_EMAILS` são criados como gestores na subida da API e passam a entrar quando o SSO estiver configurado.
 
 ### Variáveis de ambiente
 
@@ -91,7 +91,6 @@ Em `NODE_ENV=production` o cookie de sessão é `Secure`: publique o web atrás 
 | `MASTER_USERNAME` / `MASTER_PASSWORD` | não¹             | vazio                   | master key: usuário e senha (12+ caracteres) do primeiro acesso               |
 | `SESSION_TTL_SECONDS`                 | não              | `28800`                 | duração da sessão em segundos (mínimo 60)                                     |
 | `COOKIE_SECURE`                       | não              | produção: `true`        | força o atributo Secure do cookie de sessão (use `true` em staging com HTTPS) |
-| `OIDC_MOCK`                           | não              | `false`                 | login simulado; **proibido em produção**                                      |
 | `OIDC_ISSUER`                         | sim em produção  | -                       | `https://login.microsoftonline.com/<tenant-id>/v2.0`                          |
 | `OIDC_CLIENT_ID`                      | sim em produção  | -                       | ID do aplicativo (cliente) no Entra ID                                        |
 | `OIDC_CLIENT_SECRET`                  | sim em produção  | -                       | segredo do cliente                                                            |
@@ -128,8 +127,6 @@ Escopos solicitados: `openid`, `profile`, `email` e `User.Read` (Microsoft Graph
 - **Master key**: com `MASTER_USERNAME` e `MASTER_PASSWORD` definidos, a tela de login ganha "Acesso master". O usuário master é gestor, fica fora do rodízio e não aparece na Equipe; suas ações são auditadas. Gere a senha aleatória, como se faz com a master key do LiteLLM (ex.: `sk-$(openssl rand -hex 24)`; no PowerShell, `"sk-" + -join ((1..24) | % { '{0:x2}' -f (Get-Random -Max 256) })`), guarde-a em um cofre e não a reutilize. A partir dele, cadastre os demais (convites) e configure o restante. Remover as variáveis desativa o acesso e encerra as sessões master. Após 5 falhas em 15 minutos o login master é bloqueado (429) até a janela esvaziar. Use senha forte e HTTPS.
 - **Convite**: cadastrar um usuário em Equipe é o convite; ele entra via SSO com o papel atribuído e recebe um e-mail (fila `email_outbox`).
 - **Convidado**: quem entra via SSO sem convite vira usuário `guest` e só lê o calendário de escala publicada e feriados; qualquer outra rota ou alteração responde 403. Um gestor pode convidá-lo depois (promove o mesmo usuário) ou rebaixar alguém para convidado na Equipe.
-
-> Nunca use `OIDC_MOCK=true` fora de desenvolvimento: qualquer pessoa entraria com o e-mail que quisesse. A API se recusa a subir em produção com essa opção.
 
 ## Scripts
 

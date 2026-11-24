@@ -2,7 +2,7 @@
  * Teste E2E (nível de API) do fluxo principal do Plantão365, task 11.2.
  *
  * Não há navegador: as requisições vão ao app COMPLETO (`createApp`, com CSRF, sessão, hooks de
- * notificação e todos os routers reais) via `app.request`. Login pelo fluxo OIDC mock real
+ * notificação e todos os routers reais) via `app.request`. Login pelo fluxo OIDC com IdP de teste
  * (/auth/login + /auth/callback); e-mails saem pela outbox real (createMailer + startOutboxWorker)
  * para um servidor SMTP de teste em memória. Cenário único encadeado: cada passo depende do anterior.
  */
@@ -16,7 +16,7 @@ import { createApp } from '../app.js';
 import { createMailer, startOutboxWorker, type OutboxWorker } from '../email/index.js';
 import { startTestSmtp, type CapturedEmail, type TestSmtp } from '../email/test-smtp.js';
 import { createLogger } from '../logger.js';
-import { csrfHeaders, TEST_ORIGIN } from '../test-app.js';
+import { createTestIdp, csrfHeaders, TEST_ORIGIN } from '../test-app.js';
 import { createTestDb, TEST_DATABASE_URL, type TestDb } from '../test-utils.js';
 
 const logger = createLogger({ level: 'silent' });
@@ -68,8 +68,9 @@ describe.skipIf(!TEST_DATABASE_URL)('E2E de API: fluxo principal', () => {
         appBaseUrl: TEST_ORIGIN,
         cookieSecure: false,
         sessionTtlSeconds: 3600,
-        oidc: { mock: true },
+        oidc: {},
       },
+      oidcProvider: createTestIdp(),
     });
     await bootstrapManagers(t.sql, [MANAGER_EMAIL]);
   });
@@ -103,10 +104,10 @@ describe.skipIf(!TEST_DATABASE_URL)('E2E de API: fluxo principal', () => {
       }),
     );
 
-  /** Login mock real: /auth/login emite state+cookie; /auth/callback troca por sessão. */
+  /** Login real pelo fluxo OIDC (IdP de teste): /auth/login emite state+cookie; /auth/callback troca por sessão. */
   async function login(email: string): Promise<string> {
     const start = await app.request('/auth/login');
-    expect(start.status).toBe(200);
+    expect(start.status).toBe(302);
     const state = cookiesOf(start)[STATE_COOKIE];
     expect(state).toBeTruthy();
     const cb = await app.request(
@@ -131,7 +132,7 @@ describe.skipIf(!TEST_DATABASE_URL)('E2E de API: fluxo principal', () => {
   }
 
   it('gestor e membros usam o app de ponta a ponta: escala, troca, saldo e e-mails', async () => {
-    // 1) gestor loga (mock) e cadastra 3 membros
+    // 1) gestor loga (IdP de teste) e cadastra 3 membros
     const manager = await login(MANAGER_EMAIL);
     const me = await json<{ email: string; role: string }>(
       await call('/auth/me', { cookie: manager }),
@@ -150,6 +151,14 @@ describe.skipIf(!TEST_DATABASE_URL)('E2E de API: fluxo principal', () => {
       );
       ids.set(m.email, created.id);
     }
+    // cada cadastro enfileira um convite; confere e zera a caixa para as etapas seguintes
+    const invites = await drainEmails(MEMBERS.length);
+    expect(invites.map((m) => m.subject)).toEqual(
+      MEMBERS.map(() => 'Você foi convidado para o Plantão365'),
+    );
+    expect(invites.flatMap((m) => m.to).sort()).toEqual(MEMBERS.map((m) => m.email).sort());
+    smtp.clear();
+
     const cookies = new Map<string, string>();
     for (const m of MEMBERS) cookies.set(m.email, await login(m.email));
     const ana = MEMBERS[0].email;

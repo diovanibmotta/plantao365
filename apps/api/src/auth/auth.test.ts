@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { Hono } from 'hono';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createLogger } from '../logger.js';
+import { createTestIdp } from '../test-app.js';
 import { createTestDb, TEST_DATABASE_URL, type TestDb } from '../test-utils.js';
 import { bootstrapManagers } from './bootstrap.js';
 import { MASTER_EMAIL, syncMasterUser } from './master.js';
@@ -24,7 +25,7 @@ const options: AuthOptions = {
   appBaseUrl: 'http://localhost:5173',
   cookieSecure: false,
   sessionTtlSeconds: 3600,
-  oidc: { mock: true },
+  oidc: {},
 };
 const logger = createLogger({ level: 'silent' });
 
@@ -66,7 +67,7 @@ describe.skipIf(!TEST_DATABASE_URL)('auth', () => {
     const app = new Hono();
     app.route(
       '/',
-      createAuthRouter({ db: t.sql, logger, options: opts, ...(provider && { provider }) }),
+      createAuthRouter({ db: t.sql, logger, options: opts, provider: provider ?? createTestIdp() }),
     );
     const guarded = new Hono<AuthEnv>();
     guarded.use(sessionMiddleware({ db: t.sql, cookieOptions: { secure: opts.cookieSecure } }));
@@ -90,12 +91,12 @@ describe.skipIf(!TEST_DATABASE_URL)('auth', () => {
     return res;
   }
 
-  it('mock login creates a session for a registered active user', async () => {
+  it('login creates a session for a registered active user', async () => {
     await addUser('ana@example.com');
     const app = buildApp();
     const login = await app.request('/auth/login');
-    expect(login.status).toBe(200);
-    expect(await login.text()).toContain('name="email"');
+    expect(login.status).toBe(302);
+    expect(login.headers.get('location')).toContain('https://idp.test/authorize');
 
     const res = await mockLogin(app, 'Ana@Example.com');
     expect(res.status).toBe(302);
@@ -141,7 +142,9 @@ describe.skipIf(!TEST_DATABASE_URL)('auth', () => {
       isMaster: false,
     });
     const audit = await t.sql<{ reason: string }[]>`
-      select reason from audit_log where action = 'create' and entity_type = 'user'`;
+      select reason from audit_log
+      where action = 'create' and entity_type = 'user'
+        and entity_id = (select id::text from users where email = 'ninguem@example.com')`;
     expect(audit.map((a) => a.reason)).toEqual(['primeiro login SSO sem convite']);
 
     // segundo login reaproveita o mesmo usuário
@@ -232,7 +235,6 @@ describe.skipIf(!TEST_DATABASE_URL)('auth', () => {
         expected?: OidcExpected;
       } = {};
       const provider: OidcProvider = {
-        mock: false,
         authorizationUrl(p) {
           calls.auth = p;
           return Promise.resolve(new URL(`https://idp.example/authorize?state=${p.state}`));
@@ -399,12 +401,15 @@ describe.skipIf(!TEST_DATABASE_URL)('auth', () => {
     it('is disabled (404) when not configured', async () => {
       expect((await post(buildApp(), master)).status).toBe(404);
       const cfg = await buildApp().request('/auth/config');
-      expect(await cfg.json()).toEqual({ masterLogin: false });
+      expect(await cfg.json()).toEqual({ masterLogin: false, sso: true });
     });
 
     it('logs in as a manager outside the rotation and audits it', async () => {
       const app = buildApp(undefined, withMaster);
-      expect(await (await app.request('/auth/config')).json()).toEqual({ masterLogin: true });
+      expect(await (await app.request('/auth/config')).json()).toEqual({
+        masterLogin: true,
+        sso: true,
+      });
       const res = await post(app, master);
       expect(res.status).toBe(200);
       const token = cookiesOf(res)[SESSION_COOKIE]!;
@@ -417,7 +422,9 @@ describe.skipIf(!TEST_DATABASE_URL)('auth', () => {
         participatesInRotation: false,
         isMaster: true,
       });
-      const actions = await t.sql<{ action: string }[]>`select action from audit_log order by id`;
+      const actions = await t.sql<{ action: string }[]>`
+        select action from audit_log
+        where action = 'master.login' or reason = 'master key configurada' order by id`;
       expect(actions.map((a) => a.action)).toEqual(['create', 'master.login']);
     });
 
@@ -543,19 +550,15 @@ describe('oidc helpers', () => {
   });
 
   it('requires issuer, client id and secret for the real provider', () => {
-    expect(() => createEntraProvider({ mock: false }, 'http://x/auth/callback')).toThrow();
+    expect(() => createEntraProvider({}, 'http://x/auth/callback')).toThrow();
   });
 
-  it('refuses the mock IdP in production', () => {
-    const prev = process.env['NODE_ENV'];
-    process.env['NODE_ENV'] = 'production';
-    try {
-      expect(() => createAuthRouter({ db: undefined as never, logger, options })).toThrow(
-        /produção/,
-      );
-    } finally {
-      if (prev === undefined) delete process.env['NODE_ENV'];
-      else process.env['NODE_ENV'] = prev;
-    }
+  it('answers 503 on /auth/login and reports sso=false when SSO is not configured', async () => {
+    const app = createAuthRouter({ db: undefined as never, logger, options });
+    expect((await app.request('/auth/login')).status).toBe(503);
+    expect(await (await app.request('/auth/config')).json()).toEqual({
+      masterLogin: false,
+      sso: false,
+    });
   });
 });

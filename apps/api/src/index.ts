@@ -23,7 +23,6 @@ const authOptions: AuthOptions = {
   cookieSecure: config.COOKIE_SECURE ?? config.NODE_ENV === 'production',
   sessionTtlSeconds: config.SESSION_TTL_SECONDS,
   oidc: {
-    mock: config.OIDC_MOCK,
     issuer: config.OIDC_ISSUER,
     clientId: config.OIDC_CLIENT_ID,
     clientSecret: config.OIDC_CLIENT_SECRET,
