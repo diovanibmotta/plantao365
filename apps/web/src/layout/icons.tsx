@@ -98,7 +98,8 @@ export function Icon({ name, size = 16 }: { name: keyof typeof PATHS; size?: num
 
 /**
  * Marca do app: "p" de Plantão. O anel é o ciclo de 360° do rodízio, a haste é o posto
- * e o ponto é quem está de plantão. Mesma geometria do favicon (apps/web/public/favicon.svg).
+ * e o relógio analógico no miolo é o plantão (24h/365). Mesma geometria do favicon
+ * (apps/web/public/favicon.svg).
  */
 export function BrandMark() {
   return (
@@ -107,7 +108,14 @@ export function BrandMark() {
         <path d="M8.8 5.1V27" />
         <circle cx="16" cy="14" r="7.2" />
       </g>
-      <circle cx="16" cy="14" r="1.9" fill="currentColor" />
+      <path
+        d="M16 14L13.7 12.7M16 14L19.4 12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <circle cx="16" cy="14" r="1.2" fill="currentColor" />
     </svg>
   );
 }
