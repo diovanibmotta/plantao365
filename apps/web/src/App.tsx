@@ -3,7 +3,7 @@ import { RequireAuth, RequireRole } from './auth/guards';
 import { Layout } from './layout/Layout';
 import { AuditPage } from './pages/AuditPage';
 import { BalancePage } from './pages/BalancePage';
-import { CollectiveVacationsPage } from './exceptions/CollectiveVacationsPage';
+import { VacationsPage } from './exceptions/VacationsPage';
 import { LoginPage } from './pages/LoginPage';
 import { HolidaysPage } from './pages/HolidaysPage';
 import { ScheduleAdminPage } from './pages/ScheduleAdminPage';
@@ -28,7 +28,8 @@ export function App() {
           <Route path="perfil" element={<ProfilePage />} />
           <Route element={<RequireRole role="manager" />}>
             <Route path="equipe" element={<MembersPage />} />
-            <Route path="ferias-coletivas" element={<CollectiveVacationsPage />} />
+            <Route path="ferias" element={<VacationsPage />} />
+            <Route path="ferias-coletivas" element={<Navigate to="/ferias" replace />} />
             <Route path="gerenciar-escala" element={<ScheduleAdminPage />} />
             <Route path="feriados" element={<HolidaysPage />} />
             <Route path="auditoria" element={<AuditPage />} />

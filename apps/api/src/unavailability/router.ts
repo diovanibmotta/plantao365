@@ -63,6 +63,8 @@ const createBody = z
     endDate: date,
     note: note.nullish(),
     userId: z.uuid().optional(),
+    /** Só férias coletivas: restringe a coletiva a estes membros (sem isto vale p/ todo o time). */
+    userIds: z.array(z.uuid()).min(1).max(200).optional(),
   })
   .refine((b) => b.endDate >= b.startDate, { message: periodMessage, path: ['endDate'] });
 
@@ -182,7 +184,8 @@ export function createUnavailabilityRouter({
     if (!parsed.success) return invalid(c, parsed.error);
     const input = parsed.data;
     const isManager = user.role === 'manager';
-    let targetId: string | null;
+    // null = coletiva p/ todo o time; lista = uma linha 'vacation' por membro escolhido
+    let targets: (string | null)[];
 
     if (input.kind === 'collective_vacation') {
       if (!isManager) {
@@ -191,9 +194,22 @@ export function createUnavailabilityRouter({
       if (input.userId) {
         return fail(c, 400, 'validation_error', 'Férias coletivas não têm usuário associado');
       }
-      targetId = null;
+      targets = [null];
+      if (input.userIds) {
+        const ids = [...new Set(input.userIds)];
+        const found = await db<{ id: string; active: boolean }[]>`
+          select id, active from users where id in ${db(ids)}`;
+        if (found.length !== ids.length) {
+          return fail(c, 404, 'user_not_found', 'Usuário não encontrado');
+        }
+        if (found.some((u) => !u.active)) return fail(c, 400, 'user_inactive', 'Usuário inativo');
+        targets = ids;
+      }
     } else {
-      targetId = input.userId ?? user.id;
+      if (input.userIds) {
+        return fail(c, 400, 'validation_error', 'userIds só vale para férias coletivas');
+      }
+      const targetId = input.userId ?? user.id;
       if (!isManager && targetId !== user.id) {
         return fail(c, 403, 'forbidden', 'Você só pode cadastrar exceções para si mesmo');
       }
@@ -201,27 +217,38 @@ export function createUnavailabilityRouter({
         select active from users where id = ${targetId}`;
       if (!target) return fail(c, 404, 'user_not_found', 'Usuário não encontrado');
       if (!target.active) return fail(c, 400, 'user_inactive', 'Usuário inativo');
+      targets = [targetId];
     }
 
+    const kind = input.userIds ? 'vacation' : input.kind;
     const row = await db.begin(async (tx) => {
-      const created = await insertUnavailability(tx, {
-        userId: targetId,
-        kind: input.kind,
-        startDate: input.startDate,
-        endDate: input.endDate,
-        note: input.note ?? null,
-        createdBy: user.id,
-      });
-      await recordAudit(tx, {
-        actorId: user.id,
-        action: 'unavailability.create',
-        entityType: 'unavailability',
-        entityId: created.id,
-        after: { ...created },
-      });
-      return { created, warnings: await warnAndNotify(tx, created, user) };
+      const created: UnavailabilityDto[] = [];
+      const warnings: UnavailabilityWarning[] = [];
+      for (const userId of targets) {
+        const item = await insertUnavailability(tx, {
+          userId,
+          kind,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          note: input.note ?? null,
+          createdBy: user.id,
+        });
+        await recordAudit(tx, {
+          actorId: user.id,
+          action: 'unavailability.create',
+          entityType: 'unavailability',
+          entityId: item.id,
+          after: { ...item },
+        });
+        created.push(item);
+        warnings.push(...(await warnAndNotify(tx, item, user)));
+      }
+      return { created, warnings };
     });
-    return c.json({ unavailability: row.created, warnings: row.warnings }, 201);
+    return c.json(
+      { unavailability: row.created[0], unavailabilities: row.created, warnings: row.warnings },
+      201,
+    );
   });
 
   router.patch('/unavailabilities/:id', async (c) => {

@@ -4,9 +4,9 @@ import { APP_NAME } from '@diovanibmotta/plantao365-shared';
 import { useAuth } from '../auth/AuthContext';
 import { effectiveTheme, setTheme, type Theme } from '../theme';
 import { BrandMark, Icon } from './icons';
-import { NAV_GROUP_LABELS, navItemsFor, type NavGroup } from './nav';
+import { NAV_GROUP_LABELS, PROFILE_PATH, navItemsFor, type NavGroup } from './nav';
 
-const GROUP_ORDER: NavGroup[] = ['schedule', 'admin', 'account'];
+const GROUP_ORDER: NavGroup[] = ['schedule', 'admin'];
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -48,7 +48,9 @@ export function Layout() {
 
   if (!user) return null;
   const items = navItemsFor(user.role);
-  const current = items.find((item) => pathname.startsWith(item.to));
+  const current = pathname.startsWith(PROFILE_PATH)
+    ? { label: 'Perfil' }
+    : items.find((item) => pathname.startsWith(item.to));
 
   return (
     <div className="app">
@@ -94,13 +96,20 @@ export function Layout() {
           })}
         </nav>
         <div className="sidebar-foot">
-          <span className="avatar" aria-hidden="true">
-            {initials(user.name)}
-          </span>
-          <span className="who">
-            <span className="who-name">{user.name}</span>
-            <span className="who-role">{user.role === 'manager' ? 'Gestor' : 'Membro'}</span>
-          </span>
+          <NavLink
+            to={PROFILE_PATH}
+            className="who-link"
+            title="Meu perfil"
+            onClick={() => setOpen(false)}
+          >
+            <span className="avatar" aria-hidden="true">
+              {initials(user.name)}
+            </span>
+            <span className="who">
+              <span className="who-name">{user.name}</span>
+              <span className="who-role">{user.role === 'manager' ? 'Gestor' : 'Membro'}</span>
+            </span>
+          </NavLink>
           <ThemeToggle />
           <button type="button" className="btn sm" onClick={() => void logout()}>
             Sair
