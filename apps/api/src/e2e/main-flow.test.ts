@@ -1,5 +1,5 @@
 /**
- * Teste E2E (nível de API) do fluxo principal do Plantão360, task 11.2.
+ * Teste E2E (nível de API) do fluxo principal do Plantão365, task 11.2.
  *
  * Não há navegador: as requisições vão ao app COMPLETO (`createApp`, com CSRF, sessão, hooks de
  * notificação e todos os routers reais) via `app.request`. Login pelo fluxo OIDC mock real

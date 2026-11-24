@@ -29,7 +29,7 @@ export interface LayoutInput {
   footer?: string;
 }
 
-export const DEFAULT_FOOTER = 'Plantão360 · mensagem automática, não responda este e-mail.';
+export const DEFAULT_FOOTER = 'Plantão365 · mensagem automática, não responda este e-mail.';
 
 /** Layout base minimalista: fonte do sistema, poucos elementos. */
 export function renderLayout(input: LayoutInput): { html: string; text: string } {
@@ -237,8 +237,8 @@ export function renderSwapEmail(input: SwapEmailInput): RenderedEmail {
       subject = `Pedido de ${noun} de plantão: ${date}`;
       paragraphs.push(
         input.swapKind === 'swap'
-          ? `${req} pediu uma permuta de plantão com você. Responda ao pedido no Plantão360.`
-          : `${req} pediu que você assuma um plantão (cessão). Responda ao pedido no Plantão360.`,
+          ? `${req} pediu uma permuta de plantão com você. Responda ao pedido no Plantão365.`
+          : `${req} pediu que você assuma um plantão (cessão). Responda ao pedido no Plantão365.`,
       );
       break;
     case 'accepted':
@@ -307,6 +307,6 @@ export function renderUnavailabilityConflictEmail(
       'Datas em conflito:',
     ],
     lines: input.dates.map(formatDate),
-    ...(input.appUrl ? { action: { label: 'Abrir o Plantão360', url: input.appUrl } } : {}),
+    ...(input.appUrl ? { action: { label: 'Abrir o Plantão365', url: input.appUrl } } : {}),
   });
 }

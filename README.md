@@ -1,6 +1,6 @@
-<p align="center"><img src="apps/web/public/favicon.svg" width="56" alt="Plantão360" /></p>
+<p align="center"><img src="apps/web/public/favicon.svg" width="56" alt="Plantão365" /></p>
 
-# Plantão360
+# Plantão365
 
 Gestão de escala de plantão (sobreaviso) para equipes: rodízio automático com revisão do gestor, preferências e exceções dos membros, saldo de horas previsto x realizado e avisos por e-mail.
 

@@ -140,7 +140,7 @@ export async function startTestSmtp(): Promise<TestSmtp> {
   return {
     host: '127.0.0.1',
     port,
-    options: { host: '127.0.0.1', port, from: 'Plantão360 <plantao360@example.test>' },
+    options: { host: '127.0.0.1', port, from: 'Plantão365 <plantao365@example.test>' },
     messages,
     async waitForMessages(count, timeoutMs = 5000) {
       const deadline = Date.now() + timeoutMs;
