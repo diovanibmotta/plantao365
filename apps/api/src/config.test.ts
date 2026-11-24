@@ -59,6 +59,14 @@ describe('loadConfig', () => {
     expect(ok.NODE_ENV).toBe('production');
   });
 
+  it('parses COOKIE_SECURE, leaving it unset when empty or missing', () => {
+    expect(loadConfig({ ...base }).COOKIE_SECURE).toBeUndefined();
+    expect(loadConfig({ ...base, COOKIE_SECURE: '' }).COOKIE_SECURE).toBeUndefined();
+    expect(loadConfig({ ...base, COOKIE_SECURE: 'true' }).COOKIE_SECURE).toBe(true);
+    expect(loadConfig({ ...base, COOKIE_SECURE: '0' }).COOKIE_SECURE).toBe(false);
+    expect(() => loadConfig({ ...base, COOKIE_SECURE: 'yes' })).toThrow();
+  });
+
   it('does not leak values in error messages', () => {
     try {
       loadConfig({ DATABASE_URL: 'mysql://user:supersecret@host/db' });

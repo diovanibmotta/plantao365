@@ -20,7 +20,7 @@ const db = createDb(config.DATABASE_URL);
 
 const authOptions: AuthOptions = {
   appBaseUrl: config.APP_BASE_URL,
-  cookieSecure: config.NODE_ENV === 'production',
+  cookieSecure: config.COOKIE_SECURE ?? config.NODE_ENV === 'production',
   sessionTtlSeconds: config.SESSION_TTL_SECONDS,
   oidc: {
     mock: config.OIDC_MOCK,
