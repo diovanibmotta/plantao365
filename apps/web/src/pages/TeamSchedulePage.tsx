@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { LocalDate } from '@diovanibmotta/plantao365-shared';
+import { SHIFT_DAY_TYPES, shiftDuration } from '@diovanibmotta/plantao365-shared';
+import type { LocalDate, ShiftTimes } from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { Avatar } from '../layout/Avatar';
 import {
   WEEK_HEADERS,
   addMonths,
@@ -15,6 +17,8 @@ import {
   DAY_TYPE_LABEL,
   formatDayShort,
   formatHours,
+  formatPeriod,
+  formatShiftTime,
   holidayMap,
   todayLocal,
 } from '../schedule/format';
@@ -39,6 +43,17 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
   const [month, setMonth] = useState<MonthKey>(() => monthKeyOf(today));
   const [member, setMember] = useState('');
   const [loaded, setLoaded] = useState<{ month: MonthKey; outcome: Outcome } | null>(null);
+  const [shiftTimes, setShiftTimes] = useState<ShiftTimes | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    // Só alimenta a legenda; falha não impede o calendário.
+    api
+      .get<ShiftTimes>('/api/shift-settings', controller.signal)
+      .then(setShiftTimes)
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -140,6 +155,7 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
           today={today}
           userId={user?.id ?? null}
           member={activeMember}
+          shiftTimes={shiftTimes}
         />
       )}
     </section>
@@ -152,9 +168,10 @@ interface MonthCalendarProps {
   today: LocalDate;
   userId: string | null;
   member: string;
+  shiftTimes: ShiftTimes | null;
 }
 
-function MonthCalendar({ month, data, today, userId, member }: MonthCalendarProps) {
+function MonthCalendar({ month, data, today, userId, member, shiftTimes }: MonthCalendarProps) {
   const shiftsByDate = new Map<LocalDate, ShiftDto[]>();
   for (const s of data.shifts) {
     if (member && s.userId !== member) continue;
@@ -204,12 +221,21 @@ function MonthCalendar({ month, data, today, userId, member }: MonthCalendarProp
               {holiday && <span className="sched-day-note">Feriado: {holiday}</span>}
               {vacation && <span className="sched-day-note">Férias coletivas</span>}
               {shifts.map((s) => (
-                <span key={s.id}>
-                  <span className="sched-day-name">
-                    {s.userName ?? 'Sem responsável'}
-                    {mine && s.userId === userId ? ' (você)' : ''}
-                  </span>{' '}
-                  <span className="muted">{formatHours(s.hours)}</span>
+                <span key={s.id} className="sched-day-shift">
+                  {s.userId && <Avatar userId={s.userId} name={s.userName ?? ''} />}
+                  <span>
+                    <span className="sched-day-name">
+                      {s.userName ?? 'Sem responsável'}
+                      {mine && s.userId === userId ? ' (você)' : ''}
+                    </span>
+                    <span className="sched-day-period">
+                      <span>{formatPeriod(s)}</span>
+                      {s.endsAt && todayLocal(new Date(s.endsAt)) !== s.date && (
+                        <abbr title="Termina no dia seguinte"> +1</abbr>
+                      )}{' '}
+                      <span className="muted">{formatHours(s.hours)}</span>
+                    </span>
+                  </span>
                 </span>
               ))}
             </li>
@@ -221,10 +247,15 @@ function MonthCalendar({ month, data, today, userId, member }: MonthCalendarProp
           <span className="sched-swatch sched-swatch--mine" aria-hidden="true" />
           Seu plantão
         </li>
-        <li>Dia útil: 14h</li>
-        <li>Fim de semana: 24h</li>
+        {shiftTimes &&
+          SHIFT_DAY_TYPES.map((t) => (
+            <li key={t}>
+              {DAY_TYPE_LABEL[t]}: {formatShiftTime(shiftTimes[t])} (
+              {formatHours(shiftDuration(shiftTimes[t]))})
+            </li>
+          ))}
         <li>Feriado e férias coletivas aparecem em destaque</li>
-        <li>Horas ao lado do nome</li>
+        <li>Horas ao lado do nome; +1 = termina no dia seguinte</li>
       </ul>
     </>
   );

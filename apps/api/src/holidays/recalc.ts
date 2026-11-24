@@ -6,6 +6,7 @@ import type { Logger } from '../logger.js';
 import { notifyShiftsChanged } from '../notifications/schedule-events.js';
 import { runHookInSavepoint } from '../schedules/hook.js';
 import { lockSchedulesThenShifts } from '../schedules/service.js';
+import { getShiftTimes } from '../schedules/settings.js';
 import { listUnavailableByDate } from '../unavailability/service.js';
 import { listHolidayDates, localDate } from './service.js';
 
@@ -83,6 +84,7 @@ export async function recalculateHolidayShifts(
       collectiveVacations: (await listUnavailableByDate(tx, from, to)).collectiveVacations.map(
         (v) => ({ start: v.start, end: v.end }),
       ),
+      shiftTimes: await getShiftTimes(tx),
     };
     const changes: ShiftRecalcChange[] = [];
     const scheduleIds = new Set<string>();

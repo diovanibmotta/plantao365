@@ -1,5 +1,5 @@
 import { TIME_ZONE, addDays, dayOfWeek } from '@diovanibmotta/plantao365-shared';
-import type { DayType, LocalDate } from '@diovanibmotta/plantao365-shared';
+import type { DayType, LocalDate, ShiftTime } from '@diovanibmotta/plantao365-shared';
 import type { HolidayDto, ShiftDto } from './types';
 
 const WEEKDAYS_SHORT = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
@@ -58,6 +58,13 @@ export function formatPeriod(shift: ShiftDto): string {
     return `${formatHour(shift.startsAt)}–${formatHour(shift.endsAt)}`;
   }
   return shift.dayType === 'weekday' ? '18h–08h' : '08h–08h';
+}
+
+const hh = (h: number) => `${String(h).padStart(2, '0')}h`;
+
+/** Ex.: 18h–08h; fim menor ou igual ao início indica o dia seguinte. */
+export function formatShiftTime({ startHour, endHour }: ShiftTime): string {
+  return `${hh(startHour)}–${hh(endHour)}`;
 }
 
 export function formatHours(hours: number): string {

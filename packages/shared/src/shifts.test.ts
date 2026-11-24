@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { addDays, dateRange, dayOfWeek, localToInstant, monthOf, parseLocalDate } from './dates.js';
-import { classifyDay, shiftForDate, shiftsForRange, type ShiftContext } from './shifts.js';
+import {
+  classifyDay,
+  shiftDuration,
+  shiftForDate,
+  shiftsForRange,
+  type ShiftContext,
+} from './shifts.js';
 
 const ctx: ShiftContext = {
   holidays: ['2026-12-25', '2027-01-01', '2026-11-21'],
@@ -101,6 +107,38 @@ describe('shiftForDate', () => {
     expect(s.date).toBe('2026-12-31');
     expect(s.month).toBe('2026-12');
     expect(s.end?.toISOString()).toBe('2027-01-01T11:00:00.000Z');
+  });
+});
+
+describe('configurable shift times', () => {
+  const custom: ShiftContext = {
+    ...noVacation,
+    shiftTimes: {
+      weekday: { startHour: 19, endHour: 7 },
+      weekend: { startHour: 7, endHour: 19 },
+      holiday: { startHour: 9, endHour: 9 },
+    },
+  };
+
+  it('uses per-day-type hours, ending next day only when end <= start', () => {
+    const weekday = shiftForDate('2026-12-07', custom);
+    expect(weekday.hours).toBe(12);
+    expect(weekday.start?.toISOString()).toBe('2026-12-07T22:00:00.000Z');
+    expect(weekday.end?.toISOString()).toBe('2026-12-08T10:00:00.000Z');
+
+    const weekend = shiftForDate('2026-12-05', custom);
+    expect(weekend.hours).toBe(12);
+    expect(weekend.end?.toISOString()).toBe('2026-12-05T22:00:00.000Z');
+
+    const holiday = shiftForDate('2026-12-25', custom);
+    expect(holiday.hours).toBe(24);
+    expect(holiday.start?.toISOString()).toBe('2026-12-25T12:00:00.000Z');
+  });
+
+  it('computes durations', () => {
+    expect(shiftDuration({ startHour: 18, endHour: 8 })).toBe(14);
+    expect(shiftDuration({ startHour: 8, endHour: 8 })).toBe(24);
+    expect(shiftDuration({ startHour: 8, endHour: 18 })).toBe(10);
   });
 });
 

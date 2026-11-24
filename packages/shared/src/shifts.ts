@@ -10,12 +10,34 @@ import {
 
 export type DayType = 'weekday' | 'weekend' | 'holiday' | 'collective_vacation';
 
-export const SHIFT_HOURS = {
-  weekday: 14,
-  weekend: 24,
-  holiday: 24,
-  collective_vacation: 0,
-} as const satisfies Record<DayType, number>;
+/** Tipos de dia com plantão e horário configurável. */
+export type ShiftDayType = Exclude<DayType, 'collective_vacation'>;
+
+export const SHIFT_DAY_TYPES = ['weekday', 'weekend', 'holiday'] as const satisfies ShiftDayType[];
+
+/** Horário do turno em horas cheias (0–23); fim menor ou igual ao início termina no dia seguinte. */
+export interface ShiftTime {
+  startHour: number;
+  endHour: number;
+}
+
+export type ShiftTimes = Record<ShiftDayType, ShiftTime>;
+
+export const DEFAULT_SHIFT_TIMES: ShiftTimes = {
+  weekday: { startHour: 18, endHour: 8 },
+  weekend: { startHour: 8, endHour: 8 },
+  holiday: { startHour: 8, endHour: 8 },
+};
+
+/** Duração do turno; início igual ao fim é um plantão de 24h. */
+export function shiftDuration({ startHour, endHour }: ShiftTime): number {
+  return endHour > startHour ? endHour - startHour : endHour - startHour + 24;
+}
+
+export function shiftHoursFor(dayType: DayType, ctx: Pick<ShiftContext, 'shiftTimes'>): number {
+  if (dayType === 'collective_vacation') return 0;
+  return shiftDuration((ctx.shiftTimes ?? DEFAULT_SHIFT_TIMES)[dayType]);
+}
 
 export interface DateInterval {
   start: LocalDate;
@@ -27,6 +49,8 @@ export interface ShiftContext {
   holidays: Iterable<LocalDate>;
   /** Períodos de férias coletivas, inclusivos. */
   collectiveVacations: readonly DateInterval[];
+  /** Horário por tipo de dia; ausente usa DEFAULT_SHIFT_TIMES. */
+  shiftTimes?: ShiftTimes | undefined;
 }
 
 export interface Shift {
@@ -52,13 +76,14 @@ export function classifyDay(date: LocalDate, ctx: ShiftContext): DayType {
 export function shiftForDate(date: LocalDate, ctx: ShiftContext): Shift {
   const d = parseLocalDate(date);
   const dayType = classifyDay(d, ctx);
-  const base = { date: d, month: monthOf(d), dayType, hours: SHIFT_HOURS[dayType] };
+  const base = { date: d, month: monthOf(d), dayType, hours: shiftHoursFor(dayType, ctx) };
   if (dayType === 'collective_vacation') return { ...base, start: null, end: null };
-  const startHour = dayType === 'weekday' ? 18 : 8;
+  const time = (ctx.shiftTimes ?? DEFAULT_SHIFT_TIMES)[dayType];
+  const endDate = time.endHour > time.startHour ? d : addDays(d, 1);
   return {
     ...base,
-    start: localToInstant(d, startHour),
-    end: localToInstant(addDays(d, 1), 8),
+    start: localToInstant(d, time.startHour),
+    end: localToInstant(endDate, time.endHour),
   };
 }
 

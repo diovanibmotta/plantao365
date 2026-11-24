@@ -6,6 +6,7 @@ import type { Sql } from '../db.js';
 import { registerEditRoutes, type ShiftChangedHook } from './edit.js';
 import { registerGenerateRoute } from './generate.js';
 import { registerPublishRoutes, type PublishedHook } from './publish.js';
+import { registerSettingsRoutes } from './settings.js';
 import {
   getSchedule,
   listSchedules,
@@ -42,6 +43,7 @@ export function createSchedulesRouter({
   registerGenerateRoute(router, { db, now });
   registerPublishRoutes(router, { db, now, onPublished });
   registerEditRoutes(router, { db, onShiftChanged });
+  registerSettingsRoutes(router, { db });
 
   router.get('/schedules', async (c) => {
     const isManager = c.get('user')!.role === 'manager';

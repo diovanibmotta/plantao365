@@ -203,6 +203,11 @@ export function createAuthRouter({ db, logger, options, provider }: AuthRouterDe
       });
     }
 
+    if (identity.photo !== undefined) {
+      await db`update users set photo = ${identity.photo?.data ?? null},
+        photo_type = ${identity.photo?.type ?? null} where id = ${user.id}`;
+    }
+
     const { token } = await createSession(db, user.id, sessionTtlSeconds);
     deleteCookie(c, STATE_COOKIE, { path: '/', secure: cookieSecure });
     writeSessionCookie(c, token, sessionTtlSeconds, cookieOptions);
