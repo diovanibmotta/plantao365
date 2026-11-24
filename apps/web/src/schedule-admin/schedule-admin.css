@@ -10,35 +10,13 @@
   margin: 8px 0;
 }
 
-.sad-row label,
-.sad-edit label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  color: var(--muted);
-  font-size: 0.9em;
-}
-
-.sad-block input,
-.sad-block select {
-  padding: 7px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-}
-
 .sad-note,
 .sad-warnings {
   margin: 8px 0;
   padding: 8px 12px;
-  border-left: 3px solid var(--accent);
-  background: var(--surface);
 }
 
 .sad-warnings {
-  border-left-color: var(--danger);
   list-style: none;
 }
 
@@ -48,12 +26,12 @@
 
 .sad-table {
   border-collapse: collapse;
-  font-size: 0.9em;
+  font-size: 13px;
 }
 
 .sad-table caption {
-  text-align: left;
   color: var(--muted);
+  text-align: left;
 }
 
 .sad-table th,
@@ -71,8 +49,8 @@
   list-style: none;
 }
 
-.sad-month {
-  text-transform: capitalize;
+.sad-month::first-letter {
+  text-transform: uppercase;
 }
 
 .sad-weekdays,
@@ -87,7 +65,7 @@
 
 .sad-weekdays {
   color: var(--muted);
-  font-size: 0.8em;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -98,12 +76,14 @@
   min-height: 64px;
   padding: 4px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 0.8em;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 12px;
 }
 
 .sad-day--outside {
   border-color: transparent;
+  background: transparent;
 }
 
 .sad-day-number {
@@ -113,16 +93,21 @@
 .sad-shift {
   padding: 2px 4px;
   border: 1px solid transparent;
-  border-radius: var(--radius);
-  background: var(--surface);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
   color: var(--text);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: border-color 150ms var(--ease);
+}
+
+.sad-shift:hover {
+  border-color: var(--border-strong);
 }
 
 .sad-shift--empty {
-  border-color: var(--danger);
+  border-color: color-mix(in oklch, var(--danger) 55%, var(--border));
 }
 
 .sad-shift--selected {
@@ -147,7 +132,4 @@
 .sad-confirm {
   margin: var(--space) 0;
   padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
 }

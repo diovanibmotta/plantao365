@@ -8,48 +8,25 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .exc-header h1,
 .exc-header h2,
 .exc-section > h2 {
-  margin: 0 0 8px;
-  font-size: 1.1rem;
+  margin: 0 0 12px;
+  font-size: 1.0625rem;
 }
 
-.exc-header h1 {
-  font-size: inherit;
+.exc-header h1,
+.exc-header h2 {
+  margin: 0;
 }
 
 .exc-form {
   display: grid;
   gap: 12px;
   margin-bottom: var(--space);
-  padding: var(--space);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.exc-form label,
-.exc-fieldset legend {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.9em;
-  color: var(--muted);
-}
-
-.exc-form input,
-.exc-form select,
-.exc-form textarea {
-  padding: 7px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
 }
 
 .exc-fieldset {
@@ -62,15 +39,16 @@
 }
 
 .exc-fieldset legend {
+  margin-bottom: 6px;
   padding: 0;
-  margin-bottom: 4px;
 }
 
 .exc-form .exc-check {
   flex-direction: row;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   color: var(--text);
+  font-weight: 400;
 }
 
 .exc-actions {
@@ -81,10 +59,6 @@
 
 .exc-warning {
   margin-bottom: var(--space);
-  padding: 10px 12px;
-  border: 1px solid #b45309;
-  border-radius: var(--radius);
-  background: var(--surface);
 }
 
 .exc-warning ul {
@@ -92,19 +66,21 @@
   padding-left: 18px;
 }
 
-.exc-list {
+.exc-list,
+.holidays-list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.exc-item {
+.exc-item,
+.holidays-item {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px 16px;
-  padding: 10px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -115,8 +91,8 @@
 }
 
 .exc-meta {
-  font-size: 0.85em;
   color: var(--muted);
+  font-size: 13px;
 }
 
 .exc-danger {
