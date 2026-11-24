@@ -1,3 +1,8 @@
+# [v1.18.0](https://github.com/diovanibmotta/plantao365/compare/v1.17.0...v1.18.0) (2026-11-24)
+
+## ✨ New Features
+- [`ddfd0bb`](https://github.com/diovanibmotta/plantao365/commit/ddfd0bb) : feat(web): toast de sucesso, alerta e erro com interceptor HTTP (#29) (Issues: [`#29`](https://github.com/diovanibmotta/plantao365/issues/29))
+
 # [v1.17.0](https://github.com/diovanibmotta/plantao365/compare/v1.16.0...v1.17.0) (2026-11-24)
 
 ## ✨ New Features
