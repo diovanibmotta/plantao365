@@ -7,3 +7,4 @@ export interface HealthStatus {
 export * from './dates.js';
 export * from './shifts.js';
 export * from './rotation.js';
+export * from './work-hours.js';

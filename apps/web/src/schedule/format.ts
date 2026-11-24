@@ -84,3 +84,16 @@ export function sumHours(shifts: readonly ShiftDto[], from: LocalDate, days: num
   const to = addDays(from, days - 1);
   return shifts.filter((s) => s.date >= from && s.date <= to).reduce((acc, s) => acc + s.hours, 0);
 }
+
+/** Data e minuto do dia, no fuso do sistema, de um instante ISO. */
+export function localDateMinute(iso: string): { date: LocalDate; minute: number } {
+  const instant = new Date(iso);
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: TIME_ZONE,
+    hourCycle: 'h23',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(instant);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return { date: todayLocal(instant), minute: get('hour') * 60 + get('minute') };
+}

@@ -3,6 +3,8 @@ import {
   SHIFT_DAY_TYPES,
   type ShiftDayType,
   type ShiftTimes,
+  type WorkPeriod,
+  validateWorkPeriods,
 } from '@diovanibmotta/plantao365-shared';
 import type { Hono } from 'hono';
 import { z } from 'zod';
@@ -35,10 +37,65 @@ const putBody = z
 
 const toJson = (t: ShiftTimes) => Object.fromEntries(SHIFT_DAY_TYPES.map((k) => [k, { ...t[k] }]));
 
+/** Jornada de trabalho do time, em ordem cronológica. */
+export async function getWorkPeriods(sql: Sql): Promise<WorkPeriod[]> {
+  return sql<WorkPeriod[]>`
+    select start_minute as "startMinute", end_minute as "endMinute"
+    from work_periods order by position`;
+}
+
+const minute = z
+  .number({ error: 'Horário inválido' })
+  .int('Horário inválido')
+  .min(0, 'Horário deve estar entre 00:00 e 24:00')
+  .max(1440, 'Horário deve estar entre 00:00 e 24:00');
+const workHoursBody = z
+  .object({
+    periods: z.array(z.object({ startMinute: minute, endMinute: minute }).strict()),
+  })
+  .strict();
+
 /** GET/PUT /shift-settings. Vale para escalas geradas depois; plantões existentes não mudam. */
 export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql }): void {
   const { db } = deps;
   router.get('/shift-settings', async (c) => c.json(await getShiftTimes(db)));
+
+  router.get('/work-hours', async (c) =>
+    c.json({ periods: (await getWorkPeriods(db)).map((p) => ({ ...p })) }),
+  );
+
+  router.put('/work-hours', requireRole('manager'), async (c) => {
+    const parsed = workHoursBody.safeParse(await c.req.json().catch(() => null));
+    const problem = parsed.success
+      ? validateWorkPeriods(parsed.data.periods)
+      : (parsed.error.issues[0]?.message ?? 'Dados inválidos');
+    if (!parsed.success || problem) {
+      return c.json({ error: 'validation_error', message: problem ?? 'Dados inválidos' }, 400);
+    }
+    const next = parsed.data.periods;
+    await db.begin(async (txRaw) => {
+      const tx = txRaw as unknown as Sql;
+      const before = await getWorkPeriods(tx);
+      await tx`delete from work_periods`;
+      if (next.length > 0) {
+        const rows = next.map((p, position) => ({
+          position,
+          start_minute: p.startMinute,
+          end_minute: p.endMinute,
+        }));
+        await tx`insert into work_periods ${tx(rows)}`;
+      }
+      await recordAudit(tx, {
+        actorId: c.get('user')!.id,
+        action: 'work_hours.update',
+        entityType: 'work_hours',
+        entityId: null,
+        before: { periods: before.map((p) => ({ ...p })) },
+        after: { periods: next },
+      });
+    });
+    return c.json({ periods: next });
+  });
 
   router.put('/shift-settings', requireRole('manager'), async (c) => {
     const parsed = putBody.safeParse(await c.req.json().catch(() => null));

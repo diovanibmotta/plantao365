@@ -1,18 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
-import { SHIFT_DAY_TYPES, isWeekend, shiftDuration } from '@diovanibmotta/plantao365-shared';
-import type { LocalDate, ShiftTimes } from '@diovanibmotta/plantao365-shared';
+import {
+  DEFAULT_WORK_PERIODS,
+  SHIFT_DAY_TYPES,
+  addDays,
+  isWeekend,
+  shiftDuration,
+} from '@diovanibmotta/plantao365-shared';
+import type { LocalDate, ShiftTimes, WorkPeriod } from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { Avatar } from '../layout/Avatar';
 import {
   WEEK_HEADERS,
-  addMonths,
   buildMonthGrid,
   monthKeyOf,
   monthLabel,
-  monthRange,
+  shiftAnchor,
+  viewDates,
+  viewLabel,
+  viewRange,
 } from '../schedule/calendar';
-import type { MonthKey } from '../schedule/calendar';
+import type { CalendarView, MonthKey } from '../schedule/calendar';
+import { TimeGrid } from '../schedule/TimeGrid';
 import {
   DAY_TYPE_LABEL,
   formatDayShort,
@@ -33,6 +42,32 @@ interface MonthData {
 
 type Outcome = { error: string } | { data: MonthData };
 
+const VIEWS: Array<[CalendarView, string]> = [
+  ['month', 'Mês'],
+  ['week', 'Semana'],
+  ['day', 'Dia'],
+];
+const PREVIOUS: Record<CalendarView, string> = {
+  month: 'Mês anterior',
+  week: 'Semana anterior',
+  day: 'Dia anterior',
+};
+const NEXT: Record<CalendarView, string> = {
+  month: 'Próximo mês',
+  week: 'Próxima semana',
+  day: 'Próximo dia',
+};
+
+/** Datas de férias coletivas conhecidas nos dados carregados. */
+function vacationDates(data: MonthData): Set<LocalDate> {
+  const out = new Set<LocalDate>();
+  for (const s of data.shifts) if (s.dayType === 'collective_vacation') out.add(s.date);
+  for (const v of data.vacations) {
+    for (let d = v.startDate; d <= v.endDate; d = addDays(d, 1)) out.add(d);
+  }
+  return out;
+}
+
 interface TeamSchedulePageProps {
   today?: LocalDate;
 }
@@ -41,10 +76,15 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
   const today = todayProp ?? todayLocal();
   const { user } = useAuth();
   const isGuest = user?.role === 'guest';
-  const [month, setMonth] = useState<MonthKey>(() => monthKeyOf(today));
+  const [view, setView] = useState<CalendarView>('month');
+  const [anchor, setAnchor] = useState<LocalDate>(today);
   const [member, setMember] = useState('');
-  const [loaded, setLoaded] = useState<{ month: MonthKey; outcome: Outcome } | null>(null);
+  const [loaded, setLoaded] = useState<{ key: string; outcome: Outcome } | null>(null);
   const [shiftTimes, setShiftTimes] = useState<ShiftTimes | null>(null);
+  const [workPeriods, setWorkPeriods] = useState<WorkPeriod[]>([...DEFAULT_WORK_PERIODS]);
+  const month = monthKeyOf(anchor);
+  const { from, to } = viewRange(view, anchor);
+  const key = `${view}:${from}:${to}`;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -53,12 +93,16 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
       .get<ShiftTimes>('/api/shift-settings', controller.signal)
       .then(setShiftTimes)
       .catch(() => undefined);
+    // Jornada de trabalho do time: destaque nas visões de dia e semana; falha mantém o padrão.
+    api
+      .get<{ periods: WorkPeriod[] }>('/api/work-hours', controller.signal)
+      .then((r) => setWorkPeriods(r.periods))
+      .catch(() => undefined);
     return () => controller.abort();
   }, []);
 
   useEffect(() => {
     const controller = new AbortController();
-    const { from, to } = monthRange(month);
     const range = `from=${from}&to=${to}`;
     // Convidado não acessa exceções; vê só plantões e feriados.
     const noVacations = { items: [] as UnavailabilityDto[] };
@@ -74,7 +118,7 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
     ])
       .then(([shifts, holidays, vacations]) =>
         setLoaded({
-          month,
+          key,
           outcome: {
             data: {
               shifts,
@@ -87,12 +131,12 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
         const error = err instanceof Error ? err.message : 'Não foi possível carregar a escala.';
-        setLoaded({ month, outcome: { error } });
+        setLoaded({ key, outcome: { error } });
       });
     return () => controller.abort();
-  }, [month, isGuest]);
+  }, [key, from, to, isGuest]);
 
-  const outcome = loaded?.month === month ? loaded.outcome : null;
+  const outcome = loaded?.key === key ? loaded.outcome : null;
   const data = outcome && 'data' in outcome ? outcome.data : null;
 
   const members = useMemo(() => {
@@ -113,26 +157,39 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
           <button
             type="button"
             className="btn"
-            aria-label="Mês anterior"
-            onClick={() => setMonth(addMonths(month, -1))}
+            aria-label={PREVIOUS[view]}
+            onClick={() => setAnchor(shiftAnchor(view, anchor, -1))}
           >
             ‹
           </button>
-          <button type="button" className="btn" onClick={() => setMonth(monthKeyOf(today))}>
+          <button type="button" className="btn" onClick={() => setAnchor(today)}>
             Hoje
           </button>
           <button
             type="button"
             className="btn"
-            aria-label="Próximo mês"
-            onClick={() => setMonth(addMonths(month, 1))}
+            aria-label={NEXT[view]}
+            onClick={() => setAnchor(shiftAnchor(view, anchor, 1))}
           >
             ›
           </button>
         </div>
         <h2 className="sched-month" aria-live="polite">
-          {monthLabel(month)}
+          {viewLabel(view, anchor)}
         </h2>
+        <div className="sched-views" role="group" aria-label="Visão do calendário">
+          {VIEWS.map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              className={`btn${view === v ? ' primary' : ''}`}
+              aria-pressed={view === v}
+              onClick={() => setView(v)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <label className="sched-filter">
           Membro
           <select value={activeMember} onChange={(e) => setMember(e.target.value)}>
@@ -156,7 +213,7 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
           {outcome.error}
         </p>
       )}
-      {data && (
+      {data && view === 'month' && (
         <MonthCalendar
           month={month}
           data={data}
@@ -164,6 +221,19 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
           userId={user?.id ?? null}
           member={activeMember}
           shiftTimes={shiftTimes}
+        />
+      )}
+      {data && view !== 'month' && (
+        <TimeGrid
+          dates={viewDates(view, anchor)}
+          shifts={data.shifts}
+          holidays={data.holidays}
+          vacationDates={vacationDates(data)}
+          today={today}
+          userId={user?.id ?? null}
+          member={activeMember}
+          shiftTimes={shiftTimes}
+          workPeriods={workPeriods}
         />
       )}
     </section>
