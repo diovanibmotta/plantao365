@@ -61,9 +61,33 @@ npm run migrate -w @diovanibmotta/plantao365-api -- up
 npm run migrate -w @diovanibmotta/plantao365-api -- down 1     # reverte N migrações (ou "all")
 ```
 
-## Docker
+## Implantação
 
-Imagens da API (`apps/api/Dockerfile`) e do web (`apps/web/Dockerfile`, nginx), ambas construídas a partir da raiz do repositório. O `docker-compose.yml` sobe PostgreSQL, API e web:
+| Ambiente                | Como                                                         |
+| ----------------------- | ------------------------------------------------------------ |
+| Desenvolvimento / teste | Docker Compose (abaixo)                                      |
+| Produção                | Manifests Kubernetes em [`deploy/k8s`](#kubernetes-produção) |
+
+### Kubernetes (produção)
+
+Em produção use os manifests de [`deploy/k8s`](deploy/k8s) (Kustomize): Deployment da API, Service, Ingress, PodDisruptionBudget e Job de migração. O frontend não roda no cluster: os arquivos estáticos vão para um CDN (exemplos na [wiki](https://github.com/diovanibmotta/plantao365/wiki/Implantacao-Kubernetes)). O PostgreSQL é externo ao cluster (gerenciado ou operador) e informado em `DATABASE_URL`.
+
+```bash
+kubectl apply -f deploy/k8s/namespace.yaml
+kubectl -n plantao365 create secret generic plantao365-secret \
+  --from-literal=DATABASE_URL='postgres://USUARIO:SENHA@HOST:5432/plantao360' \
+  --from-literal=OIDC_CLIENT_SECRET='...'          # modelo em deploy/k8s/secret.example.yaml
+# ajuste configmap.yaml (APP_BASE_URL, OIDC_*, MANAGER_EMAILS), ingress.yaml (host/TLS) e as tags em kustomization.yaml
+kubectl delete job plantao365-migrate -n plantao365 --ignore-not-found
+kubectl apply -k deploy/k8s
+kubectl -n plantao365 wait --for=condition=complete job/plantao365-migrate --timeout=300s
+```
+
+A imagem da API é publicada em `ghcr.io/diovanibmotta/plantao365-api`. O frontend (`npm run build -w @diovanibmotta/plantao365-web`, saída em `apps/web/dist`) é publicado em um CDN que serve a SPA e encaminha `/api/*` e `/auth/*` para o Ingress da API, mantendo tudo no mesmo domínio (o front usa URLs relativas e o cookie de sessão é `Secure` em produção).
+
+### Docker Compose (somente desenvolvimento)
+
+Imagens da API (`apps/api/Dockerfile`) e do web (`apps/web/Dockerfile`, nginx), ambas construídas a partir da raiz do repositório. O `docker-compose.yml` sobe PostgreSQL, API e web em uma única máquina, sem alta disponibilidade, e não é recomendado para produção:
 
 ```bash
 cp .env.example .env     # defina POSTGRES_PASSWORD, APP_BASE_URL, MANAGER_EMAILS e OIDC_*
@@ -76,7 +100,7 @@ A aplicação responde em `http://localhost:8080` (`WEB_PORT`). O nginx serve a 
 
 Em `NODE_ENV=production` o cookie de sessão é `Secure`: publique o web atrás de HTTPS (proxy reverso ou balanceador com TLS) e use `APP_BASE_URL` com `https://`. Se a senha do banco tiver caracteres especiais, aplique URL-encode, pois ela compõe a `DATABASE_URL` montada no compose.
 
-> Imagens e compose validados com Docker Compose v2: build, migrações, subida dos três serviços, `/healthz` do web e login master. Guia completo na [wiki](https://github.com/diovanibmotta/plantao365/wiki).
+> Imagens e compose validados com Docker Compose v2: build, migrações, subida dos três serviços, `/healthz` do web e login master. Os manifests Kubernetes ainda não foram aplicados em cluster. Guia completo na [wiki](https://github.com/diovanibmotta/plantao365/wiki).
 
 ## Configuração
 
