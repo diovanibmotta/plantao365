@@ -25,6 +25,7 @@ import {
 import { createOnUnavailabilityConflict } from './notifications/unavailability-events.js';
 import { createOnSwapEvent } from './notifications/swap-events.js';
 import { createSwapsRouter } from './swaps/index.js';
+import { createSystemRouter, type ConfigWarning } from './system/index.js';
 import { createTeamsRouter, teamMiddleware } from './teams/index.js';
 import { createUnavailabilityRouter } from './unavailability/index.js';
 import { createUsersRouter } from './users/index.js';
@@ -42,6 +43,8 @@ export interface AppDeps {
   corsOrigins?: string[];
   /** IdP injetado (testes); por padrão usa o Entra ID conforme authOptions. */
   oidcProvider?: OidcProvider;
+  /** Recursos desativados por falta de configuração; exibidos como banner ao gestor. */
+  configWarnings?: ConfigWarning[];
 }
 
 export function createApp({
@@ -52,6 +55,7 @@ export function createApp({
   webDistDir,
   corsOrigins = [],
   oidcProvider,
+  configWarnings = [],
 }: AppDeps): Hono {
   const app = new Hono();
 
@@ -107,6 +111,7 @@ export function createApp({
     app.use('/api/*', guestGuard());
     app.use('/api/*', teamMiddleware({ db }));
     app.route('/api', createTeamsRouter({ db }));
+    app.route('/api', createSystemRouter({ warnings: configWarnings }));
     app.route('/api', createAuditRouter({ db, guard: requireRole('manager') }));
     app.route(
       '/api',

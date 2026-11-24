@@ -6,6 +6,7 @@ import { createDb } from './db.js';
 import { createMailer, startOutboxWorker, type SmtpOptions } from './email/index.js';
 import { createLogger } from './logger.js';
 import { startReminderJob } from './reminders/index.js';
+import { computeConfigWarnings } from './system/index.js';
 
 let config;
 try {
@@ -56,6 +57,7 @@ const app = createApp({
   db,
   authOptions,
   corsOrigins: config.CORS_ALLOWED_ORIGINS,
+  configWarnings: computeConfigWarnings(config),
   ...(config.WEB_DIST_DIR && { webDistDir: config.WEB_DIST_DIR }),
 });
 

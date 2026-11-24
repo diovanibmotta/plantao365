@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react';
 import type { NavIcon } from './nav';
 
-const PATHS: Record<NavIcon | 'menu' | 'sun-mode' | 'moon' | 'logout' | 'close', ReactNode> = {
+const PATHS: Record<
+  NavIcon | 'menu' | 'sun-mode' | 'moon' | 'logout' | 'close' | 'warning',
+  ReactNode
+> = {
   'calendar-check': (
     <>
       <path d="M8 2v4M16 2v4" />
@@ -66,6 +69,12 @@ const PATHS: Record<NavIcon | 'menu' | 'sun-mode' | 'moon' | 'logout' | 'close',
     </>
   ),
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
+  warning: (
+    <>
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+      <path d="M12 9v4M12 17h.01" />
+    </>
+  ),
   close: <path d="M18 6 6 18M6 6l12 12" />,
   'sun-mode': (
     <>
