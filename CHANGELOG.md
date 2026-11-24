@@ -1,3 +1,8 @@
+# [v1.9.0](https://github.com/diovanibmotta/plantao365/compare/v1.8.0...v1.9.0) (2026-11-24)
+
+## ✨ New Features
+- [`a9d0722`](https://github.com/diovanibmotta/plantao365/commit/a9d0722)  feat(web): semana inicia no domingo e destaca fins de semana e feriados
+
 # [v1.8.0](https://github.com/diovanibmotta/plantao365/compare/v1.7.0...v1.8.0) (2026-11-24)
 
 ## ✨ New Features
