@@ -86,7 +86,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('notificações de escala (Po
     expect(anaMail.subject).toBe('Escala publicada: 01/03/2026 a 31/03/2026');
     expect(anaMail.text.indexOf('3 de março')).toBeLessThan(anaMail.text.indexOf('10 de março'));
     expect(anaMail.text).not.toContain('5 de março');
-    expect(anaMail.text).toContain(`${BASE}/minha-escala`);
+    expect(anaMail.text).toContain(`${BASE}/my-schedule`);
     expect(anaMail.dedupe_key).toBe(`schedule-published:${schedule().id}:${ana}`);
   });
 

@@ -49,7 +49,7 @@ async function activeRecipients(sql: SqlOrTx, ids: string[]): Promise<Map<string
 }
 
 const appUrl = (base: string | undefined) =>
-  base ? new URL('/minha-escala', base).href : undefined;
+  base ? new URL('/my-schedule', base).href : undefined;
 
 /** Req. 12.1: cada membro com plantões na escala recebe os seus. Usuários inativos não recebem. */
 export async function notifySchedulePublished(

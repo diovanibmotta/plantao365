@@ -28,7 +28,7 @@ export async function notifyUnavailabilityConflict(
   if (!member) return 0;
   const managers = await sql<{ id: string; email: string }[]>`
     select id, email from users where active and role = 'manager' order by id`;
-  const appUrl = opts.appBaseUrl ? new URL('/escala', opts.appBaseUrl).href : undefined;
+  const appUrl = opts.appBaseUrl ? new URL('/schedule', opts.appBaseUrl).href : undefined;
   const dates = [...new Set(event.dates)].sort();
   const rendered = renderUnavailabilityConflictEmail({
     memberName: member.name,

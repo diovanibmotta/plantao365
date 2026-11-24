@@ -248,7 +248,7 @@ describe('tela de membros', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
     render(
-      <MemoryRouter initialEntries={['/equipe']}>
+      <MemoryRouter initialEntries={['/members']}>
         <AuthProvider>
           <App />
         </AuthProvider>

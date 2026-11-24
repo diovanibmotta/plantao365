@@ -46,13 +46,13 @@ afterEach(() => {
 describe('guarda de rota', () => {
   it('redireciona anônimo para o login', async () => {
     mockApi(null);
-    renderAt('/escala');
+    renderAt('/schedule');
     expect(await screen.findByRole('button', { name: 'Entrar com Microsoft' })).toBeTruthy();
   });
 
   it('mostra o conteúdo para autenticado', async () => {
     mockApi(user('member'));
-    renderAt('/escala');
+    renderAt('/schedule');
     expect(await screen.findByRole('heading', { name: 'Calendário' })).toBeTruthy();
   });
 
@@ -61,18 +61,30 @@ describe('guarda de rota', () => {
     renderAt('/nada');
     expect(await screen.findByRole('heading', { name: 'Página não encontrada' })).toBeTruthy();
   });
-});
 
-describe('RequireRole', () => {
-  it('bloqueia membro em /equipe', async () => {
+  it('redireciona rota antiga em português para a nova', async () => {
+    mockApi(user('member'));
+    renderAt('/escala');
+    expect(await screen.findByRole('heading', { name: 'Calendário' })).toBeTruthy();
+  });
+
+  it('mantém o guarda de papel após redirecionar rota antiga', async () => {
     mockApi(user('member'));
     renderAt('/equipe');
     expect(await screen.findByRole('heading', { name: 'Acesso restrito' })).toBeTruthy();
   });
+});
 
-  it('permite gestor em /equipe', async () => {
+describe('RequireRole', () => {
+  it('bloqueia membro em /members', async () => {
+    mockApi(user('member'));
+    renderAt('/members');
+    expect(await screen.findByRole('heading', { name: 'Acesso restrito' })).toBeTruthy();
+  });
+
+  it('permite gestor em /members', async () => {
     mockApi(user('manager'));
-    renderAt('/equipe');
+    renderAt('/members');
     expect(await screen.findByRole('heading', { name: 'Equipe' })).toBeTruthy();
   });
 });
@@ -80,7 +92,7 @@ describe('RequireRole', () => {
 describe('menu por papel', () => {
   it('membro não vê itens de gestor', async () => {
     mockApi(user('member'));
-    renderAt('/perfil');
+    renderAt('/profile');
     const nav = await screen.findByRole('navigation', { name: 'Principal' });
     expect(nav.textContent).toContain('Minha escala');
     expect(nav.textContent).not.toContain('Equipe');
@@ -89,7 +101,7 @@ describe('menu por papel', () => {
 
   it('gestor vê itens de gestor', async () => {
     mockApi(user('manager'));
-    renderAt('/perfil');
+    renderAt('/profile');
     const nav = await screen.findByRole('navigation', { name: 'Principal' });
     for (const label of ['Equipe', 'Feriados', 'Férias', 'Auditoria'])
       expect(nav.textContent).toContain(label);
@@ -98,11 +110,11 @@ describe('menu por papel', () => {
 
   it('perfil abre pela foto do usuário, não por item do menu', async () => {
     mockApi(user('member'));
-    renderAt('/minha-escala');
+    renderAt('/my-schedule');
     const nav = await screen.findByRole('navigation', { name: 'Principal' });
     expect(nav.textContent).not.toContain('Perfil');
     const link = screen.getByRole('link', { name: /Meu perfil|Membro/ });
-    expect(link.getAttribute('href')).toBe('/perfil');
+    expect(link.getAttribute('href')).toBe('/profile');
   });
 });
 
@@ -138,7 +150,7 @@ describe('login', () => {
 describe('logout', () => {
   it('chama POST /auth/logout com X-Requested-With e volta ao login', async () => {
     const fetchMock = mockApi(user('member'));
-    renderAt('/perfil');
+    renderAt('/profile');
     await userEvent.click(await screen.findByRole('button', { name: 'Sair' }));
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Entrar com Microsoft' })).toBeTruthy(),
