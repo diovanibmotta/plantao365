@@ -16,13 +16,14 @@ describe('calendar', () => {
     expect(addMonths('2026-03', -14)).toBe('2025-01');
   });
 
-  it('monta a grade com semana iniciando na segunda', () => {
+  it('monta a grade com semana iniciando no domingo', () => {
     const grid = buildMonthGrid('2028-02');
     expect(grid).toHaveLength(35);
-    expect(grid.slice(0, 1)).toEqual([null]);
-    expect(grid[1]).toBe('2028-02-01');
+    expect(grid.slice(0, 2)).toEqual([null, null]);
+    expect(grid[2]).toBe('2028-02-01');
     expect(grid.filter(Boolean)).toHaveLength(29);
-    expect(buildMonthGrid('2026-03')[6]).toBe('2026-03-01');
+    expect(buildMonthGrid('2026-03')[0]).toBe('2026-03-01');
+    expect(buildMonthGrid('2026-11')[0]).toBe('2026-11-01');
   });
 
   it('rotula o mês em português', () => {

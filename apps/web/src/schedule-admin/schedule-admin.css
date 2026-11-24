@@ -81,6 +81,14 @@
   font-size: 12px;
 }
 
+.sad-day--weekend {
+  background: var(--day-weekend);
+}
+
+.sad-day--holiday {
+  background: var(--day-holiday);
+}
+
 .sad-day--outside {
   border-color: transparent;
   background: transparent;

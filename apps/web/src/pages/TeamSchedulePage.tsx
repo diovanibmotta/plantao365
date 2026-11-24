@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { SHIFT_DAY_TYPES, shiftDuration } from '@diovanibmotta/plantao365-shared';
+import { SHIFT_DAY_TYPES, isWeekend, shiftDuration } from '@diovanibmotta/plantao365-shared';
 import type { LocalDate, ShiftTimes } from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
@@ -205,6 +205,8 @@ function MonthCalendar({ month, data, today, userId, member, shiftTimes }: Month
               : null;
           const mine = shifts.some((s) => userId !== null && s.userId === userId);
           const classes = ['sched-day'];
+          if (holiday) classes.push('sched-day--holiday');
+          else if (isWeekend(date)) classes.push('sched-day--weekend');
           if (mine) classes.push('sched-day--mine');
           if (date === today) classes.push('sched-day--today');
           if (shifts.length === 0 && !holiday && !vacation) classes.push('sched-day--empty');
