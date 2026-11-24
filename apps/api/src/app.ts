@@ -25,6 +25,7 @@ import {
 import { createOnUnavailabilityConflict } from './notifications/unavailability-events.js';
 import { createOnSwapEvent } from './notifications/swap-events.js';
 import { createSwapsRouter } from './swaps/index.js';
+import { createTeamsRouter, teamMiddleware } from './teams/index.js';
 import { createUnavailabilityRouter } from './unavailability/index.js';
 import { createUsersRouter } from './users/index.js';
 import { mountWeb } from './web.js';
@@ -104,6 +105,8 @@ export function createApp({
     );
     app.use(sessionMiddleware({ db, cookieOptions: { secure: authOptions.cookieSecure } }));
     app.use('/api/*', guestGuard());
+    app.use('/api/*', teamMiddleware({ db }));
+    app.route('/api', createTeamsRouter({ db }));
     app.route('/api', createAuditRouter({ db, guard: requireRole('manager') }));
     app.route(
       '/api',

@@ -33,4 +33,6 @@ export interface ShiftRangeQuery {
   to: LocalDate;
   status?: ShiftStatusFilter;
   userId?: string;
+  /** Limita aos plantões de escalas desta equipe. */
+  teamId?: string;
 }

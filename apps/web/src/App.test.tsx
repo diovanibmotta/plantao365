@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { App } from './App';
@@ -129,7 +129,7 @@ describe('convidado', () => {
     const nav = screen.getByRole('navigation', { name: 'Principal' });
     expect(nav.textContent).toContain('Calendário');
     for (const label of ['Plantão', 'Trocas', 'Saldo', 'Equipe'])
-      expect(nav.textContent).not.toContain(label);
+      expect(within(nav).queryByRole('link', { name: label })).toBeNull();
     expect(screen.getByText('Convidado')).toBeTruthy();
   });
 

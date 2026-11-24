@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { shiftForDate, type DayType } from '@diovanibmotta/plantao365-shared';
+import { shiftForDate, type DayType, type ShiftContext } from '@diovanibmotta/plantao365-shared';
 import { recordAudit } from '../audit/index.js';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
@@ -53,6 +53,7 @@ interface Row {
   starts_at: Date | null;
   ends_at: Date | null;
   user_id: string | null;
+  team_id: string;
 }
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
@@ -72,24 +73,29 @@ export async function recalculateHolidayShifts(
     await lockSchedulesThenShifts(tx, { publishedDates: dates });
     const rows = await tx<Row[]>`
       select s.id, s.schedule_id, s.date::text as date, s.day_type, s.hours,
-        s.starts_at, s.ends_at, s.user_id
+        s.starts_at, s.ends_at, s.user_id, sc.team_id
       from shifts s join schedules sc on sc.id = s.schedule_id
       where sc.status = 'published' and s.date in ${tx(dates)}
       order by s.date, s.id`;
     if (rows.length === 0) return [];
     const from = dates[0]!;
     const to = dates[dates.length - 1]!;
-    const ctx = {
-      holidays: await listHolidayDates(tx, from, to),
-      collectiveVacations: (await listUnavailableByDate(tx, from, to)).collectiveVacations.map(
-        (v) => ({ start: v.start, end: v.end }),
-      ),
-      shiftTimes: await getShiftTimes(tx),
-    };
+    const holidays = await listHolidayDates(tx, from, to);
+    // Horários e férias coletivas são por equipe: monta o contexto uma vez por equipe.
+    const contexts = new Map<string, ShiftContext>();
+    for (const teamId of new Set(rows.map((r) => r.team_id))) {
+      contexts.set(teamId, {
+        holidays,
+        collectiveVacations: (
+          await listUnavailableByDate(tx, from, to, teamId)
+        ).collectiveVacations.map((v) => ({ start: v.start, end: v.end })),
+        shiftTimes: await getShiftTimes(tx, teamId),
+      });
+    }
     const changes: ShiftRecalcChange[] = [];
     const scheduleIds = new Set<string>();
     for (const r of rows) {
-      const next = shiftForDate(r.date, ctx);
+      const next = shiftForDate(r.date, contexts.get(r.team_id)!);
       const startsAt = next.start;
       const endsAt = next.end;
       const same =

@@ -14,6 +14,8 @@ export interface AuthUser {
 
 export interface AuthVariables {
   user: AuthUser | null;
+  /** Equipe ativa da requisição (header X-Team-Id); null quando o usuário não tem equipe. */
+  teamId: string | null;
 }
 
 export interface AuthEnv {

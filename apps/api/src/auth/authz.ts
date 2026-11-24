@@ -22,6 +22,7 @@ export const requireRole = (role: Role) =>
 /** Leituras que o convidado pode fazer: calendário de escala (só publicada) e feriados. */
 const GUEST_READ_PATHS: readonly RegExp[] = [
   /^\/api\/me$/,
+  /^\/api\/teams$/,
   /^\/api\/shifts$/,
   /^\/api\/holidays$/,
   /^\/api\/shift-settings$/,

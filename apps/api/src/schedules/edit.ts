@@ -47,7 +47,7 @@ const errorBody = (error: string, message: string, extra: object = {}) => ({
 /** Conflitos de atribuir `userId` ao dia (Req. 8.1). Só avisos: o gestor decide. */
 export async function validateAssignment(
   sql: Sql,
-  input: { date: string; hours: number; userId: string | null },
+  input: { date: string; hours: number; userId: string | null; teamId?: string },
 ): Promise<ShiftWarning[]> {
   const warnings: ShiftWarning[] = [];
   if (input.userId === null) {
@@ -65,7 +65,7 @@ export async function validateAssignment(
       });
     }
   }
-  const unavailable = await listUnavailableByDate(sql, input.date, input.date);
+  const unavailable = await listUnavailableByDate(sql, input.date, input.date, input.teamId);
   if (unavailable.byUser.get(input.userId)?.includes(input.date)) {
     warnings.push({ code: 'user_unavailable', message: 'Usuário tem exceção nesta data' });
   }
@@ -104,6 +104,7 @@ export function registerEditRoutes(
     }
     const { userId, reason } = parsed.data;
     const actorId = c.get('user')!.id;
+    const teamId = c.get('teamId')!;
     if (!z.uuid().safeParse(id).success || !z.uuid().safeParse(shiftId).success) {
       return c.json(errorBody('not_found', 'Plantão não encontrado'), 404);
     }
@@ -112,7 +113,7 @@ export function registerEditRoutes(
       const tx = txRaw as unknown as Sql;
       await lockSchedulesThenShifts(tx, { scheduleIds: [id], shiftIds: [shiftId] });
       const [schedule] = await tx<{ status: ScheduleDto['status'] }[]>`
-        select status from schedules where id = ${id}`;
+        select status from schedules where id = ${id} and team_id = ${teamId}`;
       if (!schedule) {
         return {
           kind: 'error',
@@ -146,7 +147,9 @@ export function registerEditRoutes(
         };
       }
       if (userId !== null) {
-        const [u] = await tx<{ id: string }[]>`select id from users where id = ${userId}`;
+        const [u] = await tx<{ id: string }[]>`
+          select user_id as id from team_members
+          where user_id = ${userId} and team_id = ${teamId}`;
         if (!u) {
           return {
             kind: 'error',
@@ -159,6 +162,7 @@ export function registerEditRoutes(
         date: shift.date,
         hours: shift.hours,
         userId,
+        teamId,
       });
       await tx`update shifts set user_id = ${userId}, updated_at = now() where id = ${shiftId}`;
       await tx`update schedules set updated_at = now() where id = ${id}`;

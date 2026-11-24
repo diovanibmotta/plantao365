@@ -3,6 +3,7 @@ import type { ZodError } from 'zod';
 import { requireAuth } from '../auth/authz.js';
 import type { AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
+import { requireTeam } from '../teams/middleware.js';
 import { registerEditRoutes, type ShiftChangedHook } from './edit.js';
 import { registerGenerateRoute } from './generate.js';
 import { registerPublishRoutes, type PublishedHook } from './publish.js';
@@ -38,7 +39,7 @@ export function createSchedulesRouter({
   onPublished,
 }: SchedulesRouterDeps): Hono<AuthEnv> {
   const router = new Hono<AuthEnv>();
-  router.use('*', requireAuth());
+  router.use('*', requireAuth(), requireTeam());
 
   registerGenerateRoute(router, { db, now });
   registerPublishRoutes(router, { db, now, onPublished });
@@ -47,12 +48,12 @@ export function createSchedulesRouter({
 
   router.get('/schedules', async (c) => {
     const isManager = c.get('user')!.role === 'manager';
-    return c.json(await listSchedules(db, { publishedOnly: !isManager }));
+    return c.json(await listSchedules(db, { publishedOnly: !isManager, teamId: c.get('teamId')! }));
   });
 
   router.get('/schedules/:id', async (c) => {
     const isManager = c.get('user')!.role === 'manager';
-    const schedule = await getSchedule(db, c.req.param('id'));
+    const schedule = await getSchedule(db, c.req.param('id'), c.get('teamId')!);
     if (!schedule || (!isManager && schedule.status !== 'published')) {
       return c.json({ error: 'not_found', message: 'Escala não encontrada' }, 404);
     }
@@ -66,6 +67,7 @@ export function createSchedulesRouter({
       ...parsed.data,
       status: 'published',
       userId: c.get('user')!.id,
+      teamId: c.get('teamId')!,
     });
     return c.json(shifts);
   });
@@ -81,7 +83,7 @@ export function createSchedulesRouter({
         403,
       );
     }
-    return c.json(await listShiftsInRange(db, { ...parsed.data, status }));
+    return c.json(await listShiftsInRange(db, { ...parsed.data, status, teamId: c.get('teamId')! }));
   });
 
   return router;
