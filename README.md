@@ -80,26 +80,27 @@ Em `NODE_ENV=production` o cookie de sessão é `Secure`: publique o web atrás 
 
 ## Configuração
 
-| Variável              | Obrigatória     | Padrão                  | Descrição                                                    |
-| --------------------- | --------------- | ----------------------- | ------------------------------------------------------------ |
-| `NODE_ENV`            | não             | `development`           | `development`, `test` ou `production`                        |
-| `PORT`                | não             | `3000`                  | porta da API                                                 |
-| `LOG_LEVEL`           | não             | `info`                  | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
-| `APP_BASE_URL`        | não             | `http://localhost:5173` | URL pública do web (redirecionamentos e links dos e-mails)   |
-| `DATABASE_URL`        | sim             | -                       | `postgres://usuario:senha@host:5432/banco`                   |
-| `MANAGER_EMAILS`      | sim em produção | vazio                   | gestores iniciais, e-mails separados por vírgula             |
-| `SESSION_TTL_SECONDS` | não             | `28800`                 | duração da sessão em segundos (mínimo 60)                    |
-| `OIDC_MOCK`           | não             | `false`                 | login simulado; **proibido em produção**                     |
-| `OIDC_ISSUER`         | sim em produção | -                       | `https://login.microsoftonline.com/<tenant-id>/v2.0`         |
-| `OIDC_CLIENT_ID`      | sim em produção | -                       | ID do aplicativo (cliente) no Entra ID                       |
-| `OIDC_CLIENT_SECRET`  | sim em produção | -                       | segredo do cliente                                           |
-| `OIDC_REDIRECT_URI`   | sim em produção | -                       | `<URL pública>/auth/callback`                                |
-| `SMTP_HOST`           | não             | -                       | habilita o envio de e-mails                                  |
-| `SMTP_PORT`           | não             | `587`                   | porta SMTP                                                   |
-| `SMTP_SECURE`         | não             | `false`                 | `true` para TLS implícito (normalmente porta 465)            |
-| `SMTP_USER`           | não             | -                       | usuário SMTP                                                 |
-| `SMTP_PASSWORD`       | não             | -                       | senha SMTP                                                   |
-| `SMTP_FROM`           | com `SMTP_HOST` | -                       | remetente dos e-mails                                        |
+| Variável              | Obrigatória     | Padrão                  | Descrição                                                                     |
+| --------------------- | --------------- | ----------------------- | ----------------------------------------------------------------------------- |
+| `NODE_ENV`            | não             | `development`           | `development`, `test` ou `production`                                         |
+| `PORT`                | não             | `3000`                  | porta da API                                                                  |
+| `LOG_LEVEL`           | não             | `info`                  | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`                  |
+| `APP_BASE_URL`        | não             | `http://localhost:5173` | URL pública do web (redirecionamentos e links dos e-mails)                    |
+| `DATABASE_URL`        | sim             | -                       | `postgres://usuario:senha@host:5432/banco`                                    |
+| `MANAGER_EMAILS`      | sim em produção | vazio                   | gestores iniciais, e-mails separados por vírgula                              |
+| `SESSION_TTL_SECONDS` | não             | `28800`                 | duração da sessão em segundos (mínimo 60)                                     |
+| `COOKIE_SECURE`       | não             | produção: `true`        | força o atributo Secure do cookie de sessão (use `true` em staging com HTTPS) |
+| `OIDC_MOCK`           | não             | `false`                 | login simulado; **proibido em produção**                                      |
+| `OIDC_ISSUER`         | sim em produção | -                       | `https://login.microsoftonline.com/<tenant-id>/v2.0`                          |
+| `OIDC_CLIENT_ID`      | sim em produção | -                       | ID do aplicativo (cliente) no Entra ID                                        |
+| `OIDC_CLIENT_SECRET`  | sim em produção | -                       | segredo do cliente                                                            |
+| `OIDC_REDIRECT_URI`   | sim em produção | -                       | `<URL pública>/auth/callback`                                                 |
+| `SMTP_HOST`           | não             | -                       | habilita o envio de e-mails                                                   |
+| `SMTP_PORT`           | não             | `587`                   | porta SMTP                                                                    |
+| `SMTP_SECURE`         | não             | `false`                 | `true` para TLS implícito (normalmente porta 465)                             |
+| `SMTP_USER`           | não             | -                       | usuário SMTP                                                                  |
+| `SMTP_PASSWORD`       | não             | -                       | senha SMTP                                                                    |
+| `SMTP_FROM`           | com `SMTP_HOST` | -                       | remetente dos e-mails                                                         |
 
 Somente no compose: `POSTGRES_USER`, `POSTGRES_PASSWORD` (obrigatória), `POSTGRES_DB` e `WEB_PORT`.
 

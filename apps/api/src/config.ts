@@ -20,6 +20,8 @@ const bool = z
   .default('false')
   .transform((v) => v === 'true' || v === '1');
 
+const strictBool = z.enum(['true', 'false', '1', '0']).transform((v) => v === 'true' || v === '1');
+
 const schema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -44,6 +46,8 @@ const schema = z
     SMTP_PASSWORD: optional(z.string()),
     SMTP_FROM: optional(z.email()),
     SMTP_SECURE: optional(bool),
+    /** Força o atributo Secure do cookie de sessão; sem valor, vale true só em produção. */
+    COOKIE_SECURE: optional(strictBool),
     SESSION_TTL_SECONDS: z.coerce.number().int().min(60).default(28800),
   })
   .superRefine((env, ctx) => {
