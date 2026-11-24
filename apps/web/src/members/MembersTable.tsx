@@ -1,16 +1,13 @@
-import { TABLE_ROLE_OPTIONS } from './types';
-import type { Member, MemberRole } from './types';
+import type { Member } from './types';
 import './members.css';
 
 interface Props {
   members: Member[];
   busyId: string | null;
-  onRole: (member: Member, role: MemberRole) => void;
-  onParticipates: (member: Member, value: boolean) => void;
   onToggleActive: (member: Member) => void;
 }
 
-export function MembersTable({ members, busyId, onRole, onParticipates, onToggleActive }: Props) {
+export function MembersTable({ members, busyId, onToggleActive }: Props) {
   return (
     <div className="table-wrap">
       <table className="members-table">
@@ -18,8 +15,6 @@ export function MembersTable({ members, busyId, onRole, onParticipates, onToggle
           <tr>
             <th scope="col">Nome</th>
             <th scope="col">E-mail</th>
-            <th scope="col">Papel</th>
-            <th scope="col">Rodízio</th>
             <th scope="col">Status</th>
             <th scope="col">Ações</th>
           </tr>
@@ -32,31 +27,9 @@ export function MembersTable({ members, busyId, onRole, onParticipates, onToggle
                 <td data-label="Nome">
                   {m.name}
                   {!m.linked && <span className="members-badge">Aguardando primeiro acesso</span>}
+                  {m.teamIds.length === 0 && <span className="members-badge">Sem equipe</span>}
                 </td>
                 <td data-label="E-mail">{m.email}</td>
-                <td data-label="Papel">
-                  <select
-                    aria-label={`Papel de ${m.name}`}
-                    value={m.role}
-                    disabled={busy}
-                    onChange={(e) => onRole(m, e.target.value as MemberRole)}
-                  >
-                    {TABLE_ROLE_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td data-label="Participa do rodízio">
-                  <input
-                    type="checkbox"
-                    aria-label={`Participa do rodízio: ${m.name}`}
-                    checked={m.participatesInRotation}
-                    disabled={busy}
-                    onChange={(e) => onParticipates(m, e.target.checked)}
-                  />
-                </td>
                 <td data-label="Status">{m.active ? 'Ativo' : 'Inativo'}</td>
                 <td data-label="Ações">
                   <button

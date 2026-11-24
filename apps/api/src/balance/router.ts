@@ -120,7 +120,7 @@ export function createBalanceRouter({
       select u.id, u.name from users u
       join team_members m on m.user_id = u.id and m.team_id = ${c.get('teamId')}
       where u.active
-        and (u.participates_in_rotation or u.id = any(${[...balances.keys()]}::uuid[]))
+        and (m.participates_in_rotation or u.id = any(${[...balances.keys()]}::uuid[]))
       order by u.name, u.id`;
     const members = users.map((u) => {
       const months = balances.get(u.id)?.months ?? emptyMonths(y);

@@ -145,11 +145,20 @@ describe.skipIf(!TEST_DATABASE_URL)('E2E de API: fluxo principal', () => {
         await call('/api/users', {
           method: 'POST',
           cookie: manager,
-          body: { ...m, participatesInRotation: true },
+          body: m,
         }),
         201,
       );
       ids.set(m.email, created.id);
+      // papel e rodízio são definidos ao vincular o membro à equipe
+      await json(
+        await call(`/api/teams/00000000-0000-0000-0000-000000000001/members/${created.id}`, {
+          method: 'PUT',
+          cookie: manager,
+          body: { role: 'member', participatesInRotation: true },
+        }),
+        200,
+      );
     }
     // cada cadastro enfileira um convite; confere e zera a caixa para as etapas seguintes
     const invites = await drainEmails(MEMBERS.length);

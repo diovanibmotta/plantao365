@@ -7,6 +7,7 @@ export type NavIcon =
   | 'clock'
   | 'sliders'
   | 'users'
+  | 'layers'
   | 'calendar-star'
   | 'plane'
   | 'shield'
@@ -39,7 +40,8 @@ export const NAV_ITEMS: NavItem[] = [
     group: 'admin',
     role: 'manager',
   },
-  { to: '/members', label: 'Equipe', icon: 'users', group: 'admin', role: 'manager' },
+  { to: '/teams', label: 'Equipes', icon: 'layers', group: 'admin', role: 'manager' },
+  { to: '/members', label: 'Membros', icon: 'users', group: 'admin', role: 'manager' },
   { to: '/holidays', label: 'Feriados', icon: 'calendar-star', group: 'admin', role: 'manager' },
   {
     to: '/vacations',

@@ -155,7 +155,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
       expect(new Date(list[0]!.createdAt).toISOString()).toBe(list[0]!.createdAt);
     });
 
-    it('pre-registers with role-based defaults and normalized e-mail', async () => {
+    it('pre-registers only name and e-mail, without joining any team', async () => {
       const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
       const member = await call('POST', '/users', g.cookie, {
         name: ' Bia ',
@@ -165,24 +165,14 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
       expect(await member.json()).toMatchObject({
         name: 'Bia',
         email: 'bia@x.com',
-        role: 'member',
-        participatesInRotation: true,
         active: true,
         linked: false,
+        teamIds: [],
       });
-      const mgr = await call('POST', '/users', g.cookie, {
-        name: 'Gil',
-        email: 'gil@x.com',
-        role: 'manager',
-      });
-      expect(await mgr.json()).toMatchObject({ role: 'manager', participatesInRotation: false });
-      const explicit = await call('POST', '/users', g.cookie, {
-        name: 'Gal',
-        email: 'gal@x.com',
-        role: 'manager',
-        participatesInRotation: true,
-      });
-      expect(await explicit.json()).toMatchObject({ participatesInRotation: true });
+      const [{ n }] = await sql<{ n: number }[]>`
+        select count(*)::int as n from team_members m join users u on u.id = m.user_id
+        where u.email = 'bia@x.com'`;
+      expect(n).toBe(0);
 
       const [row] = await sql<{ id: string }[]>`select id from users where email = 'bia@x.com'`;
       const audit = await auditFor(row!.id);
@@ -199,7 +189,8 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
         { name: 'X', email: 'nao-e-email' },
         { name: '', email: 'a@x.com' },
         { email: 'a@x.com' },
-        { name: 'X', email: 'a@x.com', role: 'admin' },
+        { name: 'X', email: 'a@x.com', role: 'manager' },
+        { name: 'X', email: 'a@x.com', participatesInRotation: true },
         { name: 'X', email: 'a@x.com', active: false },
       ]) {
         expect((await call('POST', '/users', g.cookie, body)).status).toBe(400);
@@ -217,47 +208,20 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
       ]);
     });
 
-    it('promotes an existing guest instead of conflicting', async () => {
+    it('lists all users including pre-registered ones and hides the master user', async () => {
       const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
-      const guest = await loginAs(sql, {
-        email: 'visita@x.com',
-        role: 'guest',
-        participatesInRotation: false,
-      });
-      const res = await call('POST', '/users', g.cookie, { name: 'Visita', email: 'visita@x.com' });
-      expect(res.status).toBe(201);
-      expect(await res.json()).toMatchObject({
-        id: guest.id,
-        role: 'member',
-        participatesInRotation: true,
-      });
-      const audit = await auditFor(guest.id);
-      expect(audit[0]).toMatchObject({ action: 'update', actor_id: g.id });
-    });
-
-    it('lets a manager demote to guest (out of the rotation) and hides the master user', async () => {
-      const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
-      const m = await loginAs(sql, { email: 'm@x.com', role: 'member' });
-      const res = await call('PATCH', `/users/${m.id}`, g.cookie, { role: 'guest' });
-      expect(await res.json()).toMatchObject({ role: 'guest', participatesInRotation: false });
-
+      await call('POST', '/users', g.cookie, { name: 'Visita', email: 'visita@x.com' });
       const [master] = await sql<{ id: string }[]>`
         insert into users (email, name, role, is_master, participates_in_rotation)
         values ('master@plantao365.invalid', 'root', 'manager', true, false) returning id`;
-      const list = (await (await call('GET', '/users', g.cookie)).json()) as { id: string }[];
+      const list = (await (await call('GET', '/users', g.cookie)).json()) as {
+        id: string;
+        email: string;
+      }[];
+      expect(list.map((u) => u.email)).toEqual(['g@x.com', 'visita@x.com']);
       expect(list.map((u) => u.id)).not.toContain(master!.id);
       const patch = await call('PATCH', `/users/${master!.id}`, g.cookie, { active: false });
       expect(patch.status).toBe(404);
-    });
-
-    it('rejects inviting directly as guest', async () => {
-      const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
-      const res = await call('POST', '/users', g.cookie, {
-        name: 'X',
-        email: 'a@x.com',
-        role: 'guest',
-      });
-      expect(res.status).toBe(400);
     });
 
     it('requires CSRF header on POST', async () => {
@@ -271,38 +235,30 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
       expect(((await res.json()) as { error: string }).error).toBe('csrf');
     });
 
-    it('updates name, role, rotation flag and active with audit', async () => {
+    it('updates name and active with audit', async () => {
       const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
       const m = await loginAs(sql, { email: 'm@x.com' });
-      const res = await call('PATCH', `/users/${m.id}`, g.cookie, {
-        name: 'Maria',
-        role: 'manager',
-        participatesInRotation: false,
-      });
+      const res = await call('PATCH', `/users/${m.id}`, g.cookie, { name: 'Maria' });
       expect(res.status).toBe(200);
-      expect(await res.json()).toMatchObject({
-        name: 'Maria',
-        role: 'manager',
-        participatesInRotation: false,
-      });
+      expect(await res.json()).toMatchObject({ name: 'Maria', active: true });
       const off = await call('PATCH', `/users/${m.id}`, g.cookie, { active: false });
       expect(await off.json()).toMatchObject({ active: false });
-      const on = await call('PATCH', `/users/${m.id}`, g.cookie, { active: true, role: 'member' });
-      expect(await on.json()).toMatchObject({ active: true, role: 'member' });
+      const on = await call('PATCH', `/users/${m.id}`, g.cookie, { active: true });
+      expect(await on.json()).toMatchObject({ active: true });
 
       const audit = await auditFor(m.id);
       expect(audit).toHaveLength(3);
       expect(audit[0]).toMatchObject({ actor_id: g.id, action: 'update' });
-      expect(audit[0]!.before).toMatchObject({ name: 'Fulano', role: 'member' });
-      expect(audit[0]!.after).toMatchObject({ name: 'Maria', role: 'manager' });
+      expect(audit[0]!.before).toMatchObject({ name: 'Fulano' });
+      expect(audit[0]!.after).toMatchObject({ name: 'Maria' });
     });
 
-    it('applies a role change on the next request', async () => {
+    it('rejects role and rotation in the user body (they belong to the team)', async () => {
       const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
       const m = await loginAs(sql, { email: 'm@x.com' });
-      expect((await call('GET', '/users', m.cookie)).status).toBe(403);
-      await call('PATCH', `/users/${m.id}`, g.cookie, { role: 'manager' });
-      expect((await call('GET', '/users', m.cookie)).status).toBe(200);
+      for (const body of [{ role: 'manager' }, { participatesInRotation: false }]) {
+        expect((await call('PATCH', `/users/${m.id}`, g.cookie, body)).status).toBe(400);
+      }
     });
 
     it('returns 404 for unknown id and 400 for empty or invalid body', async () => {
@@ -332,51 +288,23 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
       expect((await call('GET', '/me', m.cookie)).status).toBe(401);
     });
 
-    it('protects the last active manager', async () => {
+    it('protects the last active manager of a team from deactivation', async () => {
       const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
-      const inactive = await loginAs(sql, { email: 'i@x.com', role: 'manager', active: false });
-
-      for (const body of [{ role: 'member' }, { active: false }]) {
-        const res = await call('PATCH', `/users/${g.id}`, g.cookie, body);
-        expect(res.status).toBe(409);
-        expect(((await res.json()) as { error: string }).error).toBe('last_manager');
-      }
+      const res = await call('PATCH', `/users/${g.id}`, g.cookie, { active: false });
+      expect(res.status).toBe(409);
+      expect(((await res.json()) as { error: string }).error).toBe('last_manager');
       expect(await auditFor(g.id)).toHaveLength(0);
 
       const ok = await call('PATCH', `/users/${g.id}`, g.cookie, { name: 'Novo nome' });
       expect(ok.status).toBe(200);
-
-      const other = await call('PATCH', `/users/${inactive.id}`, g.cookie, { role: 'member' });
-      expect(other.status).toBe(200);
     });
 
-    it('allows demoting a manager when another active one exists', async () => {
+    it('allows deactivating a manager when another active one exists', async () => {
       const g1 = await loginAs(sql, { email: 'g1@x.com', role: 'manager' });
       const g2 = await loginAs(sql, { email: 'g2@x.com', role: 'manager' });
-      const res = await call('PATCH', `/users/${g1.id}`, g2.cookie, { role: 'member' });
-      expect(res.status).toBe(200);
-      const last = await call('PATCH', `/users/${g2.id}`, g2.cookie, { active: false });
-      expect(last.status).toBe(409);
-    });
-
-    it('never leaves zero active managers under concurrent demotions', async () => {
-      for (let round = 0; round < 5; round++) {
-        await sql`delete from sessions`;
-        await sql`delete from users`;
-        const g1 = await loginAs(sql, { email: 'g1@x.com', role: 'manager' });
-        const g2 = await loginAs(sql, { email: 'g2@x.com', role: 'manager' });
-        const results = await Promise.all([
-          call('PATCH', `/users/${g2.id}`, g1.cookie, { role: 'member' }),
-          call('PATCH', `/users/${g1.id}`, g2.cookie, { role: 'member' }),
-        ]);
-        // quem perde a corrida leva 409 (bloqueio no banco) ou 403 (já deixou de ser gestor)
-        const statuses = results.map((r) => r.status).sort();
-        expect(statuses[0]).toBe(200);
-        expect([403, 409]).toContain(statuses[1]);
-        const [{ n }] = await sql<{ n: number }[]>`
-          select count(*)::int as n from users where role = 'manager' and active`;
-        expect(n).toBe(1);
-      }
+      expect((await call('PATCH', `/users/${g1.id}`, g2.cookie, { active: false })).status).toBe(
+        200,
+      );
     });
   });
 

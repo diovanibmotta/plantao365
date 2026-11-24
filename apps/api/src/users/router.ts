@@ -70,7 +70,16 @@ export function createUsersRouter({
     throw err;
   });
 
-  router.get('/me', requireAuth(), async (c) => c.json(await getProfile(db, c.get('user')!.id)));
+  // Papel e rodízio refletem a equipe ativa (o middleware de equipe sobrescreve `user`).
+  router.get('/me', requireAuth(), async (c) => {
+    const user = c.get('user')!;
+    const profile = await getProfile(db, user.id);
+    return c.json({
+      ...profile,
+      role: user.role,
+      participatesInRotation: user.participatesInRotation,
+    });
+  });
 
   router.patch('/me', requireAuth(), async (c) => {
     const body = await readJson(c);
@@ -97,7 +106,7 @@ export function createUsersRouter({
     const rows = await db<{ id: string; name: string }[]>`
       select u.id, u.name from users u
       join team_members m on m.user_id = u.id and m.team_id = ${c.get('teamId')}
-      where u.active and u.participates_in_rotation and u.id <> ${me}
+      where u.active and m.participates_in_rotation and u.id <> ${me}
       order by u.name, u.id`;
     return c.json(rows);
   });
@@ -117,22 +126,17 @@ export function createUsersRouter({
     return c.body(new Uint8Array(row.photo));
   });
 
-  router.get('/users', requireRole('manager'), requireTeam(), async (c) =>
-    c.json(await listUsers(db, c.get('teamId')!)),
-  );
+  router.get('/users', requireRole('manager'), async (c) => c.json(await listUsers(db)));
 
-  router.post('/users', requireRole('manager'), requireTeam(), async (c) => {
+  router.post('/users', requireRole('manager'), async (c) => {
     const body = await readJson(c);
     if ('response' in body) return body.response;
     const input = parseWith(c, createUserSchema, body.raw);
     if ('response' in input) return input.response;
-    return c.json(
-      await createUser(db, c.get('user')!.id, input.data, { appBaseUrl, teamId: c.get('teamId')! }),
-      201,
-    );
+    return c.json(await createUser(db, c.get('user')!.id, input.data, { appBaseUrl }), 201);
   });
 
-  router.patch('/users/:id', requireRole('manager'), requireTeam(), async (c) => {
+  router.patch('/users/:id', requireRole('manager'), async (c) => {
     const id = c.req.param('id');
     if (!UUID.test(id)) {
       return c.json({ error: 'not_found', message: 'Usuário não encontrado' }, 404);
@@ -145,7 +149,6 @@ export function createUsersRouter({
       await updateUser(db, c.get('user')!.id, id, input.data, {
         finder: futureShiftsFinder,
         now,
-        teamId: c.get('teamId')!,
       }),
     );
   });

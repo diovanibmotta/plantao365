@@ -35,9 +35,9 @@ async function activeUsers(sql: Sql, ids: string[]): Promise<Map<string, Recipie
 async function activeManagers(sql: Sql, memberId: string): Promise<Recipient[]> {
   return sql<Recipient[]>`
     select id, name, email from users
-    where active and role = 'manager' and not is_master
+    where active and not is_master
       and id in (
-        select user_id from team_members where team_id in (
+        select user_id from team_members where role = 'manager' and team_id in (
           select team_id from team_members where user_id = ${memberId}))
     order by id`;
 }

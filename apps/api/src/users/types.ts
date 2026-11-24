@@ -16,11 +16,11 @@ export interface UserListItemDto {
   id: string;
   name: string;
   email: string;
-  role: Role;
   active: boolean;
-  participatesInRotation: boolean;
   createdAt: string;
   linked: boolean;
+  /** Equipes às quais o usuário está vinculado. */
+  teamIds: string[];
 }
 
 export interface UpdateProfileInput {
@@ -31,14 +31,10 @@ export interface UpdateProfileInput {
 export interface CreateUserInput {
   name: string;
   email: string;
-  role?: Exclude<Role, 'guest'>;
-  participatesInRotation?: boolean;
 }
 
 export interface UpdateUserInput {
   name?: string;
-  role?: Role;
-  participatesInRotation?: boolean;
   active?: boolean;
 }
 

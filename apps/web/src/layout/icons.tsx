@@ -38,6 +38,13 @@ const PATHS: Record<NavIcon | 'menu' | 'sun-mode' | 'moon' | 'logout' | 'close',
       <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
     </>
   ),
+  layers: (
+    <>
+      <path d="m12 2 10 5-10 5L2 7z" />
+      <path d="m2 12 10 5 10-5" />
+      <path d="m2 17 10 5 10-5" />
+    </>
+  ),
   'calendar-star': (
     <>
       <path d="M8 2v4M16 2v4" />

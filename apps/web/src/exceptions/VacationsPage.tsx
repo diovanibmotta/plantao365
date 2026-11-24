@@ -1,9 +1,9 @@
-import { useAuth } from '../auth/AuthContext';
+import { useRole } from '../team/TeamContext';
 import { UnavailabilityManager } from './UnavailabilityManager';
 
 export function VacationsPage() {
-  const { user } = useAuth();
-  if (user?.role !== 'manager') {
+  const role = useRole();
+  if (role !== 'manager') {
     return (
       <p className="alert" role="alert">
         Apenas o gestor gerencia férias.

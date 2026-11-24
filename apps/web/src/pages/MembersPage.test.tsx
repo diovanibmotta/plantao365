@@ -13,11 +13,10 @@ const member = (id: string, extra: Partial<Member> = {}): Member => ({
   id,
   name: `Pessoa ${id}`,
   email: `p${id}@example.com`,
-  role: 'member',
   active: true,
-  participatesInRotation: true,
   createdAt: '2026-01-01T00:00:00.000Z',
   linked: true,
+  teamIds: ['t1'],
   ...extra,
 });
 
@@ -50,10 +49,10 @@ afterEach(() => {
 });
 
 describe('tela de membros', () => {
-  it('lista membros com papel, rodízio, status e aguardando primeiro acesso', async () => {
+  it('lista membros com status, aguardando primeiro acesso e sem equipe', async () => {
     mockApi([
-      member('1', { name: 'Zeca', role: 'manager', participatesInRotation: false }),
-      member('2', { name: 'Ana', linked: false }),
+      member('1', { name: 'Zeca' }),
+      member('2', { name: 'Ana', linked: false, teamIds: [] }),
       member('3', { name: 'Bia', active: false }),
     ]);
     render(<MembersPage />);
@@ -62,15 +61,19 @@ describe('tela de membros', () => {
     expect(rows).toHaveLength(4);
     expect(within(rows[1]!).getByText('Ana')).toBeTruthy();
     expect(within(rows[1]!).getByText('Aguardando primeiro acesso')).toBeTruthy();
+    expect(within(rows[1]!).getByText('Sem equipe')).toBeTruthy();
     expect(within(rows[2]!).getByText('Inativo')).toBeTruthy();
-    expect((screen.getByLabelText('Papel de Zeca') as HTMLSelectElement).value).toBe('manager');
-    expect((screen.getByLabelText('Participa do rodízio: Zeca') as HTMLInputElement).checked).toBe(
-      false,
-    );
+    expect(screen.queryByLabelText('Papel de Zeca')).toBeNull();
+    expect(screen.queryByLabelText('Participa do rodízio: Zeca')).toBeNull();
   });
 
-  it('pré-cadastra enviando o payload com padrão pelo papel', async () => {
-    const created = member('9', { name: 'Nova', email: 'nova@example.com', linked: false });
+  it('pré-cadastra enviando só nome e e-mail', async () => {
+    const created = member('9', {
+      name: 'Nova',
+      email: 'nova@example.com',
+      linked: false,
+      teamIds: [],
+    });
     const fetchMock = mockApi([member('1')], () => json(created, 201));
     const user = userEvent.setup();
     render(<MembersPage />);
@@ -78,23 +81,14 @@ describe('tela de membros', () => {
     const form = screen.getByRole('form', { name: 'Pré-cadastro de membro' });
     await user.type(within(form).getByLabelText('Nome'), ' Nova ');
     await user.type(within(form).getByLabelText('E-mail'), 'nova@example.com');
-    const participates = within(form).getByLabelText('Participa do rodízio') as HTMLInputElement;
-    expect(participates.checked).toBe(true);
-    await user.selectOptions(within(form).getByLabelText('Papel'), 'manager');
-    expect(participates.checked).toBe(false);
+    expect(within(form).queryByLabelText('Papel')).toBeNull();
+    expect(within(form).queryByLabelText('Participa do rodízio')).toBeNull();
     await user.click(within(form).getByRole('button', { name: 'Pré-cadastrar' }));
-    expect(await screen.findByText('Nova foi pré-cadastrado.')).toBeTruthy();
+    expect(
+      await screen.findByText('Nova foi pré-cadastrado. Vincule-o a uma equipe em Equipes.'),
+    ).toBeTruthy();
     expect(writes(fetchMock)).toEqual([
-      {
-        url: '/api/users',
-        method: 'POST',
-        body: {
-          name: 'Nova',
-          email: 'nova@example.com',
-          role: 'manager',
-          participatesInRotation: false,
-        },
-      },
+      { url: '/api/users', method: 'POST', body: { name: 'Nova', email: 'nova@example.com' } },
     ]);
     expect(screen.getByText('Aguardando primeiro acesso')).toBeTruthy();
     expect(screen.queryByRole('form', { name: 'Pré-cadastro de membro' })).toBeNull();
@@ -124,23 +118,6 @@ describe('tela de membros', () => {
       'Já existe um usuário com este e-mail.',
     );
     expect(screen.getByRole('form', { name: 'Pré-cadastro de membro' })).toBeTruthy();
-  });
-
-  it('altera papel e participação no rodízio', async () => {
-    const fetchMock = mockApi([member('1', { name: 'Ana' })], (url, init) => {
-      const patch = JSON.parse(String(init?.body)) as Partial<Member>;
-      return json(member('1', { name: 'Ana', ...patch }));
-    });
-    const user = userEvent.setup();
-    render(<MembersPage />);
-    await user.selectOptions(await screen.findByLabelText('Papel de Ana'), 'manager');
-    expect(await screen.findByText('Papel de Ana atualizado.')).toBeTruthy();
-    await user.click(screen.getByLabelText('Participa do rodízio: Ana'));
-    expect(await screen.findByText('Rodízio de Ana atualizado.')).toBeTruthy();
-    expect(writes(fetchMock)).toEqual([
-      { url: '/api/users/1', method: 'PATCH', body: { role: 'manager' } },
-      { url: '/api/users/1', method: 'PATCH', body: { participatesInRotation: false } },
-    ]);
   });
 
   it('pede confirmação antes de desativar e envia active=false', async () => {
@@ -178,7 +155,7 @@ describe('tela de membros', () => {
 
   it('mostra erro de último gestor e mensagem genérica de 409', async () => {
     let call = 0;
-    mockApi([member('1', { name: 'Ana', role: 'manager' })], () => {
+    mockApi([member('1', { name: 'Ana' })], () => {
       call += 1;
       return call === 1
         ? json({ error: 'last_manager', message: 'x' }, 409)
@@ -186,9 +163,10 @@ describe('tela de membros', () => {
     });
     const user = userEvent.setup();
     render(<MembersPage />);
-    await user.selectOptions(await screen.findByLabelText('Papel de Ana'), 'member');
+    await user.click(await screen.findByRole('button', { name: 'Desativar Ana' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar desativação' }));
     expect((await screen.findByRole('alert')).textContent).toBe(
-      'Não é possível remover ou desativar o último gestor ativo.',
+      'Não é possível remover, rebaixar ou desativar o último gestor ativo da equipe.',
     );
     await user.click(screen.getByRole('button', { name: 'Desativar Ana' }));
     await user.click(screen.getByRole('button', { name: 'Confirmar desativação' }));

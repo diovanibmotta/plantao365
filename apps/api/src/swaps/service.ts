@@ -141,6 +141,7 @@ interface LockedShift {
   user_id: string | null;
   starts_at: Date | null;
   status: 'draft' | 'published';
+  schedule_id: string;
 }
 
 export interface Feasibility {
@@ -179,7 +180,7 @@ export async function checkFeasibility(
   const ids = [f.requesterShiftId, ...(f.counterpartShiftId ? [f.counterpartShiftId] : [])];
   await lockSchedulesThenShifts(tx, { shiftIds: ids });
   const rows = await tx<LockedShift[]>`
-    select sh.id, sh.date::text as date, sh.hours, sh.user_id, sh.starts_at, sc.status
+    select sh.id, sh.date::text as date, sh.hours, sh.user_id, sh.starts_at, sc.status, sh.schedule_id
     from shifts sh
     join schedules sc on sc.id = sh.schedule_id
     where sh.id = any(${ids}::uuid[])
@@ -214,8 +215,11 @@ export async function checkFeasibility(
   }
 
   const parties = await tx<{ id: string; active: boolean; participates: boolean }[]>`
-    select id, active, participates_in_rotation as participates from users
-    where id in (${f.requesterId}, ${f.counterpartId})`;
+    select u.id, u.active, coalesce(m.participates_in_rotation, false) as participates
+    from users u
+    left join team_members m on m.user_id = u.id
+      and m.team_id = (select team_id from schedules where id = ${requesterShift!.schedule_id})
+    where u.id in (${f.requesterId}, ${f.counterpartId})`;
   const cp = parties.find((p) => p.id === f.counterpartId);
   const rq = parties.find((p) => p.id === f.requesterId);
   if (!cp?.active || !cp.participates) {

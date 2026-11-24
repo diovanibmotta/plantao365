@@ -88,7 +88,7 @@ describe('RequireRole', () => {
   it('permite gestor em /members', async () => {
     mockApi(user('manager'));
     renderAt('/members');
-    expect(await screen.findByRole('heading', { name: 'Equipe' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Membros' })).toBeTruthy();
   });
 });
 
@@ -98,7 +98,7 @@ describe('menu por papel', () => {
     renderAt('/profile');
     const nav = await screen.findByRole('navigation', { name: 'Principal' });
     expect(nav.textContent).toContain('Plantão');
-    expect(nav.textContent).not.toContain('Equipe');
+    expect(nav.textContent).not.toContain('Membros');
     expect(nav.textContent).not.toContain('Auditoria');
   });
 
@@ -106,7 +106,7 @@ describe('menu por papel', () => {
     mockApi(user('manager'));
     renderAt('/profile');
     const nav = await screen.findByRole('navigation', { name: 'Principal' });
-    for (const label of ['Equipe', 'Feriados', 'Férias', 'Auditoria'])
+    for (const label of ['Equipes', 'Membros', 'Feriados', 'Férias', 'Auditoria'])
       expect(nav.textContent).toContain(label);
     expect(nav.textContent).not.toContain('Férias coletivas');
   });
@@ -128,7 +128,7 @@ describe('convidado', () => {
     expect(await screen.findByRole('heading', { name: 'Calendário' })).toBeTruthy();
     const nav = screen.getByRole('navigation', { name: 'Principal' });
     expect(nav.textContent).toContain('Calendário');
-    for (const label of ['Plantão', 'Trocas', 'Saldo', 'Equipe'])
+    for (const label of ['Plantão', 'Trocas', 'Saldo', 'Membros'])
       expect(within(nav).queryByRole('link', { name: label })).toBeNull();
     expect(screen.getByText('Convidado')).toBeTruthy();
   });

@@ -55,7 +55,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('POST /schedules/generate (Po
       name: 'Observador',
       participatesInRotation: false,
     });
-    await sql`update users set participates_in_rotation = false where id = ${manager.id}`;
+    await sql`update team_members set participates_in_rotation = false where user_id = ${manager.id}`;
     await sql`insert into holidays (date, name, scope) values ('2027-06-09', 'Feriado teste', 'municipal')`;
     await sql`insert into unavailabilities (user_id, kind, start_date, end_date)
       values (null, 'collective_vacation', '2027-06-10', '2027-06-10')`;
@@ -170,8 +170,9 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('POST /schedules/generate (Po
 
   it('dia sem elegível fica sem responsável e é sinalizado', async () => {
     await sql`insert into unavailabilities (user_id, kind, start_date, end_date)
-      select id, 'time_off', '2030-01-02', '2030-01-02' from users
-      where active and participates_in_rotation`;
+      select u.id, 'time_off', '2030-01-02', '2030-01-02' from users u
+      join team_members m on m.user_id = u.id
+      where u.active and m.participates_in_rotation`;
     const res = await generate({ from: '2030-01-01', to: '2030-01-03' });
     const body = (await res.json()) as { shifts: ShiftOut[]; unassignedDates: string[] };
     expect(body.unassignedDates).toEqual(['2030-01-02']);

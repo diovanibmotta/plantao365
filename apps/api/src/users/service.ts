@@ -57,23 +57,18 @@ export const updateProfileSchema = z
     message: 'Informe ao menos um campo para alterar',
   });
 
-const roleSchema = z.enum(['manager', 'member', 'guest']);
 const nameSchema = z.string().trim().min(1, 'Nome obrigatório').max(200);
 
 export const createUserSchema = z
   .object({
     name: nameSchema,
     email: z.string().trim().toLowerCase().max(254).pipe(z.email('E-mail inválido')),
-    role: z.enum(['manager', 'member']).optional(),
-    participatesInRotation: z.boolean().optional(),
   })
   .strict();
 
 export const updateUserSchema = z
   .object({
     name: nameSchema.optional(),
-    role: roleSchema.optional(),
-    participatesInRotation: z.boolean().optional(),
     active: z.boolean().optional(),
   })
   .strict()
@@ -106,16 +101,21 @@ const toProfile = (r: UserRow): ProfileDto => ({
   remindersEnabled: r.reminders_enabled,
 });
 
-const toListItem = (r: UserRow): UserListItemDto => ({
+const toListItem = (r: UserRow, teamIds: string[]): UserListItemDto => ({
   id: r.id,
   name: r.name,
   email: r.email,
-  role: r.role,
   active: r.active,
-  participatesInRotation: r.participates_in_rotation,
   createdAt: r.created_at.toISOString(),
   linked: r.oid !== null,
+  teamIds,
 });
+
+async function teamIdsOf(db: Sql | Tx, userId: string): Promise<string[]> {
+  const rows = await (db as Sql)<{ team_id: string }[]>`
+    select team_id from team_members where user_id = ${userId} order by team_id`;
+  return rows.map((r) => r.team_id);
+}
 
 const snapshot = (p: ProfileDto): AuditJson => ({ ...p });
 
@@ -150,90 +150,57 @@ export async function updateProfile(
   });
 }
 
-/** Membros da equipe e convidados (sem equipe, ainda não admitidos), para o gestor admitir. */
-export async function listUsers(db: Sql, teamId: string): Promise<UserListItemDto[]> {
+/** Todos os usuários cadastrados (exceto master); o vínculo com equipes é feito na equipe. */
+export async function listUsers(db: Sql): Promise<UserListItemDto[]> {
   const rows = await db<UserRow[]>`
-    select * from users
-    where not is_master
-      and (role = 'guest'
-        or id in (select user_id from team_members where team_id = ${teamId}))
-    order by lower(name), email`;
-  return rows.map(toListItem);
+    select * from users where not is_master order by lower(name), email`;
+  const links = await db<{ user_id: string; team_id: string }[]>`
+    select user_id, team_id from team_members
+    where user_id = any(${rows.map((r) => r.id)}::uuid[]) order by team_id`;
+  return rows.map((r) =>
+    toListItem(
+      r,
+      links.filter((l) => l.user_id === r.id).map((l) => l.team_id),
+    ),
+  );
 }
 
 /**
- * Cadastrar o usuário é o convite: ele passa a entrar com o papel atribuído e recebe um e-mail
- * (outbox). Se o e-mail já entrou como convidado, o convite o promove em vez de conflitar.
+ * Pré-cadastro: somente nome e e-mail. O usuário não entra em nenhuma equipe (papel e rodízio
+ * são definidos ao vinculá-lo a uma equipe) e recebe o e-mail de convite (outbox).
  */
 export async function createUser(
   db: Sql,
   actorId: string,
   input: CreateUserInput,
-  opts: { appBaseUrl?: string | undefined; teamId: string },
+  opts: { appBaseUrl?: string | undefined } = {},
 ): Promise<UserListItemDto> {
-  const role = input.role ?? 'member';
-  const participates = input.participatesInRotation ?? role === 'member';
   return db.begin(async (tx) => {
-    const [existing] = await tx<UserRow[]>`
-      select * from users where email = ${input.email} for update`;
-    let row: UserRow | undefined;
-    if (!existing) {
-      [row] = await tx<UserRow[]>`
-        insert into users (name, email, role, participates_in_rotation)
-        values (${input.name}, ${input.email}, ${role}, ${participates})
-        returning *`;
-      await recordAudit(tx, {
-        actorId,
-        action: 'create',
-        entityType: 'user',
-        entityId: row!.id,
-        after: snapshot(toProfile(row!)),
-      });
-    } else if (existing.role === 'guest' && !existing.is_master) {
-      [row] = await tx<UserRow[]>`
-        update users set name = ${input.name}, role = ${role}, active = true,
-          participates_in_rotation = ${participates}, reminders_enabled = true, updated_at = now()
-        where id = ${existing.id} returning *`;
-      await recordAudit(tx, {
-        actorId,
-        action: 'update',
-        entityType: 'user',
-        entityId: existing.id,
-        before: snapshot(toProfile(existing)),
-        after: snapshot(toProfile(row!)),
-        reason: 'convite de convidado',
-      });
-    } else {
-      const [member] = await tx`
-        select 1 from team_members where team_id = ${opts.teamId} and user_id = ${existing.id}`;
-      if (member) {
-        throw new UsersError(409, 'email_in_use', 'Este usuário já faz parte da equipe');
-      }
-      // Usuário de outra equipe: só é vinculado a esta (papel e dados globais não mudam).
-      await tx`insert into team_members (team_id, user_id) values (${opts.teamId}, ${existing.id})`;
-      await recordAudit(tx, {
-        actorId,
-        action: 'team.add_member',
-        entityType: 'team',
-        entityId: opts.teamId,
-        after: { userId: existing.id, email: existing.email },
-      });
-      return toListItem(existing);
+    const [existing] = await tx<UserRow[]>`select id from users where email = ${input.email}`;
+    if (existing) {
+      throw new UsersError(409, 'email_in_use', 'Já existe um usuário com este e-mail');
     }
-    await tx`
-      insert into team_members (team_id, user_id) values (${opts.teamId}, ${row!.id})
-      on conflict do nothing`;
+    const [row] = await tx<UserRow[]>`
+      insert into users (name, email, role, participates_in_rotation)
+      values (${input.name}, ${input.email}, 'guest', false)
+      returning *`;
+    await recordAudit(tx, {
+      actorId,
+      action: 'create',
+      entityType: 'user',
+      entityId: row!.id,
+      after: snapshot(toProfile(row!)),
+    });
     const invite = renderInviteEmail({
       name: row!.name,
-      role: role,
       appUrl: opts.appBaseUrl ? new URL('/', opts.appBaseUrl).href : undefined,
     });
     await enqueueEmail(tx, {
       to: row!.email,
       ...invite,
-      dedupeKey: `invite:${row!.id}:${role}`,
+      dedupeKey: `invite:${row!.id}`,
     });
-    return toListItem(row!);
+    return toListItem(row!, []);
   });
 }
 
@@ -304,44 +271,43 @@ export async function updateUser(
   actorId: string,
   userId: string,
   input: UpdateUserInput,
-  opts: { finder?: FutureShiftsFinder; now?: () => Date; teamId: string },
+  opts: { finder?: FutureShiftsFinder; now?: () => Date } = {},
 ): Promise<UserListItemDto> {
   return db.begin(async (tx) => {
-    const managers = await tx<{ id: string }[]>`
-      select id from users where role = 'manager' and active and not is_master order by id for update`;
     const [before] = await tx<UserRow[]>`select * from users where id = ${userId} for update`;
     if (!before || before.is_master) {
       throw new UsersError(404, 'not_found', 'Usuário não encontrado');
     }
-    const [inTeam] = await tx`
-      select 1 from team_members where team_id = ${opts.teamId} and user_id = ${userId}`;
-    if (!inTeam && before.role !== 'guest') {
-      throw new UsersError(404, 'not_found', 'Usuário não encontrado');
-    }
-
-    const role = input.role ?? before.role;
     const active = input.active ?? before.active;
-    const wasActiveManager = before.role === 'manager' && before.active;
-    const staysActiveManager = role === 'manager' && active;
-    if (wasActiveManager && !staysActiveManager && managers.length <= 1) {
-      throw new UsersError(
-        409,
-        'last_manager',
-        'Não é possível remover ou desativar o último gestor ativo',
-      );
-    }
     const deactivating = before.active && !active;
-    if (deactivating)
+    if (deactivating) {
+      // Serializa com outras mudanças de gestão das equipes em que o usuário é gestor.
+      await tx`
+        select id from teams
+        where id in (select team_id from team_members where user_id = ${userId} and role = 'manager')
+        order by id for update`;
+      const [sole] = await tx`
+        select 1 from team_members m
+        where m.user_id = ${userId} and m.role = 'manager'
+          and not exists (
+            select 1 from team_members o join users ou on ou.id = o.user_id
+            where o.team_id = m.team_id and o.role = 'manager' and ou.active
+              and o.user_id <> ${userId})
+        limit 1`;
+      if (sole) {
+        throw new UsersError(
+          409,
+          'last_manager',
+          'Não é possível desativar o último gestor ativo de uma equipe',
+        );
+      }
       await assertCanDeactivate(tx, userId, opts.finder, (opts.now ?? (() => new Date()))());
+    }
 
-    const participates =
-      role === 'guest' ? false : (input.participatesInRotation ?? before.participates_in_rotation);
     const [after] = await tx<UserRow[]>`
       update users set
         name = ${input.name ?? before.name},
-        role = ${role},
         active = ${active},
-        participates_in_rotation = ${participates},
         updated_at = now()
       where id = ${userId} returning *`;
     if (deactivating) await tx`delete from sessions where user_id = ${userId}`;
@@ -353,6 +319,6 @@ export async function updateUser(
       before: snapshot(toProfile(before)),
       after: snapshot(toProfile(after!)),
     });
-    return toListItem(after!);
+    return toListItem(after!, await teamIdsOf(tx, after!.id));
   });
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { APP_NAME } from '@diovanibmotta/plantao365-shared';
 import { useAuth } from '../auth/AuthContext';
-import { TeamProvider, useTeam } from '../team/TeamContext';
+import { TeamProvider, useRole, useTeam } from '../team/TeamContext';
 import { effectiveTheme, setTheme, type Theme } from '../theme';
 import { Avatar } from './Avatar';
 import { BrandMark, Icon } from './icons';
@@ -29,14 +29,12 @@ function ThemeToggle() {
   );
 }
 
-function TeamSwitcher({ canCreate }: { canCreate: boolean }) {
-  const { teams, activeTeam, select, create } = useTeam();
-  const [adding, setAdding] = useState(false);
-  const [name, setName] = useState('');
-  const [error, setError] = useState<string | null>(null);
+/** Só escolhe a equipe exibida; o cadastro (CRUD) fica na página Equipes. */
+function TeamSwitcher() {
+  const { teams, activeTeam, select } = useTeam();
 
-  if (teams.length === 0 && !canCreate) return null;
-  if (teams.length <= 1 && !canCreate && activeTeam) {
+  if (teams.length === 0) return null;
+  if (teams.length === 1 && activeTeam) {
     return (
       <div className="team-switch">
         <span className="team-label">Equipe</span>
@@ -45,69 +43,24 @@ function TeamSwitcher({ canCreate }: { canCreate: boolean }) {
     );
   }
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    try {
-      await create(trimmed);
-      setName('');
-      setAdding(false);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não foi possível criar a equipe.');
-    }
-  };
-
   return (
     <div className="team-switch">
       <label className="team-label" htmlFor="team-select">
         Equipe
       </label>
       <div className="team-row">
-        {teams.length > 0 && (
-          <select
-            id="team-select"
-            value={activeTeam?.id ?? ''}
-            onChange={(e) => select(e.target.value)}
-          >
-            {teams.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        )}
-        {canCreate && (
-          <button
-            type="button"
-            className="btn sm"
-            aria-expanded={adding}
-            onClick={() => setAdding((v) => !v)}
-          >
-            Nova
-          </button>
-        )}
+        <select
+          id="team-select"
+          value={activeTeam?.id ?? ''}
+          onChange={(e) => select(e.target.value)}
+        >
+          {teams.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
       </div>
-      {adding && (
-        <form className="team-new" onSubmit={(e) => void submit(e)}>
-          <input
-            aria-label="Nome da nova equipe"
-            value={name}
-            maxLength={100}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Nome da equipe"
-          />
-          <button type="submit" className="btn sm primary">
-            Criar
-          </button>
-          {error && (
-            <p className="team-error" role="alert">
-              {error}
-            </p>
-          )}
-        </form>
-      )}
     </div>
   );
 }
@@ -123,6 +76,7 @@ export function Layout() {
 function LayoutShell() {
   const { user, logout } = useAuth();
   const { activeTeam, loading } = useTeam();
+  const role = useRole();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
 
@@ -134,11 +88,11 @@ function LayoutShell() {
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
-  if (!user) return null;
-  const items = navItemsFor(user.role);
+  if (!user || !role) return null;
+  const items = navItemsFor(role);
   const roleLabel = user.isMaster
     ? 'Master'
-    : { manager: 'Gestor', member: 'Membro', guest: 'Convidado' }[user.role];
+    : { manager: 'Gestor', member: 'Membro', guest: 'Convidado' }[role];
   const current = pathname.startsWith(PROFILE_PATH)
     ? { label: 'Perfil' }
     : items.find((item) => pathname.startsWith(item.to));
@@ -186,12 +140,12 @@ function LayoutShell() {
             );
           })}
         </nav>
-        <TeamSwitcher canCreate={user.role === 'manager'} />
+        <TeamSwitcher />
         <div className="sidebar-foot">
           <NavLink
-            to={user.role === 'guest' ? '/schedule' : PROFILE_PATH}
+            to={role === 'guest' ? '/schedule' : PROFILE_PATH}
             className="who-link"
-            title={user.role === 'guest' ? user.email : 'Meu perfil'}
+            title={role === 'guest' ? user.email : 'Meu perfil'}
             onClick={() => setOpen(false)}
           >
             <Avatar userId={user.id} name={user.name} />

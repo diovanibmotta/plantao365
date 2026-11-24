@@ -879,15 +879,13 @@ input[type='radio'] {
   font-weight: 600;
 }
 
-.team-row,
-.team-new {
+.team-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.team-row select,
-.team-new input {
+.team-row select {
   flex: 1;
   min-width: 0;
 }
@@ -895,16 +893,6 @@ input[type='radio'] {
 .team-single {
   font-size: 13px;
   font-weight: 500;
-}
-
-.team-error {
-  margin: 0;
-  color: var(--danger);
-  font-size: 12px;
-}
-
-.team-new {
-  flex-wrap: wrap;
 }
 
 .team-switch + .sidebar-foot {

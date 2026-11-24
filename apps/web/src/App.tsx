@@ -14,6 +14,7 @@ import { NotFoundPage } from './pages/pages';
 import { ProfilePage } from './pages/ProfilePage';
 import { SwapsPage } from './pages/SwapsPage';
 import { TeamSchedulePage } from './pages/TeamSchedulePage';
+import { TeamsPage } from './pages/TeamsPage';
 
 /** Rotas antigas em português: mantêm vivos links de e-mails já enviados e favoritos. */
 const LEGACY_PATHS: Record<string, string> = {
@@ -50,6 +51,7 @@ export function App() {
             <Route path="profile" element={<ProfilePage />} />
           </Route>
           <Route element={<RequireRole role="manager" />}>
+            <Route path="teams" element={<TeamsPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="vacations" element={<VacationsPage />} />
             <Route path="schedule-admin" element={<ScheduleAdminPage />} />
