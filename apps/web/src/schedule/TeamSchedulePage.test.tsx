@@ -48,6 +48,15 @@ interface Data {
 function mockApi(data: Data = {}) {
   const fetchMock = vi.fn((url: string) => {
     if (url === '/auth/me') return Promise.resolve(json(me));
+    if (url === '/api/shift-settings') {
+      return Promise.resolve(
+        json({
+          weekday: { startHour: 19, endHour: 7 },
+          weekend: { startHour: 8, endHour: 8 },
+          holiday: { startHour: 8, endHour: 8 },
+        }),
+      );
+    }
     if (url.startsWith('/api/shifts')) return Promise.resolve(json(data.shifts ?? []));
     if (url.startsWith('/api/holidays'))
       return Promise.resolve(json({ items: data.holidays ?? [] }));
@@ -168,6 +177,27 @@ describe('TeamSchedulePage', () => {
     expect(ranges).toContain('2027-01-01..2027-01-31');
     expect(ranges).toContain('2026-11-01..2026-11-30');
     expect(ranges[0]).toBe('2026-12-01..2026-12-31');
+  });
+
+  it('mostra foto, horário do plantão e legenda com o horário configurado', async () => {
+    mockApi({
+      shifts: [
+        {
+          ...shift('2026-03-02', 'u2', 'Bruno Lima', 'weekday', 12),
+          startsAt: '2026-03-02T22:00:00.000Z',
+          endsAt: '2026-03-03T10:00:00.000Z',
+        },
+      ],
+    });
+    renderPage('2026-03-10');
+    const day = await screen.findByTestId('day-2026-03-02');
+    expect(within(day).getByText('19h–07h')).toBeTruthy();
+    expect(within(day).getByTitle('Termina no dia seguinte')).toBeTruthy();
+    expect(within(day).getByText('12h')).toBeTruthy();
+    expect(day.querySelector('img')?.getAttribute('src')).toBe('/api/users/u2/photo');
+    const legend = screen.getByRole('list', { name: 'Legenda' });
+    await waitFor(() => expect(legend.textContent).toContain('Dia útil: 19h–07h (12h)'));
+    expect(legend.textContent).toContain('Feriado: 08h–08h (24h)');
   });
 
   it('exibe erro de carregamento', async () => {

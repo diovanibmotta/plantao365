@@ -8,6 +8,7 @@ import { sessionMiddleware } from './middleware.js';
 import {
   claimsToIdentity,
   createEntraProvider,
+  fetchGraphPhoto,
   OidcError,
   pkceChallenge,
   type OidcExpected,
@@ -264,6 +265,27 @@ describe.skipIf(!TEST_DATABASE_URL)('auth', () => {
       expect(u).toEqual({ oid: 'oid-1', name: 'Ana Souza' });
     });
 
+    it('stores the directory photo, keeps it when unknown and clears it when absent', async () => {
+      await addUser('ana@example.com');
+      const login = async (photo: OidcIdentity['photo']) => {
+        const identity: OidcIdentity = { email: 'ana@example.com', name: 'Ana', oid: 'oid-1' };
+        const { provider } = stub(photo === undefined ? identity : { ...identity, photo });
+        const app = buildApp(provider);
+        const { cookies, state } = await startLogin(app);
+        await app.request(`/auth/callback?state=${state}&code=abc`, {
+          headers: { cookie: cookieHeader(cookies) },
+        });
+        const [u] = await t.sql<{ photo: Buffer | null; photo_type: string | null }[]>`
+          select photo, photo_type from users`;
+        return u!;
+      };
+      const stored = await login({ data: Buffer.from([1, 2, 3]), type: 'image/jpeg' });
+      expect([...stored.photo!]).toEqual([1, 2, 3]);
+      expect(stored.photo_type).toBe('image/jpeg');
+      expect((await login(undefined)).photo_type).toBe('image/jpeg');
+      expect(await login(null)).toEqual({ photo: null, photo_type: null });
+    });
+
     it('audits the oid link and name update only when they change', async () => {
       await addUser('ana@example.com');
       const { provider } = stub({ email: 'ana@example.com', name: 'Ana Souza', oid: 'oid-1' });
@@ -409,6 +431,25 @@ describe('oidc helpers', () => {
     expect(claimsToIdentity({ email: 'b@example.com', sub: 's1' })).toMatchObject({ oid: 's1' });
     expect(() => claimsToIdentity({ oid: 'o1' })).toThrow(OidcError);
     expect(() => claimsToIdentity({ email: 'a@b.c' })).toThrow(OidcError);
+  });
+
+  it('fetches the Graph photo without ever failing the login', async () => {
+    const respond = (res: Response | Error) =>
+      (() =>
+        res instanceof Error
+          ? Promise.reject(res)
+          : Promise.resolve(res)) as unknown as typeof fetch;
+    const jpeg = new Response(new Uint8Array([9, 9]), {
+      headers: { 'content-type': 'image/jpeg' },
+    });
+    expect(await fetchGraphPhoto('tk', respond(jpeg))).toMatchObject({ type: 'image/jpeg' });
+    expect(await fetchGraphPhoto('tk', respond(new Response(null, { status: 404 })))).toBeNull();
+    expect(
+      await fetchGraphPhoto('tk', respond(new Response('x', { status: 401 }))),
+    ).toBeUndefined();
+    const html = new Response('<p>', { headers: { 'content-type': 'text/html' } });
+    expect(await fetchGraphPhoto('tk', respond(html))).toBeUndefined();
+    expect(await fetchGraphPhoto('tk', respond(new Error('offline')))).toBeUndefined();
   });
 
   it('requires issuer, client id and secret for the real provider', () => {

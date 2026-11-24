@@ -2,10 +2,43 @@ import { createHash } from 'node:crypto';
 import * as client from 'openid-client';
 import type { OidcOptions } from './types.js';
 
+export interface UserPhoto {
+  data: Buffer;
+  type: string;
+}
+
 export interface OidcIdentity {
   email: string;
   name: string | undefined;
   oid: string;
+  /** Foto do diretório; null = usuário sem foto; ausente = não consultada ou falhou (manter). */
+  photo?: UserPhoto | null;
+}
+
+const GRAPH_PHOTO_URL = 'https://graph.microsoft.com/v1.0/me/photos/96x96/$value';
+const MAX_PHOTO_BYTES = 512 * 1024;
+
+/**
+ * Baixa a foto do usuário no Microsoft Graph. Nunca lança: falha de rede ou resposta inesperada
+ * devolve undefined para não bloquear o login.
+ */
+export async function fetchGraphPhoto(
+  accessToken: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<UserPhoto | null | undefined> {
+  try {
+    const res = await fetchImpl(GRAPH_PHOTO_URL, {
+      headers: { authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (res.status === 404) return null;
+    const type = res.headers.get('content-type')?.split(';')[0]?.trim() ?? '';
+    if (!res.ok || !/^image\/(jpeg|png|gif|webp)$/.test(type)) return undefined;
+    const data = Buffer.from(await res.arrayBuffer());
+    return data.byteLength > 0 && data.byteLength <= MAX_PHOTO_BYTES ? { data, type } : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export interface OidcExpected {
@@ -63,7 +96,7 @@ export function createEntraProvider(opts: OidcOptions, redirectUri: string): Oid
     async authorizationUrl({ state, nonce, codeChallenge }) {
       return client.buildAuthorizationUrl(await getConfig(), {
         redirect_uri: redirectUri,
-        scope: 'openid profile email',
+        scope: 'openid profile email User.Read',
         response_type: 'code',
         code_challenge: codeChallenge,
         code_challenge_method: 'S256',
@@ -83,7 +116,9 @@ export function createEntraProvider(opts: OidcOptions, redirectUri: string): Oid
         });
         const claims = tokens.claims();
         if (!claims) throw new OidcError('Resposta sem id_token.');
-        return claimsToIdentity(claims as Claims);
+        const identity = claimsToIdentity(claims as Claims);
+        const photo = await fetchGraphPhoto(tokens.access_token);
+        return photo === undefined ? identity : { ...identity, photo };
       } catch (err) {
         if (err instanceof OidcError) throw err;
         throw new OidcError('Falha na validação do login.', { cause: err });

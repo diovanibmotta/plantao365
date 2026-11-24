@@ -255,7 +255,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('schedules (PostgreSQL)', () 
       insertSchedule(sql, manager.id, 'published', '2026-05-10', '2026-05-01'),
     ).rejects.toThrow();
     await expect(insertShift(sql, published, '2026-03-01', null)).rejects.toThrow();
-    await expect(insertShift(sql, published, '2026-03-05', null, { hours: 10 })).rejects.toThrow();
+    await expect(insertShift(sql, published, '2026-03-05', null, { hours: 25 })).rejects.toThrow();
   });
 
   it('apagar a escala remove seus plantões em cascata', async () => {

@@ -93,6 +93,21 @@ export function createUsersRouter({ db, futureShiftsFinder, now }: UsersRouterDe
     return c.json(rows);
   });
 
+  // Qualquer usuário autenticado vê a foto dos colegas (escala no calendário).
+  router.get('/users/:id/photo', requireAuth(), async (c) => {
+    const id = c.req.param('id');
+    const [row] = UUID.test(id)
+      ? await db<{ photo: Buffer; type: string }[]>`
+          select photo, photo_type as type from users where id = ${id} and photo is not null`
+      : [];
+    // 404 sem cache: a foto pode chegar no próximo login.
+    if (!row) return c.json({ error: 'not_found', message: 'Foto não encontrada' }, 404);
+    c.header('cache-control', 'private, max-age=3600');
+    c.header('content-type', row.type);
+    c.header('x-content-type-options', 'nosniff');
+    return c.body(new Uint8Array(row.photo));
+  });
+
   router.get('/users', requireRole('manager'), async (c) => c.json(await listUsers(db)));
 
   router.post('/users', requireRole('manager'), async (c) => {

@@ -15,7 +15,7 @@
  * 5. Empate (tolerância numérica) decidido por id, e a ordem dos membros no input é irrelevante.
  */
 import { type LocalDate, addDays, dateRange, dayOfWeek } from './dates.js';
-import { type DayType, type ShiftContext, SHIFT_HOURS, classifyDay } from './shifts.js';
+import { type DayType, type ShiftContext, classifyDay, shiftHoursFor } from './shifts.js';
 
 /** Quantos plantões "à frente" no equilíbrio uma violação de preferência pode custar. */
 const PREFERENCE_PENALTY_SHIFTS = 2;
@@ -135,7 +135,7 @@ export function generateRotation(input: RotationInput): RotationOutput {
   const preferenceViolations: PreferenceViolation[] = [];
 
   for (const { date, dayType } of days) {
-    const hours = SHIFT_HOURS[dayType];
+    const hours = shiftHoursFor(dayType, ctx);
     if (dayType === 'collective_vacation') {
       shifts.push({ date, userId: null, dayType, hours });
       continue;

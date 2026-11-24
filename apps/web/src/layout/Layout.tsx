@@ -3,16 +3,11 @@ import { NavLink, Outlet, useLocation } from 'react-router';
 import { APP_NAME } from '@diovanibmotta/plantao365-shared';
 import { useAuth } from '../auth/AuthContext';
 import { effectiveTheme, setTheme, type Theme } from '../theme';
+import { Avatar } from './Avatar';
 import { BrandMark, Icon } from './icons';
 import { NAV_GROUP_LABELS, PROFILE_PATH, navItemsFor, type NavGroup } from './nav';
 
 const GROUP_ORDER: NavGroup[] = ['schedule', 'admin'];
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const letters = parts.length > 1 ? [parts[0]!, parts[parts.length - 1]!] : parts;
-  return letters.map((p) => p[0]!.toUpperCase()).join('') || '?';
-}
 
 function ThemeToggle() {
   const [theme, setCurrent] = useState<Theme>(effectiveTheme);
@@ -102,9 +97,7 @@ export function Layout() {
             title="Meu perfil"
             onClick={() => setOpen(false)}
           >
-            <span className="avatar" aria-hidden="true">
-              {initials(user.name)}
-            </span>
+            <Avatar userId={user.id} name={user.name} />
             <span className="who">
               <span className="who-name">{user.name}</span>
               <span className="who-role">{user.role === 'manager' ? 'Gestor' : 'Membro'}</span>
