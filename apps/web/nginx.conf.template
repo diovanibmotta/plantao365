@@ -30,6 +30,12 @@ server {
     proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
   }
 
+  # O mime.types do nginx não conhece .webmanifest; sem isso sai application/octet-stream.
+  location = /site.webmanifest {
+    default_type application/manifest+json;
+    try_files $uri =404;
+  }
+
   location /assets/ {
     expires 1y;
     try_files $uri =404;
