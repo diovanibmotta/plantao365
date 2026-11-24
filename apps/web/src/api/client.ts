@@ -1,3 +1,4 @@
+import { toast } from '../toast/toast-store';
 import { apiCredentials, apiUrl } from './base-url';
 
 export class ApiError extends Error {
@@ -44,10 +45,85 @@ export function setActiveTeamId(id: string | null): void {
 
 export const TEAM_HEADER = 'X-Team-Id';
 
-export interface RequestOptions {
+/** Controle do interceptor de toasts (aplicado só a POST/PUT/PATCH/DELETE). */
+export interface ToastOptions {
+  /** Texto do toast de sucesso; sobrepõe `message`/`notice` do corpo e o padrão do verbo. */
+  successMessage?: string;
+  /** Traduz o erro para o texto do toast; padrão: `message` do corpo ou texto por status. */
+  errorMessage?: (err: ApiError) => string;
+  /** Não exibe toast de sucesso. */
+  silentSuccess?: boolean;
+  /** Não exibe toast de erro (a tela trata o erro, ex.: fluxo de confirmação). */
+  silentError?: boolean | ((err: ApiError) => boolean);
+}
+
+export interface RequestOptions extends ToastOptions {
   method?: string;
   body?: unknown;
   signal?: AbortSignal;
+}
+
+const DEFAULT_SUCCESS: Record<string, string> = {
+  POST: 'Operação realizada com sucesso.',
+  PUT: 'Alterações salvas com sucesso.',
+  PATCH: 'Alterações salvas com sucesso.',
+  DELETE: 'Excluído com sucesso.',
+};
+
+function statusMessage(status: number): string {
+  if (status === 400 || status === 422) return 'Dados inválidos. Revise as informações.';
+  if (status === 404) return 'Registro não encontrado. Atualize a página.';
+  if (status === 409) return 'Conflito com um registro existente.';
+  if (status >= 500) return 'Erro interno do servidor. Tente novamente.';
+  return `Erro ${status}`;
+}
+
+/** Texto de erro exibido ao usuário: `message` do corpo, senão mensagem por status. */
+export function describeApiError(err: ApiError): string {
+  if (err.message && !/^Erro \d+$/.test(err.message)) return err.message;
+  return statusMessage(err.status);
+}
+
+function bodyString(body: unknown, key: 'message' | 'notice'): string | undefined {
+  if (typeof body !== 'object' || body === null) return undefined;
+  const value = (body as Record<string, unknown>)[key];
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function warningMessages(body: unknown): string[] {
+  if (typeof body !== 'object' || body === null) return [];
+  const list = (body as { warnings?: unknown }).warnings;
+  if (!Array.isArray(list) || list.length === 0) return [];
+  const texts = list.flatMap((w) =>
+    typeof w === 'object' && w !== null && typeof (w as { message?: unknown }).message === 'string'
+      ? [(w as { message: string }).message]
+      : [],
+  );
+  return texts;
+}
+
+function notifySuccess(verb: string, data: unknown, opts: ToastOptions): void {
+  if (!opts.silentSuccess) {
+    toast.success(
+      opts.successMessage ??
+        bodyString(data, 'message') ??
+        bodyString(data, 'notice') ??
+        DEFAULT_SUCCESS[verb] ??
+        'Operação realizada com sucesso.',
+    );
+  }
+  for (const w of warningMessages(data)) toast.warning(w);
+}
+
+function notifyError(err: unknown, opts: ToastOptions): void {
+  if (err instanceof UnauthorizedError) return;
+  if (err instanceof NetworkError) {
+    if (opts.silentError !== true) toast.error(err.message);
+  } else if (err instanceof ApiError) {
+    const { silentError } = opts;
+    if (silentError === true || (typeof silentError === 'function' && silentError(err))) return;
+    toast.error((opts.errorMessage ?? describeApiError)(err));
+  }
 }
 
 async function parseBody(res: Response): Promise<unknown> {
@@ -60,10 +136,21 @@ async function parseBody(res: Response): Promise<unknown> {
   }
 }
 
-export async function request<T = unknown>(
-  path: string,
-  { method = 'GET', body, signal }: RequestOptions = {},
-): Promise<T> {
+/** Executa a chamada e, em mutações (CUD), notifica sucesso/aviso/erro via toast. */
+export async function request<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
+  const verb = (options.method ?? 'GET').toUpperCase();
+  if (verb === 'GET') return send<T>(path, options);
+  try {
+    const data = await send<T>(path, options);
+    notifySuccess(verb, data, options);
+    return data;
+  } catch (err) {
+    notifyError(err, options);
+    throw err;
+  }
+}
+
+async function send<T>(path: string, { method = 'GET', body, signal }: RequestOptions): Promise<T> {
   const verb = method.toUpperCase();
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (verb !== 'GET') headers[CSRF_HEADER] = CSRF_VALUE;
@@ -96,8 +183,11 @@ export async function request<T = unknown>(
 
 export const api = {
   get: <T>(path: string, signal?: AbortSignal) => request<T>(path, signal ? { signal } : {}),
-  post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
-  patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
-  put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
-  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  post: <T>(path: string, body?: unknown, opts?: ToastOptions) =>
+    request<T>(path, { ...opts, method: 'POST', body }),
+  patch: <T>(path: string, body?: unknown, opts?: ToastOptions) =>
+    request<T>(path, { ...opts, method: 'PATCH', body }),
+  put: <T>(path: string, body?: unknown, opts?: ToastOptions) =>
+    request<T>(path, { ...opts, method: 'PUT', body }),
+  delete: <T>(path: string, opts?: ToastOptions) => request<T>(path, { ...opts, method: 'DELETE' }),
 };

@@ -56,16 +56,16 @@ export function TeamMembersPanel({ teamId, teamName }: Props) {
 
   async function save(userId: string, body: { role?: TeamRole; participatesInRotation?: boolean }) {
     setBusy(true);
-    setError(null);
     try {
-      const saved = await api.put<TeamMember>(`/api/teams/${teamId}/members/${userId}`, body);
+      const saved = await api.put<TeamMember>(`/api/teams/${teamId}/members/${userId}`, body, {
+        successMessage: 'Membro da equipe salvo.',
+      });
       setMembers((prev) => {
         const rest = (prev ?? []).filter((m) => m.id !== userId);
         return [...rest, saved].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
       });
       return true;
-    } catch (err) {
-      setError(describeError(err, 'Não foi possível salvar o membro.'));
+    } catch {
       return false;
     } finally {
       setBusy(false);
@@ -81,12 +81,13 @@ export function TeamMembersPanel({ teamId, teamName }: Props) {
 
   async function unlink(user: TeamMember) {
     setBusy(true);
-    setError(null);
     try {
-      await api.delete(`/api/teams/${teamId}/members/${user.id}`);
+      await api.delete(`/api/teams/${teamId}/members/${user.id}`, {
+        successMessage: 'Membro desvinculado.',
+      });
       setMembers((prev) => (prev ?? []).filter((m) => m.id !== user.id));
-    } catch (err) {
-      setError(describeError(err, 'Não foi possível desvincular o membro.'));
+    } catch {
+      // erro exibido pelo toast
     } finally {
       setBusy(false);
     }

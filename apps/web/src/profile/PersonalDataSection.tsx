@@ -10,36 +10,31 @@ interface Props {
   onSaved: (profile: Profile) => void;
 }
 
-type Feedback = { kind: 'ok' | 'error'; text: string } | null;
-
 export function PersonalDataSection({ profile, onSaved }: Props) {
   const [phone, setPhone] = useState(profile.phone ?? '');
   const [reminders, setReminders] = useState(profile.remindersEnabled);
   const [phoneError, setPhoneError] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<Feedback>(null);
   const [saving, setSaving] = useState(false);
   const phoneId = useId();
   const phoneErrorId = `${phoneId}-error`;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    setFeedback(null);
     const problem = validatePhone(phone);
     setPhoneError(problem);
     if (problem) return;
     setSaving(true);
     try {
-      const saved = await api.patch<Profile>('/api/me', {
-        phone: phoneToPayload(phone),
-        remindersEnabled: reminders,
-      });
+      const saved = await api.patch<Profile>(
+        '/api/me',
+        { phone: phoneToPayload(phone), remindersEnabled: reminders },
+        { successMessage: 'Perfil salvo.' },
+      );
       onSaved(saved);
       setPhone(saved.phone ?? '');
       setReminders(saved.remindersEnabled);
-      setFeedback({ kind: 'ok', text: 'Perfil salvo.' });
-    } catch (err) {
-      const text = err instanceof Error ? err.message : 'Não foi possível salvar o perfil.';
-      setFeedback({ kind: 'error', text });
+    } catch {
+      // erro exibido pelo toast
     } finally {
       setSaving(false);
     }
@@ -93,16 +88,6 @@ export function PersonalDataSection({ profile, onSaved }: Props) {
             {saving ? 'Salvando…' : 'Salvar'}
           </button>
         </div>
-        {feedback?.kind === 'ok' && (
-          <p className="profile-ok" role="status">
-            {feedback.text}
-          </p>
-        )}
-        {feedback?.kind === 'error' && (
-          <p className="alert" role="alert">
-            {feedback.text}
-          </p>
-        )}
       </form>
     </section>
   );

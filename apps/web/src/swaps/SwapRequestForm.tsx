@@ -86,16 +86,20 @@ export function SwapRequestForm({ shift, today, onClose, onDone }: Props) {
     if (kind === 'swap' && theirShiftId === '') return setError('Escolha o plantão do colega.');
     setSaving(true);
     try {
-      await api.post('/api/swaps', {
-        kind,
-        shiftId: shift.id,
-        counterpartId: colleagueId,
-        ...(kind === 'swap' ? { counterpartShiftId: theirShiftId } : {}),
-        ...(note.trim() !== '' ? { note: note.trim() } : {}),
-      });
+      await api.post(
+        '/api/swaps',
+        {
+          kind,
+          shiftId: shift.id,
+          counterpartId: colleagueId,
+          ...(kind === 'swap' ? { counterpartShiftId: theirShiftId } : {}),
+          ...(note.trim() !== '' ? { note: note.trim() } : {}),
+        },
+        { successMessage: 'Solicitação registrada.' },
+      );
       onDone();
-    } catch (err) {
-      setError(errorText(err, 'Não foi possível enviar a solicitação.'));
+    } catch {
+      // erro exibido pelo toast
     } finally {
       setSaving(false);
     }

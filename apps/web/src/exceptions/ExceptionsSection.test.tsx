@@ -2,6 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ToastViewport } from '../toast/ToastViewport';
+import { toast } from '../toast/toast-store';
 import { ExceptionsSection } from './ExceptionsSection';
 import { formatPeriod } from './types';
 
@@ -54,6 +56,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  toast.clear();
   vi.unstubAllGlobals();
 });
 
@@ -67,7 +70,12 @@ describe('exceções do membro', () => {
         ],
       }),
     );
-    render(<ExceptionsSection />);
+    render(
+      <>
+        <ExceptionsSection />
+        <ToastViewport />
+      </>,
+    );
     const list = await screen.findByRole('list', { name: 'Exceções' });
     const rows = within(list).getAllByRole('listitem');
     expect(rows).toHaveLength(1);
@@ -78,18 +86,33 @@ describe('exceções do membro', () => {
 
   it('mostra estado vazio e erro de carregamento', async () => {
     mockApi(() => json({ items: [] }));
-    render(<ExceptionsSection />);
+    render(
+      <>
+        <ExceptionsSection />
+        <ToastViewport />
+      </>,
+    );
     expect(await screen.findByText('Nenhuma exceção cadastrada.')).toBeTruthy();
     cleanup();
     mockApi(() => json({ error: 'x', message: 'Falha no servidor' }, 500));
-    render(<ExceptionsSection />);
+    render(
+      <>
+        <ExceptionsSection />
+        <ToastViewport />
+      </>,
+    );
     expect((await screen.findByRole('alert')).textContent).toBe('Falha no servidor');
   });
 
   it('valida fim >= início no cliente sem chamar a API', async () => {
     const fetchMock = mockApi(() => json({ items: [] }));
     const user = userEvent.setup();
-    render(<ExceptionsSection />);
+    render(
+      <>
+        <ExceptionsSection />
+        <ToastViewport />
+      </>,
+    );
     await user.click(await screen.findByRole('button', { name: 'Nova exceção' }));
     setDates('2026-07-10', '2026-07-01');
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
@@ -111,7 +134,12 @@ describe('exceções do membro', () => {
         : json({ items: [] }),
     );
     const user = userEvent.setup();
-    render(<ExceptionsSection />);
+    render(
+      <>
+        <ExceptionsSection />
+        <ToastViewport />
+      </>,
+    );
     await user.click(await screen.findByRole('button', { name: 'Nova exceção' }));
     await user.selectOptions(screen.getByLabelText('Tipo'), 'time_off');
     setDates('2026-07-01', '2026-07-10');
@@ -139,7 +167,12 @@ describe('exceções do membro', () => {
       return json({ items: [item('a')] });
     });
     const user = userEvent.setup();
-    render(<ExceptionsSection />);
+    render(
+      <>
+        <ExceptionsSection />
+        <ToastViewport />
+      </>,
+    );
     await user.click(await screen.findByRole('button', { name: /Editar Férias/ }));
     setDates('2026-07-02', '2026-07-12');
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
@@ -166,7 +199,12 @@ describe('exceções do membro', () => {
         : json({ items: [item('a')] }),
     );
     const user = userEvent.setup();
-    render(<ExceptionsSection />);
+    render(
+      <>
+        <ExceptionsSection />
+        <ToastViewport />
+      </>,
+    );
     await user.click(await screen.findByRole('button', { name: /Remover Férias/ }));
     await user.click(screen.getByRole('button', { name: 'Confirmar remoção' }));
     expect((await screen.findByRole('alert')).textContent).toBe('Sem permissão');
@@ -175,7 +213,12 @@ describe('exceções do membro', () => {
   it('membro não consulta /api/users nem escolhe membro', async () => {
     const fetchMock = mockApi(() => json({ items: [] }));
     const user = userEvent.setup();
-    render(<ExceptionsSection />);
+    render(
+      <>
+        <ExceptionsSection />
+        <ToastViewport />
+      </>,
+    );
     await user.click(await screen.findByRole('button', { name: 'Nova exceção' }));
     expect(screen.queryByLabelText('Membro')).toBeNull();
     expect(fetchMock.mock.calls.some((c) => String(c[0]) === '/api/users')).toBe(false);
@@ -190,7 +233,12 @@ describe('exceções do membro', () => {
       return json({ items: [item('b', { userId: 'u2' })] });
     });
     const user = userEvent.setup();
-    render(<ExceptionsSection />);
+    render(
+      <>
+        <ExceptionsSection />
+        <ToastViewport />
+      </>,
+    );
     const list = await screen.findByRole('list', { name: 'Exceções' });
     await within(list).findByText('Bruno');
     await user.click(screen.getByRole('button', { name: 'Nova exceção' }));

@@ -1,22 +1,21 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
+import type { ApiError } from '../api/client';
+import { toast } from '../toast/toast-store';
 import { MembersTable } from '../members/MembersTable';
 import { NewMemberForm } from '../members/NewMemberForm';
 import { blockingShifts, describeError, describeShift, sortMembers } from '../members/types';
 import type { FutureShift, Member, NewMemberInput } from '../members/types';
 import '../members/members.css';
 
+const memberError = (err: ApiError) => describeError(err, 'Não foi possível concluir a operação.');
+
 type Loaded = { members: Member[] } | { error: string } | null;
 
 export function MembersPage() {
   const [loaded, setLoaded] = useState<Loaded>(null);
   const [showForm, setShowForm] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [message, setMessage] = useState<{
-    kind: 'ok' | 'error';
-    text: string;
-    shifts?: FutureShift[];
-  } | null>(null);
+  const [blocking, setBlocking] = useState<FutureShift[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<Member | null>(null);
 
@@ -40,33 +39,30 @@ export function MembersPage() {
     });
 
   const create = async (input: NewMemberInput) => {
-    setFormError(null);
     try {
-      const created = await api.post<Member>('/api/users', input);
+      const created = await api.post<Member>('/api/users', input, {
+        silentSuccess: true,
+        errorMessage: memberError,
+      });
       upsert(created);
       setShowForm(false);
-      setMessage({
-        kind: 'ok',
-        text: `${created.name} foi pré-cadastrado. Vincule-o a uma equipe em Equipes.`,
-      });
-    } catch (err) {
-      setFormError(describeError(err, 'Não foi possível cadastrar o membro.'));
+      toast.success(`${created.name} foi pré-cadastrado. Vincule-o a uma equipe em Equipes.`);
+    } catch {
+      // erro exibido pelo toast
     }
   };
 
   const update = async (member: Member, patch: Partial<Member>, okText: string) => {
     setBusyId(member.id);
-    setMessage(null);
+    setBlocking([]);
     try {
-      const saved = await api.patch<Member>(`/api/users/${member.id}`, patch);
-      upsert(saved);
-      setMessage({ kind: 'ok', text: okText });
-    } catch (err) {
-      setMessage({
-        kind: 'error',
-        text: describeError(err, 'Não foi possível salvar a alteração.'),
-        shifts: blockingShifts(err),
+      const saved = await api.patch<Member>(`/api/users/${member.id}`, patch, {
+        successMessage: okText,
+        errorMessage: memberError,
       });
+      upsert(saved);
+    } catch (err) {
+      setBlocking(blockingShifts(err));
     } finally {
       setBusyId(null);
     }
@@ -92,26 +88,13 @@ export function MembersPage() {
       <div className="members-head">
         <h1>Membros</h1>
         {!showForm && (
-          <button
-            type="button"
-            className="btn primary"
-            onClick={() => {
-              setFormError(null);
-              setShowForm(true);
-            }}
-          >
+          <button type="button" className="btn primary" onClick={() => setShowForm(true)}>
             Pré-cadastrar membro
           </button>
         )}
       </div>
 
-      {showForm && (
-        <NewMemberForm
-          onSubmit={create}
-          onCancel={() => setShowForm(false)}
-          serverError={formError}
-        />
-      )}
+      {showForm && <NewMemberForm onSubmit={create} onCancel={() => setShowForm(false)} />}
 
       {confirming && (
         <div className="members-confirm" role="alertdialog" aria-label="Confirmar desativação">
@@ -130,26 +113,15 @@ export function MembersPage() {
         </div>
       )}
 
-      {message?.kind === 'ok' && (
-        <p className="members-message" role="status">
-          {message.text}
-        </p>
-      )}
-      {message?.kind === 'error' && (
-        <p className="alert members-message" role="alert">
-          {message.text}
-          {message.shifts && message.shifts.length > 0 && (
-            <>
-              {' '}
-              Plantões futuros publicados:
-              <ul className="members-shifts">
-                {message.shifts.map((s) => (
-                  <li key={s.shiftId}>{describeShift(s)}</li>
-                ))}
-              </ul>
-            </>
-          )}
-        </p>
+      {blocking.length > 0 && (
+        <div className="alert members-message">
+          Plantões futuros publicados:
+          <ul className="members-shifts">
+            {blocking.map((s) => (
+              <li key={s.shiftId}>{describeShift(s)}</li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {loaded === null && (

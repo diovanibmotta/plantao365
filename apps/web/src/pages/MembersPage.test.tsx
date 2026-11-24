@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ToastViewport } from '../toast/ToastViewport';
+import { toast } from '../toast/toast-store';
 import { MemoryRouter } from 'react-router';
 import { App } from '../App';
 import { AuthProvider } from '../auth/AuthContext';
@@ -45,6 +47,7 @@ const writes = (fetchMock: ReturnType<typeof vi.fn>) =>
 
 afterEach(() => {
   cleanup();
+  toast.clear();
   vi.unstubAllGlobals();
 });
 
@@ -55,7 +58,12 @@ describe('tela de membros', () => {
       member('2', { name: 'Ana', linked: false, teamIds: [] }),
       member('3', { name: 'Bia', active: false }),
     ]);
-    render(<MembersPage />);
+    render(
+      <>
+        <MembersPage />
+        <ToastViewport />
+      </>,
+    );
     const table = await screen.findByRole('table');
     const rows = within(table).getAllByRole('row');
     expect(rows).toHaveLength(4);
@@ -76,7 +84,12 @@ describe('tela de membros', () => {
     });
     const fetchMock = mockApi([member('1')], () => json(created, 201));
     const user = userEvent.setup();
-    render(<MembersPage />);
+    render(
+      <>
+        <MembersPage />
+        <ToastViewport />
+      </>,
+    );
     await user.click(await screen.findByRole('button', { name: 'Pré-cadastrar membro' }));
     const form = screen.getByRole('form', { name: 'Pré-cadastro de membro' });
     await user.type(within(form).getByLabelText('Nome'), ' Nova ');
@@ -97,7 +110,12 @@ describe('tela de membros', () => {
   it('valida campos obrigatórios sem chamar a API', async () => {
     const fetchMock = mockApi([]);
     const user = userEvent.setup();
-    render(<MembersPage />);
+    render(
+      <>
+        <MembersPage />
+        <ToastViewport />
+      </>,
+    );
     await user.click(await screen.findByRole('button', { name: 'Pré-cadastrar membro' }));
     await user.type(screen.getByLabelText('E-mail'), 'invalido');
     await user.click(screen.getByRole('button', { name: 'Pré-cadastrar' }));
@@ -109,7 +127,12 @@ describe('tela de membros', () => {
   it('mostra mensagem clara para e-mail duplicado (409)', async () => {
     mockApi([], () => json({ error: 'email_in_use', message: 'duplicado' }, 409));
     const user = userEvent.setup();
-    render(<MembersPage />);
+    render(
+      <>
+        <MembersPage />
+        <ToastViewport />
+      </>,
+    );
     await user.click(await screen.findByRole('button', { name: 'Pré-cadastrar membro' }));
     await user.type(screen.getByLabelText('Nome'), 'Ana');
     await user.type(screen.getByLabelText('E-mail'), 'ana@example.com');
@@ -125,7 +148,12 @@ describe('tela de membros', () => {
       json(member('1', { name: 'Ana', active: false })),
     );
     const user = userEvent.setup();
-    render(<MembersPage />);
+    render(
+      <>
+        <MembersPage />
+        <ToastViewport />
+      </>,
+    );
     await user.click(await screen.findByRole('button', { name: 'Desativar Ana' }));
     expect(writes(fetchMock)).toHaveLength(0);
     const dialog = screen.getByRole('alertdialog');
@@ -147,7 +175,12 @@ describe('tela de membros', () => {
       json(member('1', { name: 'Ana' })),
     );
     const user = userEvent.setup();
-    render(<MembersPage />);
+    render(
+      <>
+        <MembersPage />
+        <ToastViewport />
+      </>,
+    );
     await user.click(await screen.findByRole('button', { name: 'Ativar Ana' }));
     expect(await screen.findByText('Ana foi ativado.')).toBeTruthy();
     expect(writes(fetchMock)[0]?.body).toEqual({ active: true });
@@ -162,7 +195,12 @@ describe('tela de membros', () => {
         : json({ error: 'future_shifts', message: 'Ana tem plantões futuros publicados.' }, 409);
     });
     const user = userEvent.setup();
-    render(<MembersPage />);
+    render(
+      <>
+        <MembersPage />
+        <ToastViewport />
+      </>,
+    );
     await user.click(await screen.findByRole('button', { name: 'Desativar Ana' }));
     await user.click(screen.getByRole('button', { name: 'Confirmar desativação' }));
     expect((await screen.findByRole('alert')).textContent).toBe(
@@ -193,12 +231,15 @@ describe('tela de membros', () => {
       ),
     );
     const user = userEvent.setup();
-    render(<MembersPage />);
+    render(
+      <>
+        <MembersPage />
+        <ToastViewport />
+      </>,
+    );
     await user.click(await screen.findByRole('button', { name: 'Desativar Ana' }));
     await user.click(screen.getByRole('button', { name: 'Confirmar desativação' }));
-    const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('plantões futuros publicados');
-    expect(within(alert).getByText('20/06/2026 (escala de 01/06/2026 a 30/06/2026)')).toBeTruthy();
+    expect(await screen.findByText('20/06/2026 (escala de 01/06/2026 a 30/06/2026)')).toBeTruthy();
     expect(screen.getByText('Ativo')).toBeTruthy();
   });
 
@@ -207,7 +248,12 @@ describe('tela de membros', () => {
       'fetch',
       vi.fn(() => Promise.resolve(json({ message: 'falhou' }, 500))),
     );
-    render(<MembersPage />);
+    render(
+      <>
+        <MembersPage />
+        <ToastViewport />
+      </>,
+    );
     expect((await screen.findByRole('alert')).textContent).toBe('falhou');
   });
 

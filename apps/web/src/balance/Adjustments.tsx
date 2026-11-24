@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { api } from '../api/client';
+import { toast } from '../toast/toast-store';
 import { Diff } from './Diff';
 import { formatDate, parseHours } from './format';
 import type { Adjustment, TeamBalanceData } from './types';
@@ -12,7 +13,6 @@ export function Adjustments({ year }: { year: number }) {
   const team = useApiData<TeamBalanceData>(`/api/balance?year=${year}`);
   const query = `year=${year}${filter ? `&userId=${filter}` : ''}`;
   const list = useApiData<{ items: Adjustment[] }>(`/api/balance/adjustments?${query}`, version);
-  const [actionError, setActionError] = useState<string | null>(null);
 
   const members = 'data' in team ? team.data.members : [];
   const nameOf = (id: string) => members.find((m) => m.userId === id)?.name ?? id;
@@ -20,12 +20,13 @@ export function Adjustments({ year }: { year: number }) {
   const remove = async (item: Adjustment) => {
     const label = `${nameOf(item.userId)} em ${formatDate(item.date)}`;
     if (!window.confirm(`Remover o ajuste de ${label}?`)) return;
-    setActionError(null);
     try {
-      await api.delete(`/api/balance/adjustments/${item.id}`);
+      await api.delete(`/api/balance/adjustments/${item.id}`, {
+        successMessage: 'Ajuste removido.',
+      });
       setVersion((v) => v + 1);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Não foi possível remover o ajuste.');
+    } catch {
+      // erro exibido pelo toast
     }
   };
 
@@ -47,11 +48,6 @@ export function Adjustments({ year }: { year: number }) {
           </select>
         </label>
       </div>
-      {actionError && (
-        <p className="alert" role="alert">
-          {actionError}
-        </p>
-      )}
       {list.loading && (
         <p className="status" role="status">
           Carregando…
@@ -122,32 +118,31 @@ function AdjustmentForm({ year, members, onCreated }: FormProps) {
   const [date, setDate] = useState('');
   const [hours, setHours] = useState('');
   const [reason, setReason] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     const amount = parseHours(hours);
-    if (!userId) return setError('Selecione o membro.');
-    if (!date) return setError('Informe a data.');
+    if (!userId) return void toast.warning('Selecione o membro.');
+    if (!date) return void toast.warning('Informe a data.');
     if (amount === null || amount === 0 || Math.abs(amount) > 48) {
-      return setError('Informe as horas, positivas ou negativas, diferentes de zero (até 48).');
+      return void toast.warning(
+        'Informe as horas, positivas ou negativas, diferentes de zero (até 48).',
+      );
     }
-    if (!reason.trim()) return setError('Informe o motivo.');
-    setError(null);
+    if (!reason.trim()) return void toast.warning('Informe o motivo.');
     setBusy(true);
     try {
-      await api.post('/api/balance/adjustments', {
-        userId,
-        date,
-        hours: amount,
-        reason: reason.trim(),
-      });
+      await api.post(
+        '/api/balance/adjustments',
+        { userId, date, hours: amount, reason: reason.trim() },
+        { successMessage: 'Ajuste criado.' },
+      );
       setHours('');
       setReason('');
       onCreated();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não foi possível criar o ajuste.');
+    } catch {
+      // erro exibido pelo toast
     } finally {
       setBusy(false);
     }
@@ -201,11 +196,6 @@ function AdjustmentForm({ year, members, onCreated }: FormProps) {
           />
         </label>
       </div>
-      {error && (
-        <p className="alert" role="alert">
-          {error}
-        </p>
-      )}
       <button type="submit" className="btn primary" disabled={busy}>
         Adicionar ajuste
       </button>

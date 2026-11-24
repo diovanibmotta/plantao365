@@ -7,12 +7,11 @@ interface Props {
   title: string;
   initial: HolidayFormValues;
   saving: boolean;
-  error: string | null;
   onSubmit: (values: HolidayFormValues) => void;
   onCancel: () => void;
 }
 
-export function HolidayForm({ title, initial, saving, error, onSubmit, onCancel }: Props) {
+export function HolidayForm({ title, initial, saving, onSubmit, onCancel }: Props) {
   const id = useId();
   const [values, setValues] = useState<HolidayFormValues>(initial);
   const [errors, setErrors] = useState<HolidayFormErrors>({});
@@ -71,11 +70,6 @@ export function HolidayForm({ title, initial, saving, error, onSubmit, onCancel 
           ))}
         </select>
       </label>
-      {error && (
-        <p className="alert holidays-form-error" role="alert">
-          {error}
-        </p>
-      )}
       <div className="holidays-form-actions">
         <button type="submit" className="btn primary" disabled={saving}>
           {saving ? 'Salvando…' : 'Salvar'}
