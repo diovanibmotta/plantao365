@@ -43,6 +43,9 @@ export function Layout() {
 
   if (!user) return null;
   const items = navItemsFor(user.role);
+  const roleLabel = user.isMaster
+    ? 'Master'
+    : { manager: 'Gestor', member: 'Membro', guest: 'Convidado' }[user.role];
   const current = pathname.startsWith(PROFILE_PATH)
     ? { label: 'Perfil' }
     : items.find((item) => pathname.startsWith(item.to));
@@ -92,15 +95,15 @@ export function Layout() {
         </nav>
         <div className="sidebar-foot">
           <NavLink
-            to={PROFILE_PATH}
+            to={user.role === 'guest' ? '/schedule' : PROFILE_PATH}
             className="who-link"
-            title="Meu perfil"
+            title={user.role === 'guest' ? user.email : 'Meu perfil'}
             onClick={() => setOpen(false)}
           >
             <Avatar userId={user.id} name={user.name} />
             <span className="who">
               <span className="who-name">{user.name}</span>
-              <span className="who-role">{user.role === 'manager' ? 'Gestor' : 'Membro'}</span>
+              <span className="who-role">{roleLabel}</span>
             </span>
           </NavLink>
           <ThemeToggle />

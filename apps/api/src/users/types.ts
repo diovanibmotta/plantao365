@@ -31,7 +31,7 @@ export interface UpdateProfileInput {
 export interface CreateUserInput {
   name: string;
   email: string;
-  role?: Role;
+  role?: Exclude<Role, 'guest'>;
   participatesInRotation?: boolean;
 }
 

@@ -5,6 +5,7 @@ import { pingDb, type Sql } from './db.js';
 import {
   createAuthRouter,
   csrfProtection,
+  guestGuard,
   requireRole,
   sessionMiddleware,
   type AuthOptions,
@@ -66,8 +67,16 @@ export function createApp({ logger, db, authOptions, allowedOrigins }: AppDeps):
     );
     app.route('/', createAuthRouter({ db, logger, options: authOptions }));
     app.use(sessionMiddleware({ db, cookieOptions: { secure: authOptions.cookieSecure } }));
+    app.use('/api/*', guestGuard());
     app.route('/api', createAuditRouter({ db, guard: requireRole('manager') }));
-    app.route('/api', createUsersRouter({ db, futureShiftsFinder: findPublishedShiftsForUser }));
+    app.route(
+      '/api',
+      createUsersRouter({
+        db,
+        futureShiftsFinder: findPublishedShiftsForUser,
+        appBaseUrl: authOptions.appBaseUrl,
+      }),
+    );
     const notifyDeps = { db, appBaseUrl: authOptions.appBaseUrl, logger };
     app.route(
       '/api',

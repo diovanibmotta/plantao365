@@ -18,13 +18,20 @@ export function RequireAuth() {
   return <Outlet />;
 }
 
+const RANK: Record<Role, number> = { guest: 0, member: 1, manager: 2 };
+
+/** Exige papel mínimo: 'manager' só gestor; 'member' membro ou gestor (não convidado). */
 export function RequireRole({ role }: { role: Role }) {
   const { user } = useAuth();
-  if (user?.role !== role) {
+  if (!user || RANK[user.role] < RANK[role]) {
     return (
       <section>
         <h1>Acesso restrito</h1>
-        <p className="muted">Esta página é exclusiva para gestores.</p>
+        <p className="muted">
+          {role === 'manager'
+            ? 'Esta página é exclusiva para gestores.'
+            : 'Esta página é exclusiva para membros convidados. Procure um gestor para receber um convite.'}
+        </p>
       </section>
     );
   }

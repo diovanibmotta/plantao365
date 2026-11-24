@@ -1,4 +1,4 @@
-import { ROLE_OPTIONS } from './types';
+import { TABLE_ROLE_OPTIONS } from './types';
 import type { Member, MemberRole } from './types';
 import './members.css';
 
@@ -41,7 +41,7 @@ export function MembersTable({ members, busyId, onRole, onParticipates, onToggle
                     disabled={busy}
                     onChange={(e) => onRole(m, e.target.value as MemberRole)}
                   >
-                    {ROLE_OPTIONS.map((o) => (
+                    {TABLE_ROLE_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value}>
                         {o.label}
                       </option>

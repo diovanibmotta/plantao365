@@ -17,6 +17,7 @@ const profile: Profile = {
   active: true,
   participatesInRotation: true,
   remindersEnabled: true,
+  isMaster: false,
 };
 
 const json = (body: unknown, status = 200) =>

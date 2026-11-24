@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { recordAudit } from '../audit/index.js';
-import { requireRole, type AuthEnv } from '../auth/index.js';
+import { requireAuth, requireRole, type AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
 import {
   createHolidaySchema,
@@ -53,7 +53,7 @@ export function createHolidaysRouter({
       .map((i) => ({ type: 'published_shifts_affected' as const, date: i.date, count: i.count }));
   }
 
-  router.get('/holidays', requireRole('member'), async (c) => {
+  router.get('/holidays', requireAuth(), async (c) => {
     const parsed = holidayFiltersSchema.safeParse(c.req.query());
     if (!parsed.success) return c.json(validationError(parsed.error), 400);
     return c.json({ items: await listHolidays(db, parsed.data) });

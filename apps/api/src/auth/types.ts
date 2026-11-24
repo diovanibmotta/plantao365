@@ -1,4 +1,4 @@
-export type Role = 'manager' | 'member';
+export type Role = 'manager' | 'member' | 'guest';
 
 export interface AuthUser {
   id: string;
@@ -8,6 +8,8 @@ export interface AuthUser {
   phone: string | null;
   participatesInRotation: boolean;
   remindersEnabled: boolean;
+  /** Usuário da master key (acesso de bootstrap definido por variáveis de ambiente). */
+  isMaster: boolean;
 }
 
 export interface AuthVariables {
@@ -26,11 +28,18 @@ export interface OidcOptions {
   redirectUri?: string | undefined;
 }
 
+/** Credenciais da master key; ausente = login master desabilitado. */
+export interface MasterKeyOptions {
+  username: string;
+  password: string;
+}
+
 export interface AuthOptions {
   appBaseUrl: string;
   cookieSecure: boolean;
   sessionTtlSeconds: number;
   oidc: OidcOptions;
+  master?: MasterKeyOptions | undefined;
 }
 
 export interface SessionCookieOptions {

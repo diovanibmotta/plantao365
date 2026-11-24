@@ -18,6 +18,7 @@ const user = (role: AuthUser['role']): AuthUser => ({
   phone: null,
   participatesInRotation: true,
   remindersEnabled: true,
+  isMaster: false,
 });
 
 const json = (body: unknown, status = 200) =>

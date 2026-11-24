@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
 import { APP_NAME } from '@diovanibmotta/plantao365-shared';
+import { api, ApiError, UnauthorizedError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { BrandMark } from '../layout/icons';
 
@@ -23,9 +26,79 @@ function denialMessage(reason: string | null): string | null {
   return Object.hasOwn(DENIAL_MESSAGES, reason) ? DENIAL_MESSAGES[reason]! : GENERIC_MESSAGE;
 }
 
+function MasterLogin() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post('/auth/master-login', { username, password });
+      window.location.assign('/');
+    } catch (err) {
+      setError(
+        err instanceof UnauthorizedError
+          ? 'Usuário ou senha inválidos.'
+          : err instanceof ApiError
+            ? err.message
+            : 'Não foi possível entrar. Tente novamente.',
+      );
+      setBusy(false);
+    }
+  };
+
+  return (
+    <details className="master-login">
+      <summary>Acesso master</summary>
+      <form onSubmit={(e) => void submit(e)} aria-label="Acesso master">
+        <label>
+          Usuário
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            required
+          />
+        </label>
+        <label>
+          Senha
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
+        </label>
+        {error && (
+          <p className="alert" role="alert">
+            {error}
+          </p>
+        )}
+        <button type="submit" className="btn" disabled={busy}>
+          {busy ? 'Entrando…' : 'Entrar como master'}
+        </button>
+      </form>
+    </details>
+  );
+}
+
 export function LoginPage() {
   const { status, login } = useAuth();
   const [params] = useSearchParams();
+  const [masterEnabled, setMasterEnabled] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    api
+      .get<{ masterLogin: boolean }>('/auth/config', controller.signal)
+      .then((cfg) => setMasterEnabled(cfg.masterLogin))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
   if (status === 'authenticated') return <Navigate to="/" replace />;
   const message = denialMessage(params.get('error'));
 
@@ -50,6 +123,7 @@ export function LoginPage() {
         </svg>
         Entrar com Microsoft
       </button>
+      {masterEnabled && <MasterLogin />}
     </main>
   );
 }

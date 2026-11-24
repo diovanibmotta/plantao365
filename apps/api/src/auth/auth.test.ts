@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createLogger } from '../logger.js';
 import { createTestDb, TEST_DATABASE_URL, type TestDb } from '../test-utils.js';
 import { bootstrapManagers } from './bootstrap.js';
+import { MASTER_EMAIL, syncMasterUser } from './master.js';
 import { sessionMiddleware } from './middleware.js';
 import {
   claimsToIdentity,
@@ -127,13 +128,25 @@ describe.skipIf(!TEST_DATABASE_URL)('auth', () => {
     expect(res.status).toBe(401);
   });
 
-  it('denies unregistered email without creating a session', async () => {
+  it('logs an uninvited email in as a read-only guest and audits it', async () => {
     const app = buildApp();
-    const res = await mockLogin(app, 'ninguem@example.com');
-    expect(res.status).toBe(403);
-    expect(await res.text()).toContain('não está cadastrado');
-    expect(cookiesOf(res)[SESSION_COOKIE]).toBeUndefined();
-    expect(await t.sql`select 1 from sessions`).toHaveLength(0);
+    const res = await mockLogin(app, 'Ninguem@Example.com');
+    expect(res.status).toBe(302);
+    const token = cookiesOf(res)[SESSION_COOKIE]!;
+    const me = await app.request('/auth/me', { headers: { cookie: `${SESSION_COOKIE}=${token}` } });
+    expect(await me.json()).toMatchObject({
+      email: 'ninguem@example.com',
+      role: 'guest',
+      participatesInRotation: false,
+      isMaster: false,
+    });
+    const audit = await t.sql<{ reason: string }[]>`
+      select reason from audit_log where action = 'create' and entity_type = 'user'`;
+    expect(audit.map((a) => a.reason)).toEqual(['primeiro login SSO sem convite']);
+
+    // segundo login reaproveita o mesmo usuário
+    await mockLogin(app, 'ninguem@example.com');
+    expect(await t.sql`select 1 from users where email = 'ninguem@example.com'`).toHaveLength(1);
   });
 
   it('denies inactive user without creating a session', async () => {
@@ -356,19 +369,96 @@ describe.skipIf(!TEST_DATABASE_URL)('auth', () => {
     });
 
     it('redirects HTML navigation to /login with the denial reason', async () => {
-      const { provider } = stub({ email: 'ghost@example.com', name: 'G', oid: 'o' });
+      await addUser('off@example.com', { active: false });
+      const { provider } = stub({ email: 'off@example.com', name: 'G', oid: 'o' });
       const app = buildApp(provider);
       const { cookies, state } = await startLogin(app);
       const res = await app.request(`/auth/callback?state=${state}&code=abc`, {
         headers: { cookie: cookieHeader(cookies), accept: 'text/html' },
       });
       expect(res.status).toBe(302);
-      expect(res.headers.get('location')).toBe(`${options.appBaseUrl}/login?error=not_registered`);
+      expect(res.headers.get('location')).toBe(`${options.appBaseUrl}/login?error=inactive`);
 
       const bad = await app.request('/auth/callback?state=x&code=abc', {
         headers: { accept: 'text/html' },
       });
       expect(bad.headers.get('location')).toContain('/login?error=invalid_state');
+    });
+  });
+
+  describe('master key', () => {
+    const master = { username: 'root', password: 'correct-horse-battery' };
+    const withMaster: AuthOptions = { ...options, master };
+    const post = (app: Hono, body: unknown) =>
+      app.request('/auth/master-login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+    it('is disabled (404) when not configured', async () => {
+      expect((await post(buildApp(), master)).status).toBe(404);
+      const cfg = await buildApp().request('/auth/config');
+      expect(await cfg.json()).toEqual({ masterLogin: false });
+    });
+
+    it('logs in as a manager outside the rotation and audits it', async () => {
+      const app = buildApp(undefined, withMaster);
+      expect(await (await app.request('/auth/config')).json()).toEqual({ masterLogin: true });
+      const res = await post(app, master);
+      expect(res.status).toBe(200);
+      const token = cookiesOf(res)[SESSION_COOKIE]!;
+      const me = await app.request('/auth/me', {
+        headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      });
+      expect(await me.json()).toMatchObject({
+        name: 'root',
+        role: 'manager',
+        participatesInRotation: false,
+        isMaster: true,
+      });
+      const actions = await t.sql<{ action: string }[]>`select action from audit_log order by id`;
+      expect(actions.map((a) => a.action)).toEqual(['create', 'master.login']);
+    });
+
+    it('denies wrong credentials without a session', async () => {
+      const app = buildApp(undefined, withMaster);
+      for (const body of [
+        { username: 'root', password: 'wrong' },
+        { username: 'other', password: master.password },
+        { username: 1, password: 2 },
+        {},
+      ]) {
+        const res = await post(app, body);
+        expect(res.status).toBe(401);
+        expect(cookiesOf(res)[SESSION_COOKIE]).toBeUndefined();
+      }
+      expect(await t.sql`select 1 from sessions`).toHaveLength(0);
+    });
+
+    it('blocks after repeated failures even with the right password', async () => {
+      const app = buildApp(undefined, withMaster);
+      for (let i = 0; i < 5; i++) await post(app, { username: 'root', password: 'x' });
+      expect((await post(app, master)).status).toBe(429);
+    });
+
+    it('is deactivated and loses sessions when the config is removed', async () => {
+      const app = buildApp(undefined, withMaster);
+      const token = cookiesOf(await post(app, master))[SESSION_COOKIE]!;
+      await syncMasterUser(t.sql, undefined);
+      const me = await app.request('/auth/me', {
+        headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      });
+      expect(me.status).toBe(401);
+      expect(await t.sql`select 1 from users where is_master and not active`).toHaveLength(1);
+    });
+
+    it('cannot be impersonated through SSO with the internal e-mail', async () => {
+      await syncMasterUser(t.sql, master);
+      const app = buildApp(undefined, withMaster);
+      const res = await mockLogin(app, MASTER_EMAIL);
+      const token = cookiesOf(res)[SESSION_COOKIE];
+      expect(token).toBeUndefined();
     });
   });
 

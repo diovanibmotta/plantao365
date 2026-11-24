@@ -75,4 +75,31 @@ describe('loadConfig', () => {
       expect((err as Error).message).not.toContain('supersecret');
     }
   });
+
+  it('master key needs both username and a long password', () => {
+    expect(
+      loadConfig({ ...base, MASTER_USERNAME: 'root', MASTER_PASSWORD: 'x'.repeat(12) }),
+    ).toMatchObject({ MASTER_USERNAME: 'root' });
+    expect(() => loadConfig({ ...base, MASTER_USERNAME: 'root' })).toThrow(/MASTER_PASSWORD/);
+    expect(() => loadConfig({ ...base, MASTER_PASSWORD: 'x'.repeat(12) })).toThrow(
+      /MASTER_USERNAME/,
+    );
+    expect(() =>
+      loadConfig({ ...base, MASTER_USERNAME: 'root', MASTER_PASSWORD: 'curta' }),
+    ).toThrow(ConfigError);
+  });
+
+  it('production accepts the master key in place of MANAGER_EMAILS', () => {
+    const ok = loadConfig({
+      ...base,
+      NODE_ENV: 'production',
+      MASTER_USERNAME: 'root',
+      MASTER_PASSWORD: 'x'.repeat(12),
+      OIDC_ISSUER: 'https://login.microsoftonline.com/tenant/v2.0',
+      OIDC_CLIENT_ID: 'id',
+      OIDC_CLIENT_SECRET: 'secret',
+      OIDC_REDIRECT_URI: 'https://plantao.example.com/auth/callback',
+    });
+    expect(ok.MANAGER_EMAILS).toEqual([]);
+  });
 });

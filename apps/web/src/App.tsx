@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router';
+import { useAuth } from './auth/AuthContext';
 import { RequireAuth, RequireRole } from './auth/guards';
 import { Layout } from './layout/Layout';
 import { AuditPage } from './pages/AuditPage';
@@ -29,18 +30,25 @@ const LEGACY_PATHS: Record<string, string> = {
   auditoria: '/audit',
 };
 
+function HomeRedirect() {
+  const { user } = useAuth();
+  return <Navigate to={user?.role === 'guest' ? '/schedule' : '/my-schedule'} replace />;
+}
+
 export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="/my-schedule" replace />} />
-          <Route path="my-schedule" element={<MySchedulePage />} />
+          <Route index element={<HomeRedirect />} />
           <Route path="schedule" element={<TeamSchedulePage />} />
-          <Route path="swaps" element={<SwapsPage />} />
-          <Route path="balance" element={<BalancePage />} />
-          <Route path="profile" element={<ProfilePage />} />
+          <Route element={<RequireRole role="member" />}>
+            <Route path="my-schedule" element={<MySchedulePage />} />
+            <Route path="swaps" element={<SwapsPage />} />
+            <Route path="balance" element={<BalancePage />} />
+            <Route path="profile" element={<ProfilePage />} />
+          </Route>
           <Route element={<RequireRole role="manager" />}>
             <Route path="members" element={<MembersPage />} />
             <Route path="vacations" element={<VacationsPage />} />

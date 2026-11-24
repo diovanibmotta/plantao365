@@ -2,6 +2,7 @@ import type postgres from 'postgres';
 import { addDays, TIME_ZONE } from '@diovanibmotta/plantao365-shared';
 import { z } from 'zod';
 import { recordAudit, type AuditJson } from '../audit/index.js';
+import { enqueueEmail, renderInviteEmail } from '../email/index.js';
 import type { Role } from '../auth/index.js';
 import type { Sql } from '../db.js';
 import type {
@@ -56,14 +57,14 @@ export const updateProfileSchema = z
     message: 'Informe ao menos um campo para alterar',
   });
 
-const roleSchema = z.enum(['manager', 'member']);
+const roleSchema = z.enum(['manager', 'member', 'guest']);
 const nameSchema = z.string().trim().min(1, 'Nome obrigatório').max(200);
 
 export const createUserSchema = z
   .object({
     name: nameSchema,
     email: z.string().trim().toLowerCase().max(254).pipe(z.email('E-mail inválido')),
-    role: roleSchema.optional(),
+    role: z.enum(['manager', 'member']).optional(),
     participatesInRotation: z.boolean().optional(),
   })
   .strict();
@@ -90,6 +91,7 @@ interface UserRow {
   active: boolean;
   participates_in_rotation: boolean;
   reminders_enabled: boolean;
+  is_master: boolean;
   created_at: Date;
 }
 
@@ -149,32 +151,67 @@ export async function updateProfile(
 }
 
 export async function listUsers(db: Sql): Promise<UserListItemDto[]> {
-  const rows = await db<UserRow[]>`select * from users order by lower(name), email`;
+  const rows = await db<UserRow[]>`
+    select * from users where not is_master order by lower(name), email`;
   return rows.map(toListItem);
 }
 
+/**
+ * Cadastrar o usuário é o convite: ele passa a entrar com o papel atribuído e recebe um e-mail
+ * (outbox). Se o e-mail já entrou como convidado, o convite o promove em vez de conflitar.
+ */
 export async function createUser(
   db: Sql,
   actorId: string,
   input: CreateUserInput,
+  opts: { appBaseUrl?: string | undefined } = {},
 ): Promise<UserListItemDto> {
   const role = input.role ?? 'member';
   const participates = input.participatesInRotation ?? role === 'member';
   return db.begin(async (tx) => {
-    const [row] = await tx<UserRow[]>`
-      insert into users (name, email, role, participates_in_rotation)
-      values (${input.name}, ${input.email}, ${role}, ${participates})
-      on conflict (email) do nothing
-      returning *`;
-    if (!row) throw new UsersError(409, 'email_in_use', 'Já existe um usuário com este e-mail');
-    await recordAudit(tx, {
-      actorId,
-      action: 'create',
-      entityType: 'user',
-      entityId: row.id,
-      after: snapshot(toProfile(row)),
+    const [existing] = await tx<UserRow[]>`
+      select * from users where email = ${input.email} for update`;
+    let row: UserRow | undefined;
+    if (!existing) {
+      [row] = await tx<UserRow[]>`
+        insert into users (name, email, role, participates_in_rotation)
+        values (${input.name}, ${input.email}, ${role}, ${participates})
+        returning *`;
+      await recordAudit(tx, {
+        actorId,
+        action: 'create',
+        entityType: 'user',
+        entityId: row!.id,
+        after: snapshot(toProfile(row!)),
+      });
+    } else if (existing.role === 'guest' && !existing.is_master) {
+      [row] = await tx<UserRow[]>`
+        update users set name = ${input.name}, role = ${role}, active = true,
+          participates_in_rotation = ${participates}, reminders_enabled = true, updated_at = now()
+        where id = ${existing.id} returning *`;
+      await recordAudit(tx, {
+        actorId,
+        action: 'update',
+        entityType: 'user',
+        entityId: existing.id,
+        before: snapshot(toProfile(existing)),
+        after: snapshot(toProfile(row!)),
+        reason: 'convite de convidado',
+      });
+    } else {
+      throw new UsersError(409, 'email_in_use', 'Já existe um usuário com este e-mail');
+    }
+    const invite = renderInviteEmail({
+      name: row!.name,
+      role: role,
+      appUrl: opts.appBaseUrl ? new URL('/', opts.appBaseUrl).href : undefined,
     });
-    return toListItem(row);
+    await enqueueEmail(tx, {
+      to: row!.email,
+      ...invite,
+      dedupeKey: `invite:${row!.id}:${role}`,
+    });
+    return toListItem(row!);
   });
 }
 
@@ -249,9 +286,11 @@ export async function updateUser(
 ): Promise<UserListItemDto> {
   return db.begin(async (tx) => {
     const managers = await tx<{ id: string }[]>`
-      select id from users where role = 'manager' and active order by id for update`;
+      select id from users where role = 'manager' and active and not is_master order by id for update`;
     const [before] = await tx<UserRow[]>`select * from users where id = ${userId} for update`;
-    if (!before) throw new UsersError(404, 'not_found', 'Usuário não encontrado');
+    if (!before || before.is_master) {
+      throw new UsersError(404, 'not_found', 'Usuário não encontrado');
+    }
 
     const role = input.role ?? before.role;
     const active = input.active ?? before.active;
@@ -268,7 +307,8 @@ export async function updateUser(
     if (deactivating)
       await assertCanDeactivate(tx, userId, opts.finder, (opts.now ?? (() => new Date()))());
 
-    const participates = input.participatesInRotation ?? before.participates_in_rotation;
+    const participates =
+      role === 'guest' ? false : (input.participatesInRotation ?? before.participates_in_rotation);
     const [after] = await tx<UserRow[]>`
       update users set
         name = ${input.name ?? before.name},

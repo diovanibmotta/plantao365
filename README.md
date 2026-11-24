@@ -80,27 +80,28 @@ Em `NODE_ENV=production` o cookie de sessão é `Secure`: publique o web atrás 
 
 ## Configuração
 
-| Variável              | Obrigatória     | Padrão                  | Descrição                                                                     |
-| --------------------- | --------------- | ----------------------- | ----------------------------------------------------------------------------- |
-| `NODE_ENV`            | não             | `development`           | `development`, `test` ou `production`                                         |
-| `PORT`                | não             | `3000`                  | porta da API                                                                  |
-| `LOG_LEVEL`           | não             | `info`                  | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`                  |
-| `APP_BASE_URL`        | não             | `http://localhost:5173` | URL pública do web (redirecionamentos e links dos e-mails)                    |
-| `DATABASE_URL`        | sim             | -                       | `postgres://usuario:senha@host:5432/banco`                                    |
-| `MANAGER_EMAILS`      | sim em produção | vazio                   | gestores iniciais, e-mails separados por vírgula                              |
-| `SESSION_TTL_SECONDS` | não             | `28800`                 | duração da sessão em segundos (mínimo 60)                                     |
-| `COOKIE_SECURE`       | não             | produção: `true`        | força o atributo Secure do cookie de sessão (use `true` em staging com HTTPS) |
-| `OIDC_MOCK`           | não             | `false`                 | login simulado; **proibido em produção**                                      |
-| `OIDC_ISSUER`         | sim em produção | -                       | `https://login.microsoftonline.com/<tenant-id>/v2.0`                          |
-| `OIDC_CLIENT_ID`      | sim em produção | -                       | ID do aplicativo (cliente) no Entra ID                                        |
-| `OIDC_CLIENT_SECRET`  | sim em produção | -                       | segredo do cliente                                                            |
-| `OIDC_REDIRECT_URI`   | sim em produção | -                       | `<URL pública>/auth/callback`                                                 |
-| `SMTP_HOST`           | não             | -                       | habilita o envio de e-mails                                                   |
-| `SMTP_PORT`           | não             | `587`                   | porta SMTP                                                                    |
-| `SMTP_SECURE`         | não             | `false`                 | `true` para TLS implícito (normalmente porta 465)                             |
-| `SMTP_USER`           | não             | -                       | usuário SMTP                                                                  |
-| `SMTP_PASSWORD`       | não             | -                       | senha SMTP                                                                    |
-| `SMTP_FROM`           | com `SMTP_HOST` | -                       | remetente dos e-mails                                                         |
+| Variável                              | Obrigatória      | Padrão                  | Descrição                                                                     |
+| ------------------------------------- | ---------------- | ----------------------- | ----------------------------------------------------------------------------- |
+| `NODE_ENV`                            | não              | `development`           | `development`, `test` ou `production`                                         |
+| `PORT`                                | não              | `3000`                  | porta da API                                                                  |
+| `LOG_LEVEL`                           | não              | `info`                  | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`                  |
+| `APP_BASE_URL`                        | não              | `http://localhost:5173` | URL pública do web (redirecionamentos e links dos e-mails)                    |
+| `DATABASE_URL`                        | sim              | -                       | `postgres://usuario:senha@host:5432/banco`                                    |
+| `MANAGER_EMAILS`                      | sim em produção¹ | vazio                   | gestores iniciais, e-mails separados por vírgula                              |
+| `MASTER_USERNAME` / `MASTER_PASSWORD` | não¹             | vazio                   | master key: usuário e senha (12+ caracteres) do primeiro acesso               |
+| `SESSION_TTL_SECONDS`                 | não              | `28800`                 | duração da sessão em segundos (mínimo 60)                                     |
+| `COOKIE_SECURE`                       | não              | produção: `true`        | força o atributo Secure do cookie de sessão (use `true` em staging com HTTPS) |
+| `OIDC_MOCK`                           | não              | `false`                 | login simulado; **proibido em produção**                                      |
+| `OIDC_ISSUER`                         | sim em produção  | -                       | `https://login.microsoftonline.com/<tenant-id>/v2.0`                          |
+| `OIDC_CLIENT_ID`                      | sim em produção  | -                       | ID do aplicativo (cliente) no Entra ID                                        |
+| `OIDC_CLIENT_SECRET`                  | sim em produção  | -                       | segredo do cliente                                                            |
+| `OIDC_REDIRECT_URI`                   | sim em produção  | -                       | `<URL pública>/auth/callback`                                                 |
+| `SMTP_HOST`                           | não              | -                       | habilita o envio de e-mails                                                   |
+| `SMTP_PORT`                           | não              | `587`                   | porta SMTP                                                                    |
+| `SMTP_SECURE`                         | não              | `false`                 | `true` para TLS implícito (normalmente porta 465)                             |
+| `SMTP_USER`                           | não              | -                       | usuário SMTP                                                                  |
+| `SMTP_PASSWORD`                       | não              | -                       | senha SMTP                                                                    |
+| `SMTP_FROM`                           | com `SMTP_HOST`  | -                       | remetente dos e-mails                                                         |
 
 Somente no compose: `POSTGRES_USER`, `POSTGRES_PASSWORD` (obrigatória), `POSTGRES_DB` e `WEB_PORT`.
 
@@ -120,6 +121,13 @@ Escopos solicitados: `openid`, `profile`, `email` e `User.Read` (Microsoft Graph
 
 - Sem `SMTP_HOST` os e-mails são apenas registrados em log. Com ele, `SMTP_FROM` é obrigatório.
 - A cada subida, a API cria como gestores os e-mails de `MANAGER_EMAILS` que ainda não existem (usuários já cadastrados não são alterados). Os demais usuários são cadastrados por um gestor.
+- ¹ Em produção é preciso `MANAGER_EMAILS` **ou** a master key.
+
+### Master key, convites e convidados
+
+- **Master key**: com `MASTER_USERNAME` e `MASTER_PASSWORD` definidos, a tela de login ganha "Acesso master". O usuário master é gestor, fica fora do rodízio e não aparece na Equipe; suas ações são auditadas. A partir dele, cadastre os demais (convites) e configure o restante. Remover as variáveis desativa o acesso e encerra as sessões master. Após 5 falhas em 15 minutos o login master é bloqueado (429) até a janela esvaziar. Use senha forte e HTTPS.
+- **Convite**: cadastrar um usuário em Equipe é o convite; ele entra via SSO com o papel atribuído e recebe um e-mail (fila `email_outbox`).
+- **Convidado**: quem entra via SSO sem convite vira usuário `guest` e só lê o calendário de escala publicada e feriados; qualquer outra rota ou alteração responde 403. Um gestor pode convidá-lo depois (promove o mesmo usuário) ou rebaixar alguém para convidado na Equipe.
 
 > Nunca use `OIDC_MOCK=true` fora de desenvolvimento: qualquer pessoa entraria com o e-mail que quisesse. A API se recusa a subir em produção com essa opção.
 

@@ -29,7 +29,7 @@ export const NAV_GROUP_LABELS: Record<NavGroup, string> = {
 
 export const NAV_ITEMS: NavItem[] = [
   { to: '/my-schedule', label: 'Minha escala', icon: 'calendar-check', group: 'schedule' },
-  { to: '/schedule', label: 'Calendário', icon: 'grid', group: 'schedule' },
+  { to: '/schedule', label: 'Calendário', icon: 'grid', group: 'schedule', role: 'guest' },
   { to: '/swaps', label: 'Trocas', icon: 'repeat', group: 'schedule' },
   { to: '/balance', label: 'Saldo', icon: 'clock', group: 'schedule' },
   {
@@ -54,5 +54,8 @@ export const NAV_ITEMS: NavItem[] = [
 /** Perfil não tem item no menu: abre pela foto/nome do usuário no rodapé. */
 export const PROFILE_PATH = '/profile';
 
+const RANK: Record<Role, number> = { guest: 0, member: 1, manager: 2 };
+
+/** Itens visíveis: sem `role` = membro ou acima; convidado só vê os marcados como 'guest'. */
 export const navItemsFor = (role: Role): NavItem[] =>
-  NAV_ITEMS.filter((item) => !item.role || item.role === role);
+  NAV_ITEMS.filter((item) => RANK[role] >= RANK[item.role ?? 'member']);

@@ -665,6 +665,31 @@ input[type='radio'] {
   margin-top: 8px;
 }
 
+.master-login {
+  margin-top: 8px;
+  text-align: left;
+}
+
+.master-login summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.master-login form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.master-login label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.875rem;
+}
+
 /* ---------- Filtros e tabela de auditoria ---------- */
 
 .filters {

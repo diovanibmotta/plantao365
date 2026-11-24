@@ -15,15 +15,18 @@ const user = (role: AuthUser['role']): AuthUser => ({
   phone: null,
   participatesInRotation: true,
   remindersEnabled: true,
+  isMaster: false,
 });
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-function mockApi(me: AuthUser | null) {
-  const fetchMock = vi.fn((url: string) =>
-    Promise.resolve(url === '/auth/me' ? (me ? json(me) : json({}, 401)) : json({ ok: true })),
-  );
+function mockApi(me: AuthUser | null, masterLogin = false) {
+  const fetchMock = vi.fn((url: string) => {
+    if (url === '/auth/me') return Promise.resolve(me ? json(me) : json({}, 401));
+    if (url === '/auth/config') return Promise.resolve(json({ masterLogin }));
+    return Promise.resolve(json({ ok: true }));
+  });
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
 }
@@ -118,6 +121,77 @@ describe('menu por papel', () => {
   });
 });
 
+describe('convidado', () => {
+  it('vai para o calendário e só vê o item Calendário no menu', async () => {
+    mockApi(user('guest'));
+    renderAt('/');
+    expect(await screen.findByRole('heading', { name: 'Calendário' })).toBeTruthy();
+    const nav = screen.getByRole('navigation', { name: 'Principal' });
+    expect(nav.textContent).toContain('Calendário');
+    for (const label of ['Minha escala', 'Trocas', 'Saldo', 'Equipe'])
+      expect(nav.textContent).not.toContain(label);
+    expect(screen.getByText('Convidado')).toBeTruthy();
+  });
+
+  it('é bloqueado nas páginas de membro e de gestor', async () => {
+    for (const path of ['/my-schedule', '/swaps', '/balance', '/profile', '/members']) {
+      mockApi(user('guest'));
+      const { unmount } = renderAt(path);
+      expect(await screen.findByRole('heading', { name: 'Acesso restrito' })).toBeTruthy();
+      unmount();
+    }
+  });
+});
+
+describe('login master', () => {
+  it('só mostra o formulário quando a master key está habilitada', async () => {
+    mockApi(null, false);
+    renderAt('/login');
+    await screen.findByRole('button', { name: 'Entrar com Microsoft' });
+    expect(screen.queryByText('Acesso master')).toBeNull();
+  });
+
+  it('envia usuário e senha para /auth/master-login', async () => {
+    const fetchMock = mockApi(null, true);
+    renderAt('/login');
+    await userEvent.click(await screen.findByText('Acesso master'));
+    await userEvent.type(screen.getByLabelText('Usuário'), 'root');
+    await userEvent.type(screen.getByLabelText('Senha'), 'correct-horse-battery');
+    const assign = vi.fn();
+    vi.stubGlobal('location', { ...window.location, assign });
+    await userEvent.click(screen.getByRole('button', { name: 'Entrar como master' }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('/'));
+    const call = fetchMock.mock.calls.find(([url]) => url === '/auth/master-login');
+    const init = call?.[1] as unknown as RequestInit;
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({
+      username: 'root',
+      password: 'correct-horse-battery',
+    });
+  });
+
+  it('mostra erro para credenciais inválidas', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        Promise.resolve(
+          url === '/auth/me'
+            ? json({}, 401)
+            : url === '/auth/config'
+              ? json({ masterLogin: true })
+              : json({ error: 'invalid_credentials' }, 401),
+        ),
+      ),
+    );
+    renderAt('/login');
+    await userEvent.click(await screen.findByText('Acesso master'));
+    await userEvent.type(screen.getByLabelText('Usuário'), 'root');
+    await userEvent.type(screen.getByLabelText('Senha'), 'errada-errada');
+    await userEvent.click(screen.getByRole('button', { name: 'Entrar como master' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Usuário ou senha inválidos');
+  });
+});
+
 describe('login', () => {
   it('mostra mensagem quando o acesso foi negado', async () => {
     mockApi(null);
@@ -126,7 +200,6 @@ describe('login', () => {
   });
 
   it.each([
-    ['not_registered', 'não está cadastrado'],
     ['inactive', 'está inativo'],
     ['identity_mismatch', 'não corresponde ao cadastro'],
     ['invalid_state', 'expirou ou é inválida'],

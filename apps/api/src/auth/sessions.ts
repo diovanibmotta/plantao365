@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { Context } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import type { Sql } from '../db.js';
-import type { AuthUser, SessionCookieOptions } from './types.js';
+import type { AuthUser, Role, SessionCookieOptions } from './types.js';
 
 export const SESSION_COOKIE = 'p360_session';
 
@@ -30,7 +30,8 @@ interface SessionRow {
   id: string;
   email: string;
   name: string;
-  role: 'manager' | 'member';
+  role: Role;
+  is_master: boolean;
   phone: string | null;
   participates_in_rotation: boolean;
   reminders_enabled: boolean;
@@ -43,7 +44,7 @@ export async function loadSessionUser(db: Sql, token: string): Promise<AuthUser 
   const id = hashToken(token);
   const [row] = await db<SessionRow[]>`
     select u.id, u.email, u.name, u.role, u.phone, u.participates_in_rotation,
-           u.reminders_enabled, u.active, s.expires_at <= now() as expired
+           u.reminders_enabled, u.is_master, u.active, s.expires_at <= now() as expired
     from sessions s join users u on u.id = s.user_id
     where s.id = ${id}`;
   if (!row) return null;
@@ -60,6 +61,7 @@ export async function loadSessionUser(db: Sql, token: string): Promise<AuthUser 
     phone: row.phone,
     participatesInRotation: row.participates_in_rotation,
     remindersEnabled: row.reminders_enabled,
+    isMaster: row.is_master,
   };
 }
 
