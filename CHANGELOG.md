@@ -1,3 +1,8 @@
+# [v1.5.0](https://github.com/diovanibmotta/plantao365/compare/v1.4.1...v1.5.0) (2026-11-24)
+
+## ✨ New Features
+- [`535f344`](https://github.com/diovanibmotta/plantao365/commit/535f344)  feat(release): publica a API como pacote Node no GitHub Packages
+
 # [v1.4.1](https://github.com/diovanibmotta/plantao365/compare/v1.4.0...v1.4.1) (2026-11-23)
 
 ## 🐛 Bug Fixes
