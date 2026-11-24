@@ -37,7 +37,11 @@ function MasterLogin({ open }: { open: boolean }) {
     setBusy(true);
     setError(null);
     try {
-      await api.post('/auth/master-login', { username, password });
+      await api.post(
+        '/auth/master-login',
+        { username, password },
+        { silentSuccess: true, silentError: true },
+      );
       window.location.assign('/');
     } catch (err) {
       setError(

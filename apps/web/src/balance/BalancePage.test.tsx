@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ToastViewport } from '../toast/ToastViewport';
+import { toast } from '../toast/toast-store';
 import { AuthProvider } from '../auth/AuthContext';
 import type { AuthUser } from '../auth/AuthContext';
 import { BalancePage } from '../pages/BalancePage';
@@ -103,11 +105,13 @@ const renderPage = () =>
   render(
     <AuthProvider>
       <BalancePage currentYear={2026} />
+      <ToastViewport />
     </AuthProvider>,
   );
 
 afterEach(() => {
   cleanup();
+  toast.clear();
   vi.unstubAllGlobals();
 });
 

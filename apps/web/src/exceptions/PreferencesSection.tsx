@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api } from '../api/client';
+import { toast } from '../toast/toast-store';
 import { MAX_CONSECUTIVE, WEEKDAYS, errorMessage } from './types';
 import './exceptions.css';
 
@@ -15,8 +16,6 @@ export function PreferencesSection() {
   const [days, setDays] = useState<number[]>([]);
   const [max, setMax] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -38,7 +37,6 @@ export function PreferencesSection() {
   }, []);
 
   function toggle(day: number) {
-    setSaved(false);
     setDays((cur) =>
       cur.includes(day) ? cur.filter((d) => d !== day) : [...cur, day].sort((a, b) => a - b),
     );
@@ -46,20 +44,21 @@ export function PreferencesSection() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setSaved(false);
     const trimmed = max.trim();
     const value = trimmed === '' ? null : Number(trimmed);
     if (value !== null && (!Number.isInteger(value) || value < 1 || value > MAX_CONSECUTIVE)) {
-      setError(`O máximo de plantões consecutivos deve estar entre 1 e ${MAX_CONSECUTIVE}.`);
+      toast.warning(`O máximo de plantões consecutivos deve estar entre 1 e ${MAX_CONSECUTIVE}.`);
       return;
     }
-    setError(null);
     setSaving(true);
     try {
-      await api.put('/api/me/preferences', { avoidWeekdays: days, maxConsecutiveShifts: value });
-      setSaved(true);
-    } catch (err) {
-      setError(errorMessage(err, 'Não foi possível salvar as preferências.'));
+      await api.put(
+        '/api/me/preferences',
+        { avoidWeekdays: days, maxConsecutiveShifts: value },
+        { successMessage: 'Preferências salvas.' },
+      );
+    } catch {
+      // erro exibido pelo toast
     } finally {
       setSaving(false);
     }
@@ -108,22 +107,9 @@ export function PreferencesSection() {
             min={1}
             max={MAX_CONSECUTIVE}
             value={max}
-            onChange={(e) => {
-              setSaved(false);
-              setMax(e.target.value);
-            }}
+            onChange={(e) => setMax(e.target.value)}
           />
         </label>
-        {error && (
-          <p className="alert" role="alert">
-            {error}
-          </p>
-        )}
-        {saved && (
-          <p className="status" role="status">
-            Preferências salvas.
-          </p>
-        )}
         <div className="exc-actions">
           <button type="submit" className="btn primary" disabled={saving}>
             {saving ? 'Salvando…' : 'Salvar'}

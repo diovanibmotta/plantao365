@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ToastViewport } from '../toast/ToastViewport';
+import { toast } from '../toast/toast-store';
 import { PreferencesSection } from './PreferencesSection';
 
 const json = (body: unknown, status = 200) =>
@@ -13,6 +15,7 @@ const prefs = (avoidWeekdays: number[], maxConsecutiveShifts: number | null) => 
 
 afterEach(() => {
   cleanup();
+  toast.clear();
   vi.unstubAllGlobals();
 });
 
@@ -23,7 +26,12 @@ describe('preferências do membro', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
     const user = userEvent.setup();
-    render(<PreferencesSection />);
+    render(
+      <>
+        <PreferencesSection />
+        <ToastViewport />
+      </>,
+    );
     const sunday = await screen.findByLabelText('Domingo');
     expect((sunday as HTMLInputElement).checked).toBe(true);
     expect((screen.getByLabelText('Sábado') as HTMLInputElement).checked).toBe(false);
@@ -43,7 +51,12 @@ describe('preferências do membro', () => {
     const fetchMock = vi.fn(() => Promise.resolve(json(prefs([], 5))));
     vi.stubGlobal('fetch', fetchMock);
     const user = userEvent.setup();
-    render(<PreferencesSection />);
+    render(
+      <>
+        <PreferencesSection />
+        <ToastViewport />
+      </>,
+    );
     const input = (await screen.findByLabelText(/Máximo de plantões/)) as HTMLInputElement;
     expect(input.value).toBe('5');
     fireEvent.change(input, { target: { value: '15' } });
@@ -64,7 +77,12 @@ describe('preferências do membro', () => {
       'fetch',
       vi.fn(() => Promise.resolve(json({ error: 'x', message: 'Falha no servidor' }, 500))),
     );
-    render(<PreferencesSection />);
+    render(
+      <>
+        <PreferencesSection />
+        <ToastViewport />
+      </>,
+    );
     expect((await screen.findByRole('alert')).textContent).toBe('Falha no servidor');
     cleanup();
 
@@ -79,7 +97,12 @@ describe('preferências do membro', () => {
       ),
     );
     const user = userEvent.setup();
-    render(<PreferencesSection />);
+    render(
+      <>
+        <PreferencesSection />
+        <ToastViewport />
+      </>,
+    );
     await user.click(await screen.findByRole('button', { name: 'Salvar' }));
     expect((await screen.findByRole('alert')).textContent).toBe('Recusado');
   });

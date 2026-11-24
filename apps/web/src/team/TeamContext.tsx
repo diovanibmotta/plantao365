@@ -93,7 +93,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const create = useCallback(
     async (input: TeamInput) => {
-      const created = await api.post<Team>('/api/teams', input);
+      const created = await api.post<Team>('/api/teams', input, {
+        successMessage: 'Equipe criada. Vincule os membros abaixo.',
+      });
       const team: Team = { role: 'manager', participatesInRotation: false, ...created };
       apply(
         [...teams, team].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
@@ -106,7 +108,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const update = useCallback(
     async (id: string, input: TeamInput) => {
-      const saved = await api.patch<Team>(`/api/teams/${id}`, input);
+      const saved = await api.patch<Team>(`/api/teams/${id}`, input, {
+        successMessage: 'Equipe salva.',
+      });
       const team: Team = { ...teams.find((t) => t.id === id), ...saved };
       apply(
         teams
@@ -121,7 +125,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const remove = useCallback(
     async (id: string) => {
-      await api.delete(`/api/teams/${id}`);
+      await api.delete(`/api/teams/${id}`, { successMessage: 'Equipe excluída.' });
       apply(
         teams.filter((t) => t.id !== id),
         activeId === id ? null : activeId,

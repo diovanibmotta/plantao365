@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
+import type { ApiError } from '../api/client';
+import { toast } from '../toast/toast-store';
 import { HolidayForm } from '../holidays/HolidayForm';
 import { HolidayWarnings } from '../holidays/HolidayWarnings';
 import {
@@ -19,6 +21,8 @@ import type {
 } from '../holidays/types';
 import '../holidays/holidays.css';
 
+const saveError = (err: ApiError) => errorMessage(err, 'Não foi possível concluir a operação.');
+
 type Outcome = { error: string } | { items: Holiday[] };
 
 interface Loaded {
@@ -35,14 +39,10 @@ export function HolidaysPage() {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [editing, setEditing] = useState<Editing>(null);
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<HolidayWarning[]>([]);
   const [confirmingRecalc, setConfirmingRecalc] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
-  const [recalcError, setRecalcError] = useState<string | null>(null);
-  const [recalcResult, setRecalcResult] = useState<string | null>(null);
   const key = `${year}:${reload}`;
 
   useEffect(() => {
@@ -64,16 +64,12 @@ export function HolidaysPage() {
 
   function openForm(next: Editing) {
     setEditing(next);
-    setFormError(null);
-    setActionError(null);
     setRemovingId(null);
   }
 
   function finish(result: HolidayMutation) {
     setWarnings(result.warnings ?? []);
     setConfirmingRecalc(false);
-    setRecalcError(null);
-    setRecalcResult(null);
     setEditing(null);
     setReload((n) => n + 1);
   }
@@ -81,15 +77,20 @@ export function HolidaysPage() {
   async function save(values: HolidayFormValues) {
     if (!editing) return;
     setSaving(true);
-    setFormError(null);
     try {
       const result =
         editing.mode === 'create'
-          ? await api.post<HolidayMutation>('/api/holidays', values)
-          : await api.patch<HolidayMutation>(`/api/holidays/${editing.holiday.id}`, values);
+          ? await api.post<HolidayMutation>('/api/holidays', values, {
+              successMessage: 'Feriado criado.',
+              errorMessage: saveError,
+            })
+          : await api.patch<HolidayMutation>(`/api/holidays/${editing.holiday.id}`, values, {
+              successMessage: 'Feriado salvo.',
+              errorMessage: saveError,
+            });
       finish(result);
-    } catch (err) {
-      setFormError(errorMessage(err, 'Não foi possível salvar o feriado.'));
+    } catch {
+      // erro exibido pelo toast
     } finally {
       setSaving(false);
     }
@@ -97,13 +98,15 @@ export function HolidaysPage() {
 
   async function remove(holiday: Holiday) {
     setSaving(true);
-    setActionError(null);
     try {
-      const result = await api.delete<HolidayMutation>(`/api/holidays/${holiday.id}`);
+      const result = await api.delete<HolidayMutation>(`/api/holidays/${holiday.id}`, {
+        successMessage: 'Feriado removido.',
+        errorMessage: saveError,
+      });
       setRemovingId(null);
       finish(result);
-    } catch (err) {
-      setActionError(errorMessage(err, 'Não foi possível remover o feriado.'));
+    } catch {
+      // erro exibido pelo toast
     } finally {
       setSaving(false);
     }
@@ -111,16 +114,17 @@ export function HolidaysPage() {
 
   async function recalculate() {
     setRecalculating(true);
-    setRecalcError(null);
     try {
-      const result = await api.post<RecalculateResult>('/api/holidays/recalculate', {
-        dates: [...new Set(warnings.map((w) => w.date))],
-      });
-      setRecalcResult(recalcSummary(result.updated));
+      const result = await api.post<RecalculateResult>(
+        '/api/holidays/recalculate',
+        { dates: [...new Set(warnings.map((w) => w.date))] },
+        { silentSuccess: true },
+      );
+      toast.success(recalcSummary(result.updated));
       setWarnings([]);
       setConfirmingRecalc(false);
-    } catch (err) {
-      setRecalcError(errorMessage(err, 'Não foi possível recalcular as horas.'));
+    } catch {
+      // erro exibido pelo toast
     } finally {
       setRecalculating(false);
     }
@@ -151,7 +155,6 @@ export function HolidaysPage() {
       type="button"
       className="btn primary"
       onClick={() => {
-        setRecalcError(null);
         setConfirmingRecalc(true);
       }}
     >
@@ -192,19 +195,8 @@ export function HolidaysPage() {
         onDismiss={() => {
           setWarnings([]);
           setConfirmingRecalc(false);
-          setRecalcError(null);
         }}
       />
-      {recalcError && (
-        <p className="alert" role="alert">
-          {recalcError}
-        </p>
-      )}
-      {recalcResult && (
-        <p className="status" role="status" aria-label="Resultado do recálculo">
-          {recalcResult}
-        </p>
-      )}
 
       {editing && (
         <HolidayForm
@@ -220,16 +212,9 @@ export function HolidaysPage() {
               : EMPTY_FORM
           }
           saving={saving}
-          error={formError}
           onSubmit={(values) => void save(values)}
           onCancel={() => openForm(null)}
         />
-      )}
-
-      {actionError && (
-        <p className="alert" role="alert">
-          {actionError}
-        </p>
       )}
 
       {outcome === null && (
@@ -294,7 +279,6 @@ export function HolidaysPage() {
                       aria-label={`Remover ${h.name}`}
                       onClick={() => {
                         setEditing(null);
-                        setActionError(null);
                         setRemovingId(h.id);
                       }}
                     >

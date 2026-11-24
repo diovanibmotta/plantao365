@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ToastViewport } from '../toast/ToastViewport';
+import { toast } from '../toast/toast-store';
 import { ProfilePage } from './ProfilePage';
 import type { Profile } from '../profile/types';
 
@@ -25,6 +27,7 @@ const json = (body: unknown, status = 200) =>
 
 afterEach(() => {
   cleanup();
+  toast.clear();
   vi.unstubAllGlobals();
 });
 
@@ -34,7 +37,12 @@ describe('tela de perfil', () => {
       'fetch',
       vi.fn(() => Promise.resolve(json(profile))),
     );
-    render(<ProfilePage />);
+    render(
+      <>
+        <ProfilePage />
+        <ToastViewport />
+      </>,
+    );
     expect(await screen.findByText('Ana Souza')).toBeTruthy();
     expect(screen.getByText('ana@example.com')).toBeTruthy();
     expect(screen.getByText('Membro')).toBeTruthy();
@@ -51,7 +59,12 @@ describe('tela de perfil', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
     const user = userEvent.setup();
-    render(<ProfilePage />);
+    render(
+      <>
+        <ProfilePage />
+        <ToastViewport />
+      </>,
+    );
     const phone = await screen.findByLabelText(/Telefone/);
     await user.clear(phone);
     await user.type(phone, '11 98888-7777');
@@ -73,7 +86,12 @@ describe('tela de perfil', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
     const user = userEvent.setup();
-    render(<ProfilePage />);
+    render(
+      <>
+        <ProfilePage />
+        <ToastViewport />
+      </>,
+    );
     await user.clear(await screen.findByLabelText(/Telefone/));
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
     await screen.findByText('Perfil salvo.');
@@ -85,7 +103,12 @@ describe('tela de perfil', () => {
     const fetchMock = vi.fn(() => Promise.resolve(json(profile)));
     vi.stubGlobal('fetch', fetchMock);
     const user = userEvent.setup();
-    render(<ProfilePage />);
+    render(
+      <>
+        <ProfilePage />
+        <ToastViewport />
+      </>,
+    );
     const phone = await screen.findByLabelText(/Telefone/);
     await user.clear(phone);
     await user.type(phone, 'abc');
@@ -111,7 +134,12 @@ describe('tela de perfil', () => {
       ),
     );
     const user = userEvent.setup();
-    render(<ProfilePage />);
+    render(
+      <>
+        <ProfilePage />
+        <ToastViewport />
+      </>,
+    );
     await screen.findByLabelText(/Telefone/);
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Telefone inválido'));
@@ -122,7 +150,12 @@ describe('tela de perfil', () => {
       'fetch',
       vi.fn(() => Promise.resolve(json({ message: 'falhou' }, 500))),
     );
-    render(<ProfilePage />);
+    render(
+      <>
+        <ProfilePage />
+        <ToastViewport />
+      </>,
+    );
     expect((await screen.findByRole('alert')).textContent).toBe('falhou');
   });
 });

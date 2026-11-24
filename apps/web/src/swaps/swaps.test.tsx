@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ToastViewport } from '../toast/ToastViewport';
+import { toast } from '../toast/toast-store';
 import { SwapsPage } from '../pages/SwapsPage';
 import { SwapRequestAction } from './SwapRequestAction';
 import type { ShiftDto } from '../schedule/types';
@@ -55,6 +57,7 @@ const shift = (id: string, date: string, userId: string, userName: string): Shif
 
 afterEach(() => {
   cleanup();
+  toast.clear();
   vi.unstubAllGlobals();
   auth.user = { id: 'me', role: 'member' };
 });
@@ -70,7 +73,12 @@ describe('SwapsPage', () => {
       return Promise.resolve(json({ items }));
     });
     vi.stubGlobal('fetch', fetchMock);
-    render(<SwapsPage />);
+    render(
+      <>
+        <SwapsPage />
+        <ToastViewport />
+      </>,
+    );
     await userEvent.click(await screen.findByRole('button', { name: 'Aceitar' }));
     await screen.findByText('Aguardando gestor');
     expect(fetchMock).toHaveBeenCalledWith('/api/swaps/s1/accept', expect.anything());
@@ -83,7 +91,12 @@ describe('SwapsPage', () => {
       Promise.resolve(init?.method === 'POST' ? json({}) : json({ items })),
     );
     vi.stubGlobal('fetch', fetchMock);
-    render(<SwapsPage />);
+    render(
+      <>
+        <SwapsPage />
+        <ToastViewport />
+      </>,
+    );
     await userEvent.click(await screen.findByRole('tab', { name: 'Enviadas' }));
     expect(screen.getByText('Aguardando colega')).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar solicitação' }));
@@ -101,14 +114,24 @@ describe('SwapsPage', () => {
         ),
       ),
     );
-    render(<SwapsPage />);
+    render(
+      <>
+        <SwapsPage />
+        <ToastViewport />
+      </>,
+    );
     await userEvent.click(await screen.findByRole('button', { name: 'Recusar' }));
     expect((await screen.findByRole('alert')).textContent).toBe('Plantão já trocado');
   });
 
   it('membro não vê abas de gestor', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ items: [] })));
-    render(<SwapsPage />);
+    render(
+      <>
+        <SwapsPage />
+        <ToastViewport />
+      </>,
+    );
     await screen.findByText('Nenhuma solicitação recebida.');
     expect(screen.queryByRole('tab', { name: 'Aprovação' })).toBeNull();
   });
@@ -120,7 +143,12 @@ describe('SwapsPage', () => {
       Promise.resolve(init?.method === 'POST' ? json({}) : json({ items })),
     );
     vi.stubGlobal('fetch', fetchMock);
-    render(<SwapsPage />);
+    render(
+      <>
+        <SwapsPage />
+        <ToastViewport />
+      </>,
+    );
     await userEvent.click(await screen.findByRole('tab', { name: 'Aprovação' }));
     await userEvent.type(screen.getByLabelText('Motivo (opcional)'), 'sem cobertura');
     await userEvent.click(screen.getByRole('button', { name: 'Rejeitar' }));
@@ -135,7 +163,12 @@ describe('SwapRequestAction', () => {
   const mine = shift('m1', '2026-03-20', 'me', 'Ana');
 
   it('não aparece para plantão passado', () => {
-    render(<SwapRequestAction shift={mine} today="2026-03-21" />);
+    render(
+      <>
+        <SwapRequestAction shift={mine} today="2026-03-21" />
+        <ToastViewport />
+      </>,
+    );
     expect(screen.queryByRole('button', { name: 'Solicitar troca' })).toBeNull();
   });
 
@@ -157,7 +190,12 @@ describe('SwapRequestAction', () => {
       );
     });
     vi.stubGlobal('fetch', fetchMock);
-    render(<SwapRequestAction shift={mine} today="2026-03-10" />);
+    render(
+      <>
+        <SwapRequestAction shift={mine} today="2026-03-10" />
+        <ToastViewport />
+      </>,
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Solicitar troca' }));
     const colleague = await screen.findByLabelText('Colega');
     await screen.findByRole('option', { name: 'Carla' });
@@ -189,7 +227,12 @@ describe('SwapRequestAction', () => {
       return Promise.resolve(json([]));
     });
     vi.stubGlobal('fetch', fetchMock);
-    render(<SwapRequestAction shift={mine} today="2026-03-10" />);
+    render(
+      <>
+        <SwapRequestAction shift={mine} today="2026-03-10" />
+        <ToastViewport />
+      </>,
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Solicitar troca' }));
     await userEvent.selectOptions(await screen.findByLabelText('Tipo'), 'cession');
     expect(screen.queryByLabelText('Plantão do colega')).toBeNull();

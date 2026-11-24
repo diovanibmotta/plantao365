@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from '../toast/toast-store';
 import { useTeam } from '../team/TeamContext';
 import type { Team, TeamInput } from '../team/TeamContext';
 import { AVATAR_OPTIONS, TeamAvatar } from '../team/TeamAvatar';
@@ -7,8 +8,6 @@ import '../team/teams.css';
 
 type Editing = { mode: 'create' } | { mode: 'edit'; team: Team } | null;
 type Tab = 'data' | 'members';
-
-const message = (err: unknown, fallback: string) => (err instanceof Error ? err.message : fallback);
 
 const URL_PATTERN = /^https?:\/\/\S+$/i;
 
@@ -21,8 +20,6 @@ export function TeamsPage() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   function open(next: Editing, nextTab: Tab = 'data') {
     setEditing(next);
@@ -32,8 +29,6 @@ export function TeamsPage() {
     setDashboardUrl(team?.dashboardUrl ?? '');
     setAvatar(team?.avatar ?? null);
     setRemoving(false);
-    setError(null);
-    setNotice(null);
   }
 
   async function save(e: React.FormEvent) {
@@ -42,24 +37,21 @@ export function TeamsPage() {
     const url = dashboardUrl.trim();
     if (!trimmed || !editing) return;
     if (url && !URL_PATTERN.test(url)) {
-      setError('Informe uma URL válida, começando com http:// ou https://.');
+      toast.warning('Informe uma URL válida, começando com http:// ou https://.');
       return;
     }
     const input: TeamInput = { name: trimmed, dashboardUrl: url || null, avatar };
     setBusy(true);
-    setError(null);
     try {
       if (editing.mode === 'create') {
         const created = await create(input);
         open({ mode: 'edit', team: created }, 'members');
-        setNotice('Equipe criada. Vincule os membros abaixo.');
       } else {
         const saved = await update(editing.team.id, input);
         setEditing({ mode: 'edit', team: saved });
-        setNotice('Equipe salva.');
       }
-    } catch (err) {
-      setError(message(err, 'Não foi possível salvar a equipe.'));
+    } catch {
+      // erro exibido pelo toast
     } finally {
       setBusy(false);
     }
@@ -68,12 +60,10 @@ export function TeamsPage() {
   async function confirmRemove() {
     if (editing?.mode !== 'edit') return;
     setBusy(true);
-    setError(null);
     try {
       await remove(editing.team.id);
       open(null);
-    } catch (err) {
-      setError(message(err, 'Não foi possível excluir a equipe.'));
+    } catch {
       setRemoving(false);
     } finally {
       setBusy(false);
@@ -98,12 +88,6 @@ export function TeamsPage() {
           Nova equipe
         </button>
       </div>
-
-      {error && editing === null && (
-        <p className="alert" role="alert">
-          {error}
-        </p>
-      )}
 
       {teams.length === 0 && editing === null ? (
         <p className="status muted">Nenhuma equipe cadastrada.</p>
@@ -177,17 +161,6 @@ export function TeamsPage() {
               Membros
             </button>
           </div>
-
-          {error && (
-            <p className="alert" role="alert">
-              {error}
-            </p>
-          )}
-          {notice && (
-            <p className="members-message" role="status">
-              {notice}
-            </p>
-          )}
 
           {tab === 'data' && (
             <form className="teams-form" onSubmit={(e) => void save(e)}>

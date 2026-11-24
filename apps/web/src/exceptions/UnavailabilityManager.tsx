@@ -41,9 +41,7 @@ export function UnavailabilityManager({
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [editing, setEditing] = useState<Editing>(null);
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<UnavailabilityWarning[]>([]);
 
   useEffect(() => {
@@ -87,8 +85,6 @@ export function UnavailabilityManager({
 
   function openForm(next: Editing) {
     setEditing(next);
-    setFormError(null);
-    setActionError(null);
     setRemovingId(null);
   }
 
@@ -101,7 +97,6 @@ export function UnavailabilityManager({
   async function save(values: FormValues) {
     if (!editing) return;
     setSaving(true);
-    setFormError(null);
     const note = values.note.trim() || null;
     try {
       if (editing.mode === 'create') {
@@ -128,8 +123,8 @@ export function UnavailabilityManager({
           await api.patch<UnavailabilityMutation>(`/api/unavailabilities/${editing.item.id}`, body),
         );
       }
-    } catch (err) {
-      setFormError(errorMessage(err, 'Não foi possível salvar.'));
+    } catch {
+      // erro exibido pelo toast
     } finally {
       setSaving(false);
     }
@@ -137,13 +132,12 @@ export function UnavailabilityManager({
 
   async function remove(item: Unavailability) {
     setSaving(true);
-    setActionError(null);
     try {
       await api.delete(`/api/unavailabilities/${item.id}`);
       setRemovingId(null);
       finish();
-    } catch (err) {
-      setActionError(errorMessage(err, 'Não foi possível remover.'));
+    } catch {
+      // erro exibido pelo toast
     } finally {
       setSaving(false);
     }
@@ -216,17 +210,11 @@ export function UnavailabilityManager({
               : null
           }
           saving={saving}
-          error={formError}
           onSubmit={(v) => void save(v)}
           onCancel={() => openForm(null)}
         />
       )}
 
-      {actionError && (
-        <p className="alert" role="alert">
-          {actionError}
-        </p>
-      )}
       {data === null && (
         <p className="status" role="status">
           Carregando…
@@ -292,7 +280,6 @@ export function UnavailabilityManager({
                       aria-label={`Remover ${label(i)}`}
                       onClick={() => {
                         setEditing(null);
-                        setActionError(null);
                         setRemovingId(i.id);
                       }}
                     >

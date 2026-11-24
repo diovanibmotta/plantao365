@@ -2,6 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ToastViewport } from '../toast/ToastViewport';
+import { toast } from '../toast/toast-store';
 import { HolidaysPage } from '../pages/HolidaysPage';
 import type { Holiday } from './types';
 import { formatHolidayDate, warningMessage } from './types';
@@ -40,6 +42,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  toast.clear();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -47,7 +50,12 @@ afterEach(() => {
 describe('tela de feriados', () => {
   it('lista os feriados do ano atual em ordem de data, sem deslocamento de fuso', async () => {
     const fetchMock = mockApi(() => json({ items: [NATAL, ANO_NOVO] }));
-    render(<HolidaysPage />);
+    render(
+      <>
+        <HolidaysPage />
+        <ToastViewport />
+      </>,
+    );
     expect(screen.getByRole('status').textContent).toContain('Carregando');
     const list = await screen.findByRole('list', { name: 'Feriados de 2026' });
     const items = within(list).getAllByRole('listitem');
@@ -61,13 +69,23 @@ describe('tela de feriados', () => {
 
   it('mostra a dica de 24h, estado vazio e erro de carregamento', async () => {
     mockApi(() => json({ items: [] }));
-    render(<HolidaysPage />);
+    render(
+      <>
+        <HolidaysPage />
+        <ToastViewport />
+      </>,
+    );
     expect(await screen.findByText('Nenhum feriado cadastrado em 2026.')).toBeTruthy();
     expect(screen.getByText(/plantão de 24h/)).toBeTruthy();
     cleanup();
 
     mockApi(() => json({ error: 'boom', message: 'Falha no servidor' }, 500));
-    render(<HolidaysPage />);
+    render(
+      <>
+        <HolidaysPage />
+        <ToastViewport />
+      </>,
+    );
     expect((await screen.findByRole('alert')).textContent).toBe('Falha no servidor');
   });
 
@@ -76,7 +94,12 @@ describe('tela de feriados', () => {
       json({ items: url.endsWith('2027') ? [holiday('h3', '2027-04-21', 'Tiradentes')] : [] }),
     );
     const ui = userEvent.setup();
-    render(<HolidaysPage />);
+    render(
+      <>
+        <HolidaysPage />
+        <ToastViewport />
+      </>,
+    );
     await screen.findByText('Nenhum feriado cadastrado em 2026.');
     await ui.selectOptions(screen.getByLabelText('Ano'), '2027');
     expect(await screen.findByText('Tiradentes')).toBeTruthy();
@@ -93,7 +116,12 @@ describe('tela de feriados', () => {
         : json({ items: [] }),
     );
     const ui = userEvent.setup();
-    render(<HolidaysPage />);
+    render(
+      <>
+        <HolidaysPage />
+        <ToastViewport />
+      </>,
+    );
     await screen.findByText('Nenhum feriado cadastrado em 2026.');
     await ui.click(screen.getByRole('button', { name: 'Novo feriado' }));
     const form = screen.getByRole('form', { name: 'Novo feriado' });
@@ -120,7 +148,12 @@ describe('tela de feriados', () => {
   it('valida o formulário antes de enviar', async () => {
     const fetchMock = mockApi(() => json({ items: [] }));
     const ui = userEvent.setup();
-    render(<HolidaysPage />);
+    render(
+      <>
+        <HolidaysPage />
+        <ToastViewport />
+      </>,
+    );
     await screen.findByText('Nenhum feriado cadastrado em 2026.');
     await ui.click(screen.getByRole('button', { name: 'Novo feriado' }));
     await ui.click(screen.getByRole('button', { name: 'Salvar' }));
@@ -140,7 +173,12 @@ describe('tela de feriados', () => {
       return json({ items: [NATAL] });
     });
     const ui = userEvent.setup();
-    render(<HolidaysPage />);
+    render(
+      <>
+        <HolidaysPage />
+        <ToastViewport />
+      </>,
+    );
     await ui.click(await screen.findByRole('button', { name: 'Editar Natal' }));
     const form = screen.getByRole('form', { name: 'Editar feriado' });
     expect((within(form).getByLabelText('Data') as HTMLInputElement).value).toBe('2026-12-25');
@@ -175,7 +213,12 @@ describe('tela de feriados', () => {
       init?.method === 'POST' ? json({ error: 'duplicate_holiday' }, 409) : json({ items: [] }),
     );
     const ui = userEvent.setup();
-    render(<HolidaysPage />);
+    render(
+      <>
+        <HolidaysPage />
+        <ToastViewport />
+      </>,
+    );
     await screen.findByText('Nenhum feriado cadastrado em 2026.');
     await ui.click(screen.getByRole('button', { name: 'Novo feriado' }));
     fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-12-25' } });
@@ -203,7 +246,12 @@ describe('tela de feriados', () => {
         : json({ items: [NATAL] }),
     );
     const ui = userEvent.setup();
-    render(<HolidaysPage />);
+    render(
+      <>
+        <HolidaysPage />
+        <ToastViewport />
+      </>,
+    );
     await screen.findByText('Natal');
     await ui.click(screen.getByRole('button', { name: 'Novo feriado' }));
     fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-12-25' } });
@@ -236,7 +284,12 @@ describe('tela de feriados', () => {
         return json({ items: [NATAL] });
       });
       const ui = userEvent.setup();
-      render(<HolidaysPage />);
+      render(
+        <>
+          <HolidaysPage />
+          <ToastViewport />
+        </>,
+      );
       await screen.findByText('Natal');
       await ui.click(screen.getByRole('button', { name: 'Novo feriado' }));
       fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-12-25' } });
@@ -251,9 +304,7 @@ describe('tela de feriados', () => {
       await ui.click(screen.getByRole('button', { name: 'Recalcular horas' }));
       expect(writes(fetchMock).filter((w) => w[0].endsWith('/recalculate'))).toHaveLength(0);
       await ui.click(screen.getByRole('button', { name: 'Confirmar recálculo' }));
-      expect((await screen.findByLabelText('Resultado do recálculo')).textContent).toBe(
-        '4 plantões recalculados.',
-      );
+      expect(await screen.findByText('4 plantões recalculados.')).toBeTruthy();
       const call = writes(fetchMock).find((w) => w[0] === '/api/holidays/recalculate')!;
       expect(call[1].method).toBe('POST');
       expect(JSON.parse(String(call[1].body))).toEqual({ dates: ['2026-12-25', '2026-12-26'] });
@@ -273,9 +324,7 @@ describe('tela de feriados', () => {
       const { ui } = await openWarning(() => json({ updated: 0, changes: [] }));
       await ui.click(screen.getByRole('button', { name: 'Recalcular horas' }));
       await ui.click(screen.getByRole('button', { name: 'Confirmar recálculo' }));
-      expect((await screen.findByLabelText('Resultado do recálculo')).textContent).toBe(
-        'Nenhum plantão mudou.',
-      );
+      expect(await screen.findByText('Nenhum plantão mudou.')).toBeTruthy();
     });
 
     it('mostra o erro da API e mantém o aviso para nova tentativa', async () => {
@@ -284,7 +333,9 @@ describe('tela de feriados', () => {
       );
       await ui.click(screen.getByRole('button', { name: 'Recalcular horas' }));
       await ui.click(screen.getByRole('button', { name: 'Confirmar recálculo' }));
-      expect((await screen.findByRole('alert')).textContent).toBe('Falha ao recalcular');
+      expect((await screen.findAllByRole('alert')).map((a) => a.textContent)).toEqual([
+        'Falha ao recalcular',
+      ]);
       expect(screen.getByLabelText('Aviso de impacto')).toBeTruthy();
       expect(
         (screen.getByRole('button', { name: 'Confirmar recálculo' }) as HTMLButtonElement).disabled,
@@ -309,9 +360,7 @@ describe('tela de feriados', () => {
         true,
       );
       release();
-      expect((await screen.findByLabelText('Resultado do recálculo')).textContent).toBe(
-        '1 plantão recalculado.',
-      );
+      expect(await screen.findByText('1 plantão recalculado.')).toBeTruthy();
     });
   });
 });

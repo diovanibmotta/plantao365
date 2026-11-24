@@ -7,10 +7,9 @@ import './members.css';
 interface Props {
   onSubmit: (input: NewMemberInput) => Promise<void>;
   onCancel: () => void;
-  serverError: string | null;
 }
 
-export function NewMemberForm({ onSubmit, onCancel, serverError }: Props) {
+export function NewMemberForm({ onSubmit, onCancel }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState<NewMemberErrors>({});
@@ -61,11 +60,6 @@ export function NewMemberForm({ onSubmit, onCancel, serverError }: Props) {
         />
         {errors.email && <p className="members-error">{errors.email}</p>}
       </div>
-      {serverError && (
-        <p className="alert" role="alert">
-          {serverError}
-        </p>
-      )}
       <div className="members-actions">
         <button type="submit" className="btn primary" disabled={saving}>
           {saving ? 'Salvando…' : 'Pré-cadastrar'}

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { App } from './App';
 import { AuthProvider } from './auth/AuthContext';
+import { ToastViewport } from './toast/ToastViewport';
 import { initTheme } from './theme';
 import './styles.css';
 
@@ -16,6 +17,7 @@ createRoot(root).render(
     <BrowserRouter>
       <AuthProvider>
         <App />
+        <ToastViewport />
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,

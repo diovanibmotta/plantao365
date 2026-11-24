@@ -10,6 +10,14 @@ import '../swaps/swaps.css';
 
 type Tab = 'received' | 'sent' | 'approval' | 'history';
 
+const ACTION_SUCCESS: Record<SwapAction, string> = {
+  accept: 'Troca aceita.',
+  decline: 'Troca recusada.',
+  cancel: 'Troca cancelada.',
+  approve: 'Troca aprovada.',
+  reject: 'Troca rejeitada.',
+};
+
 const TAB_LABEL: Record<Tab, string> = {
   received: 'Recebidas',
   sent: 'Enviadas',
@@ -33,7 +41,6 @@ export function SwapsPage() {
   const [tab, setTab] = useState<Tab>('received');
   const [items, setItems] = useState<SwapDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback((signal?: AbortSignal) => {
     api
@@ -55,12 +62,13 @@ export function SwapsPage() {
   }, [load]);
 
   const act = async (swap: SwapDto, action: SwapAction, reason: string) => {
-    setActionError(null);
     try {
-      await api.post(`/api/swaps/${swap.id}/${action}`, reason.trim() ? { reason } : {});
+      await api.post(`/api/swaps/${swap.id}/${action}`, reason.trim() ? { reason } : {}, {
+        successMessage: ACTION_SUCCESS[action],
+      });
       load();
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Não foi possível concluir a ação.');
+    } catch {
+      // erro exibido pelo toast
     }
   };
 
@@ -96,11 +104,6 @@ export function SwapsPage() {
           </button>
         ))}
       </div>
-      {actionError && (
-        <p className="alert" role="alert">
-          {actionError}
-        </p>
-      )}
       {error && (
         <p className="alert" role="alert">
           {error}

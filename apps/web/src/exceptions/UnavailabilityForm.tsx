@@ -12,7 +12,6 @@ interface Props {
   selfId: string;
   initial: FormValues | null;
   saving: boolean;
-  error: string | null;
   onSubmit: (values: FormValues) => void;
   onCancel: () => void;
 }
@@ -25,7 +24,6 @@ export function UnavailabilityForm({
   selfId,
   initial,
   saving,
-  error,
   onSubmit,
   onCancel,
 }: Props) {
@@ -56,7 +54,7 @@ export function UnavailabilityForm({
     setUserIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   }
 
-  const message = fieldError ?? error;
+  const message = fieldError;
 
   return (
     <form className="exc-form" onSubmit={submit} aria-label={title} noValidate>
