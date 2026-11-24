@@ -84,6 +84,37 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('equipes (PostgreSQL)', () =>
     expect(own).toHaveLength(1);
   });
 
+  it('renomeia e exclui equipe; recusa nome repetido, equipe alheia e equipe com escalas', async () => {
+    const gestor = await loginAs(sql, { email: 'g4@x.com', role: 'manager' });
+    const mk = async (name: string) =>
+      (
+        (await (await call('POST', '/teams', gestor.cookie, undefined, { name })).json()) as {
+          id: string;
+        }
+      ).id;
+    const a = await mk('Alfa');
+    const b = await mk('Beta');
+
+    const ok = await call('PATCH', `/teams/${a}`, gestor.cookie, undefined, { name: 'Alfa 2' });
+    expect(ok.status).toBe(200);
+    const dup = await call('PATCH', `/teams/${a}`, gestor.cookie, undefined, { name: 'beta' });
+    expect(dup.status).toBe(409);
+
+    const outro = await loginAs(sql, { email: 'o4@x.com', role: 'manager' });
+    expect((await call('DELETE', `/teams/${a}`, outro.cookie)).status).toBe(404);
+    expect((await call('DELETE', `/teams/${DEFAULT_TEAM_ID}`, gestor.cookie)).status).toBe(409);
+
+    await call('POST', '/schedules/generate', gestor.cookie, b, {
+      from: '2026-12-01',
+      to: '2026-12-03',
+    });
+    expect((await call('DELETE', `/teams/${b}`, gestor.cookie)).status).toBe(409);
+
+    expect((await call('DELETE', `/teams/${a}`, gestor.cookie)).status).toBe(204);
+    const list = (await (await call('GET', '/teams', gestor.cookie)).json()) as { id: string }[];
+    expect(list.map((x) => x.id)).not.toContain(a);
+  });
+
   it('vincula usuário existente de outra equipe em vez de duplicar', async () => {
     const gestor = await loginAs(sql, { email: 'g3@x.com', role: 'manager' });
     const { id } = (await (

@@ -15,6 +15,8 @@ export interface TeamState {
   loading: boolean;
   select: (id: string) => void;
   create: (name: string) => Promise<void>;
+  rename: (id: string, name: string) => Promise<void>;
+  remove: (id: string) => Promise<void>;
 }
 
 const STORAGE_KEY = 'p360_team';
@@ -80,13 +82,36 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const create = useCallback(
     async (name: string) => {
       const team = await api.post<Team>('/api/teams', { name });
-      writeStored(team.id);
       apply(
         [...teams, team].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
-        team.id,
+        activeId ?? team.id,
       );
     },
-    [teams, apply],
+    [teams, activeId, apply],
+  );
+
+  const rename = useCallback(
+    async (id: string, name: string) => {
+      const team = await api.patch<Team>(`/api/teams/${id}`, { name });
+      apply(
+        teams
+          .map((t) => (t.id === id ? team : t))
+          .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+        activeId,
+      );
+    },
+    [teams, activeId, apply],
+  );
+
+  const remove = useCallback(
+    async (id: string) => {
+      await api.delete(`/api/teams/${id}`);
+      apply(
+        teams.filter((t) => t.id !== id),
+        activeId === id ? null : activeId,
+      );
+    },
+    [teams, activeId, apply],
   );
 
   const value = useMemo<TeamState>(
@@ -96,8 +121,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       loading,
       select,
       create,
+      rename,
+      remove,
     }),
-    [teams, activeId, loading, select, create],
+    [teams, activeId, loading, select, create, rename, remove],
   );
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 }

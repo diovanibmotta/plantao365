@@ -1,0 +1,56 @@
+.teams-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: var(--space);
+}
+
+.teams-header h1 {
+  flex: 1 1 auto;
+  margin: 0;
+}
+
+.teams-form {
+  display: grid;
+  gap: 12px;
+  max-width: 420px;
+  margin-bottom: var(--space);
+}
+
+.teams-form label {
+  display: grid;
+  gap: 4px;
+}
+
+.teams-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.teams-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.teams-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.teams-badge {
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}

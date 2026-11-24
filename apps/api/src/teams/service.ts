@@ -51,6 +51,79 @@ export async function createTeam(db: Sql, actor: AuthUser, name: string): Promis
   });
 }
 
+const DEFAULT_TEAM_ID = '00000000-0000-0000-0000-000000000001';
+
+/** Master gerencia qualquer equipe; gestor, só as que integra. */
+async function assertCanManage(
+  tx: Sql,
+  actor: AuthUser,
+  teamId: string,
+): Promise<{ name: string }> {
+  const [team] = await tx<
+    { name: string }[]
+  >`select name from teams where id = ${teamId} for update`;
+  if (!team) throw new TeamsError(404, 'team_not_found', 'Equipe não encontrada');
+  if (!actor.isMaster) {
+    const [member] = await tx`
+      select 1 from team_members where team_id = ${teamId} and user_id = ${actor.id}`;
+    if (!member) throw new TeamsError(404, 'team_not_found', 'Equipe não encontrada');
+  }
+  return team;
+}
+
+export async function renameTeam(
+  db: Sql,
+  actor: AuthUser,
+  teamId: string,
+  name: string,
+): Promise<TeamDto> {
+  return db.begin(async (txRaw) => {
+    const tx = txRaw as unknown as Sql;
+    const before = await assertCanManage(tx, actor, teamId);
+    const [dup] = await tx`
+      select 1 from teams where lower(name) = lower(${name}) and id <> ${teamId}`;
+    if (dup) throw new TeamsError(409, 'team_name_in_use', 'Já existe uma equipe com este nome');
+    const [team] = await tx<
+      TeamDto[]
+    >`update teams set name = ${name} where id = ${teamId} returning id, name`;
+    await recordAudit(tx, {
+      actorId: actor.id,
+      action: 'update',
+      entityType: 'team',
+      entityId: teamId,
+      before: { name: before.name },
+      after: { name },
+    });
+    return team!;
+  });
+}
+
+export async function deleteTeam(db: Sql, actor: AuthUser, teamId: string): Promise<void> {
+  await db.begin(async (txRaw) => {
+    const tx = txRaw as unknown as Sql;
+    const before = await assertCanManage(tx, actor, teamId);
+    if (teamId === DEFAULT_TEAM_ID) {
+      throw new TeamsError(409, 'team_protected', 'A equipe principal não pode ser excluída');
+    }
+    const [used] = await tx`select 1 from schedules where team_id = ${teamId} limit 1`;
+    if (used) {
+      throw new TeamsError(
+        409,
+        'team_has_schedules',
+        'A equipe possui escalas e não pode ser excluída',
+      );
+    }
+    await tx`delete from teams where id = ${teamId}`;
+    await recordAudit(tx, {
+      actorId: actor.id,
+      action: 'delete',
+      entityType: 'team',
+      entityId: teamId,
+      before: { name: before.name },
+    });
+  });
+}
+
 /** Vincula o usuário à equipe (idempotente); retorna true quando o vínculo foi criado. */
 export async function addTeamMember(db: Sql, teamId: string, userId: string): Promise<boolean> {
   const rows = await db`
