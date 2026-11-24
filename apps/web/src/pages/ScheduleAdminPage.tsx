@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import { GenerateForm } from '../schedule-admin/GenerateForm';
 import { ScheduleEditor } from '../schedule-admin/ScheduleEditor';
 import { ShiftSettingsForm } from '../schedule-admin/ShiftSettingsForm';
+import { WorkHoursForm } from '../schedule-admin/WorkHoursForm';
 import { describe, formatDate } from '../schedule-admin/types';
 import type {
   GenerateResult,
@@ -92,6 +93,7 @@ export function ScheduleAdminPage() {
         </p>
       )}
       <ShiftSettingsForm />
+      <WorkHoursForm />
 
       <section aria-labelledby="sad-list-title" className="sad-block">
         <h2 id="sad-list-title">Pesquisar escalas</h2>

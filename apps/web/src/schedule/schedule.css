@@ -229,3 +229,147 @@
   gap: 8px;
   margin: 0 0 var(--space);
 }
+
+.sched-views {
+  display: flex;
+  gap: 6px;
+}
+
+.sched-swatch--work {
+  border-color: var(--border-strong);
+  background: var(--day-weekend);
+}
+
+/* Grade de horas (visões de dia e semana) */
+.tg {
+  --tg-hour: 48px;
+  --tg-gutter: 52px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.tg-head,
+.tg-body {
+  display: grid;
+  grid-template-columns: var(--tg-gutter) repeat(var(--tg-cols), minmax(104px, 1fr));
+  min-width: calc(var(--tg-gutter) + var(--tg-cols) * 104px);
+}
+
+.tg-head {
+  border-bottom: 1px solid var(--border);
+}
+
+.tg-head-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 4px;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.tg-head-day strong {
+  font-size: 1.125rem;
+  color: var(--text);
+}
+
+.tg-head-day small {
+  text-transform: none;
+  color: var(--accent);
+  text-align: center;
+}
+
+.tg-head-day--today strong {
+  color: var(--accent);
+}
+
+.tg-scroll {
+  max-height: 620px;
+  overflow-y: auto;
+}
+
+.tg-body {
+  position: relative;
+  height: calc(var(--tg-hour) * 24);
+}
+
+.tg-gutter {
+  position: relative;
+}
+
+.tg-hour {
+  position: absolute;
+  right: 6px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.tg-col {
+  position: relative;
+  border-left: 1px solid var(--border);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--tg-hour) - 1px),
+    var(--border) calc(var(--tg-hour) - 1px),
+    var(--border) var(--tg-hour)
+  );
+}
+
+.tg-col--today {
+  background-color: var(--accent-tint);
+}
+
+.tg-work {
+  position: absolute;
+  inset-inline: 0;
+  background: var(--day-weekend);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.tg-shift {
+  position: absolute;
+  inset-inline: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 6px;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--accent) 45%, var(--border));
+  border-left-width: 4px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--accent) 14%, var(--surface));
+  font-size: 12px;
+}
+
+.tg-shift--mine {
+  border-color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 28%, var(--surface));
+}
+
+.tg-shift-who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tg-shift-who .avatar {
+  width: 20px;
+  height: 20px;
+  font-size: 9px;
+}
+
+.tg-shift-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.tg-shift-time {
+  font-weight: 500;
+}

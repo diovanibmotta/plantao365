@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DEFAULT_SHIFT_TIMES } from '@diovanibmotta/plantao365-shared';
 import { ScheduleAdminPage } from '../pages/ScheduleAdminPage';
@@ -46,6 +46,19 @@ function mockApi(status: 'draft' | 'published', handler: Handler = () => undefin
     if (url === '/api/users') return Promise.resolve(json(users));
     if (url === '/api/shift-settings' && method === 'GET') {
       return Promise.resolve(json(DEFAULT_SHIFT_TIMES));
+    }
+    if (url === '/api/work-hours' && method === 'GET') {
+      return Promise.resolve(
+        json({
+          periods: [
+            { startMinute: 480, endMinute: 720 },
+            { startMinute: 810, endMinute: 1080 },
+          ],
+        }),
+      );
+    }
+    if (url === '/api/work-hours' && method === 'PUT') {
+      return Promise.resolve(new Response(init.body as string, { status: 200 }));
     }
     if (url === '/api/shift-settings' && method === 'PUT') {
       return Promise.resolve(new Response(init.body as string, { status: 200 }));
@@ -103,6 +116,24 @@ describe('ScheduleAdminPage', () => {
     expect(bodyOf(fetchMock, '/api/shift-settings', 'PUT')).toEqual({
       ...DEFAULT_SHIFT_TIMES,
       weekend: { startHour: 8, endHour: 20 },
+    });
+  });
+
+  it('edita e salva a jornada de trabalho do time', async () => {
+    const fetchMock = mockApi('draft');
+    const user = userEvent.setup();
+    render(<ScheduleAdminPage />);
+    const end = await screen.findByLabelText('Fim do período 2');
+    fireEvent.change(end, { target: { value: '17:30' } });
+    await user.click(screen.getByRole('button', { name: 'Adicionar período' }));
+    await user.click(screen.getByRole('button', { name: 'Remover período 3' }));
+    await user.click(screen.getByRole('button', { name: 'Salvar jornada' }));
+    await screen.findByText('Jornada salva.');
+    expect(bodyOf(fetchMock, '/api/work-hours', 'PUT')).toEqual({
+      periods: [
+        { startMinute: 480, endMinute: 720 },
+        { startMinute: 810, endMinute: 1050 },
+      ],
     });
   });
 

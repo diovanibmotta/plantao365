@@ -25,6 +25,7 @@ const GUEST_READ_PATHS: readonly RegExp[] = [
   /^\/api\/shifts$/,
   /^\/api\/holidays$/,
   /^\/api\/shift-settings$/,
+  /^\/api\/work-hours$/,
   /^\/api\/schedules(\/[^/]+)?$/,
   /^\/api\/users\/[^/]+\/photo$/,
 ];

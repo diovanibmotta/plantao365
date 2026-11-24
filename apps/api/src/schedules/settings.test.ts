@@ -91,4 +91,29 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('shift settings (PostgreSQL)'
       endsAt: '2027-06-12T22:00:00.000Z',
     });
   });
+
+  it('jornada de trabalho: padrão 08h00–12h00 | 13h30–18h00, só gestor altera e valida', async () => {
+    const res = await call('GET', '/work-hours', member);
+    expect(await res.json()).toEqual({
+      periods: [
+        { startMinute: 480, endMinute: 720 },
+        { startMinute: 810, endMinute: 1080 },
+      ],
+    });
+    const next = { periods: [{ startMinute: 540, endMinute: 1020 }] };
+    expect((await call('PUT', '/work-hours', member, next)).status).toBe(403);
+    const overlap = {
+      periods: [
+        { startMinute: 480, endMinute: 720 },
+        { startMinute: 700, endMinute: 900 },
+      ],
+    };
+    expect((await call('PUT', '/work-hours', manager, overlap)).status).toBe(400);
+    expect((await call('PUT', '/work-hours', manager, { periods: 1 })).status).toBe(400);
+    expect((await call('PUT', '/work-hours', manager, next)).status).toBe(200);
+    expect(await (await call('GET', '/work-hours', member)).json()).toEqual(next);
+    const [audit] = await sql<{ action: string }[]>`
+      select action from audit_log where entity_type = 'work_hours'`;
+    expect(audit?.action).toBe('work_hours.update');
+  });
 });
