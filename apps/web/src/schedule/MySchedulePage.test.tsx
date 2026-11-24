@@ -66,11 +66,11 @@ describe('MySchedulePage', () => {
       'sex, 20 mar 2026',
     ]);
     expect(within(items[0]!).getByText('Dia útil')).toBeTruthy();
-    expect(within(items[0]!).getByText('18h–08h')).toBeTruthy();
+    expect(within(items[0]!).getByText('18:00–08:00')).toBeTruthy();
     expect(within(items[0]!).getByText('14h')).toBeTruthy();
     expect(within(items[1]!).getByText('Feriado: Dia Teste')).toBeTruthy();
     expect(within(items[2]!).getByText('Fim de semana')).toBeTruthy();
-    expect(within(items[2]!).getByText('08h–08h')).toBeTruthy();
+    expect(within(items[2]!).getByText('08:00–08:00')).toBeTruthy();
     expect(within(items[2]!).getByText('24h')).toBeTruthy();
     expect(screen.getByText('76h')).toBeTruthy();
 

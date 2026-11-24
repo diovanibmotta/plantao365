@@ -48,8 +48,7 @@ function formatHour(iso: string): string {
     minute: '2-digit',
   }).formatToParts(new Date(iso));
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '00';
-  const minute = get('minute');
-  return minute === '00' ? `${get('hour')}h` : `${get('hour')}h${minute}`;
+  return `${get('hour')}:${get('minute')}`;
 }
 
 export function formatPeriod(shift: ShiftDto): string {
@@ -57,12 +56,12 @@ export function formatPeriod(shift: ShiftDto): string {
   if (shift.startsAt && shift.endsAt) {
     return `${formatHour(shift.startsAt)}–${formatHour(shift.endsAt)}`;
   }
-  return shift.dayType === 'weekday' ? '18h–08h' : '08h–08h';
+  return shift.dayType === 'weekday' ? '18:00–08:00' : '08:00–08:00';
 }
 
-const hh = (h: number) => `${String(h).padStart(2, '0')}h`;
+const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
-/** Ex.: 18h–08h; fim menor ou igual ao início indica o dia seguinte. */
+/** Ex.: 18:00–08:00; fim menor ou igual ao início indica o dia seguinte. */
 export function formatShiftTime({ startHour, endHour }: ShiftTime): string {
   return `${hh(startHour)}–${hh(endHour)}`;
 }

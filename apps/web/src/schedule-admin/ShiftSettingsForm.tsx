@@ -7,7 +7,7 @@ import { DAY_TYPE_LABEL, formatHours } from '../schedule/format';
 import { describe } from './types';
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
-const hh = (h: number) => `${String(h).padStart(2, '0')}h`;
+const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
 /** Horário do plantão por tipo de dia; vale para os próximos rascunhos gerados. */
 export function ShiftSettingsForm() {

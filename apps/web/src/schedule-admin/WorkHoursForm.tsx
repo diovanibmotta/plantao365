@@ -11,7 +11,7 @@ import type { WorkPeriod } from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
 import { describe } from './types';
 
-/** Jornada de trabalho do time (ex.: 08h00–12h00 | 13h30–18h00), exibida no calendário. */
+/** Jornada de trabalho do time (ex.: 08:00–12:00 | 13:30–18:00), exibida no calendário. */
 export function WorkHoursForm() {
   const [periods, setPeriods] = useState<WorkPeriod[] | null>(null);
   const [busy, setBusy] = useState(false);
