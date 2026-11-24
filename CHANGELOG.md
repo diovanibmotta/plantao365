@@ -1,3 +1,8 @@
+# [v1.10.0](https://github.com/diovanibmotta/plantao365/compare/v1.9.0...v1.10.0) (2026-11-24)
+
+## ✨ New Features
+- [`bb69397`](https://github.com/diovanibmotta/plantao365/commit/bb69397)  feat(web): menu Calendário/Escala e pesquisa e exclusão na tela Escala
+
 # [v1.9.0](https://github.com/diovanibmotta/plantao365/compare/v1.8.0...v1.9.0) (2026-11-24)
 
 ## ✨ New Features
