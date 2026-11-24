@@ -125,7 +125,7 @@ Escopos solicitados: `openid`, `profile`, `email` e `User.Read` (Microsoft Graph
 
 ### Master key, convites e convidados
 
-- **Master key**: com `MASTER_USERNAME` e `MASTER_PASSWORD` definidos, a tela de login ganha "Acesso master". O usuário master é gestor, fica fora do rodízio e não aparece na Equipe; suas ações são auditadas. A partir dele, cadastre os demais (convites) e configure o restante. Remover as variáveis desativa o acesso e encerra as sessões master. Após 5 falhas em 15 minutos o login master é bloqueado (429) até a janela esvaziar. Use senha forte e HTTPS.
+- **Master key**: com `MASTER_USERNAME` e `MASTER_PASSWORD` definidos, a tela de login ganha "Acesso master". O usuário master é gestor, fica fora do rodízio e não aparece na Equipe; suas ações são auditadas. Gere a senha aleatória, como se faz com a master key do LiteLLM (ex.: `sk-$(openssl rand -hex 24)`; no PowerShell, `"sk-" + -join ((1..24) | % { '{0:x2}' -f (Get-Random -Max 256) })`), guarde-a em um cofre e não a reutilize. A partir dele, cadastre os demais (convites) e configure o restante. Remover as variáveis desativa o acesso e encerra as sessões master. Após 5 falhas em 15 minutos o login master é bloqueado (429) até a janela esvaziar. Use senha forte e HTTPS.
 - **Convite**: cadastrar um usuário em Equipe é o convite; ele entra via SSO com o papel atribuído e recebe um e-mail (fila `email_outbox`).
 - **Convidado**: quem entra via SSO sem convite vira usuário `guest` e só lê o calendário de escala publicada e feriados; qualquer outra rota ou alteração responde 403. Um gestor pode convidá-lo depois (promove o mesmo usuário) ou rebaixar alguém para convidado na Equipe.
 
