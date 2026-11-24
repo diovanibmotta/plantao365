@@ -163,13 +163,13 @@ describe('TeamSchedulePage', () => {
       within(select)
         .getAllByRole('option')
         .map((o) => o.textContent),
-    ).toEqual(['Todos', '@me', 'Bruno Lima']);
+    ).toEqual(['Todos', 'Eu', 'Bruno Lima']);
     await userEvent.selectOptions(select, 'u2');
     expect(within(screen.getByTestId('day-2026-03-02')).queryByText(/Ana Souza/)).toBeNull();
     expect(within(screen.getByTestId('day-2026-03-03')).getByText('Bruno Lima')).toBeTruthy();
   });
 
-  it('filtra "@me": esmaece dias sem plantão do usuário logado', async () => {
+  it('filtra "Eu": esmaece dias sem plantão do usuário logado', async () => {
     mockApi({
       shifts: [shift('2026-03-02', 'u1', 'Ana Souza'), shift('2026-03-03', 'u2', 'Bruno Lima')],
       holidays: [{ id: 'h', date: '2026-03-03', name: 'Dia Teste', scope: 'national' }],
@@ -202,7 +202,7 @@ describe('TeamSchedulePage', () => {
     await waitFor(() =>
       expect(within(select).getByRole('option', { name: 'Carla Dias' })).toBeTruthy(),
     );
-    expect(within(select).getByRole('option', { name: '@me' })).toBeTruthy();
+    expect(within(select).getByRole('option', { name: 'Eu' })).toBeTruthy();
     expect(within(select).queryByRole('option', { name: 'Ana Souza' })).toBeNull();
   });
 

@@ -39,7 +39,7 @@ import type { HolidayDto, ShiftDto, UnavailabilityDto } from '../schedule/types'
 import '../schedule/schedule.css';
 import { PageTitle } from '../team/PageTitle';
 
-/** Opção do filtro de membro que representa o usuário logado (como o @me do Azure DevOps). */
+/** Opção do filtro de membro que representa o usuário logado (como o @me do Azure DevOps; rótulo exibido: Eu). */
 const ME = '@me';
 
 interface Colleague {
@@ -220,7 +220,7 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
           Membro
           <select value={selectedMember} onChange={(e) => setMember(e.target.value)}>
             <option value="">Todos</option>
-            {canFilterMe && <option value={ME}>{ME}</option>}
+            {canFilterMe && <option value={ME}>Eu</option>}
             {members.map(([id, name]) => (
               <option key={id} value={id}>
                 {name}
