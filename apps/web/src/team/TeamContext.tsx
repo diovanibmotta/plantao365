@@ -160,6 +160,12 @@ export function useActiveTeam(): Team | null {
   return useContext(TeamContext)?.activeTeam ?? null;
 }
 
+/** Equipes que o usuário gerencia (candidatas a receber novos membros). Funciona fora do TeamProvider. */
+export function useManageableTeams(): Team[] {
+  const teams = useContext(TeamContext)?.teams;
+  return useMemo(() => (teams ?? []).filter((t) => t.role === 'manager'), [teams]);
+}
+
 /** Papel do usuário na equipe ativa; sem equipe, o papel global. Funciona fora do TeamProvider. */
 export function useRole(): Role | null {
   const { user } = useAuth();

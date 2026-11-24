@@ -180,6 +180,51 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
       expect(audit[0]).toMatchObject({ action: 'create', actor_id: g.id });
     });
 
+    it('links the pre-registered user to teams before first access, already as member/manager', async () => {
+      const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
+      const [team] = await sql<{ id: string }[]>`select team_id as id from team_members
+        where user_id = ${g.id}`;
+      const res = await call('POST', '/users', g.cookie, {
+        name: 'Bia',
+        email: 'bia@x.com',
+        teams: [{ teamId: team!.id, role: 'manager', participatesInRotation: false }],
+      });
+      expect(res.status).toBe(201);
+      expect(await res.json()).toMatchObject({ linked: false, teamIds: [team!.id] });
+      const [link] = await sql<{ role: string; p: boolean; urole: string }[]>`
+        select m.role, m.participates_in_rotation as p, u.role as urole
+        from team_members m join users u on u.id = m.user_id where u.email = 'bia@x.com'`;
+      expect(link).toEqual({ role: 'manager', p: false, urole: 'manager' });
+    });
+
+    it('rolls back the registration when a team is not manageable by the actor', async () => {
+      const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
+      const [other] = await sql<{ id: string }[]>`
+        insert into teams (name) values ('Outra') returning id`;
+      const res = await call('POST', '/users', g.cookie, {
+        name: 'Bia',
+        email: 'bia@x.com',
+        teams: [{ teamId: other!.id }],
+      });
+      expect(res.status).toBe(404);
+      expect(((await res.json()) as { error: string }).error).toBe('team_not_found');
+      const rows = await sql`select 1 from users where email = 'bia@x.com'`;
+      expect(rows).toHaveLength(0);
+    });
+
+    it('rejects duplicated or malformed teams', async () => {
+      const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
+      const id = '00000000-0000-0000-0000-000000000001';
+      for (const teams of [[{ teamId: id }, { teamId: id }], [{ teamId: 'x' }]]) {
+        const res = await call('POST', '/users', g.cookie, {
+          name: 'Bia',
+          email: 'bia@x.com',
+          teams,
+        });
+        expect(res.status).toBe(400);
+      }
+    });
+
     it('rejects duplicates (case-insensitive) and invalid input', async () => {
       const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
       const dup = await call('POST', '/users', g.cookie, { name: 'X', email: 'G@X.com' });

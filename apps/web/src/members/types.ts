@@ -14,9 +14,30 @@ export interface Member {
   teamIds: string[];
 }
 
+export interface NewMemberTeamInput {
+  teamId: string;
+  role: TeamRole;
+  participatesInRotation: boolean;
+}
+
 export interface NewMemberInput {
   name: string;
   email: string;
+  /** Equipes já vinculadas no cadastro, antes do primeiro acesso. */
+  teams?: NewMemberTeamInput[];
+}
+
+/** Link de acesso: a pessoa entra com a conta corporativa e o cadastro é associado pelo e-mail. */
+export const inviteLink = (): string => new URL('/login', window.location.origin).href;
+
+/** Copia o link de acesso; devolve false se o navegador não permitir. */
+export async function copyInviteLink(): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(inviteLink());
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Papéis atribuíveis a um membro numa equipe. */

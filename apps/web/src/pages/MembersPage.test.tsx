@@ -7,6 +7,7 @@ import { toast } from '../toast/toast-store';
 import { MemoryRouter } from 'react-router';
 import { App } from '../App';
 import { AuthProvider } from '../auth/AuthContext';
+import { TeamProvider } from '../team/TeamContext';
 import type { AuthUser } from '../auth/AuthContext';
 import { MembersPage } from './MembersPage';
 import type { Member } from '../members/types';
@@ -105,6 +106,71 @@ describe('tela de membros', () => {
     ]);
     expect(screen.getByText('Aguardando primeiro acesso')).toBeTruthy();
     expect(screen.queryByRole('form', { name: 'Pré-cadastro de membro' })).toBeNull();
+  });
+
+  it('pré-cadastra já vinculando às equipes e mostra o link de acesso', async () => {
+    const created = member('9', {
+      name: 'Nova',
+      email: 'nova@example.com',
+      linked: false,
+      teamIds: ['t1'],
+    });
+    const fetchMock = mockApi([member('1')], (url) => {
+      if (url === '/auth/me') {
+        return json({
+          id: '1',
+          email: 'a@b.c',
+          name: 'Ana',
+          role: 'manager',
+          phone: null,
+          participatesInRotation: true,
+          remindersEnabled: true,
+          isMaster: false,
+        });
+      }
+      if (url === '/api/teams') {
+        return json([
+          { id: 't1', name: 'Infra', role: 'manager' },
+          { id: 't2', name: 'Dados', role: 'member' },
+        ]);
+      }
+      return json(created, 201);
+    });
+    const user = userEvent.setup();
+    render(
+      <AuthProvider>
+        <TeamProvider>
+          <MembersPage />
+          <ToastViewport />
+        </TeamProvider>
+      </AuthProvider>,
+    );
+    await user.click(await screen.findByRole('button', { name: 'Pré-cadastrar membro' }));
+    const form = screen.getByRole('form', { name: 'Pré-cadastro de membro' });
+    // só equipes que o usuário gerencia aparecem
+    expect(await within(form).findByLabelText('Vincular a Infra')).toBeTruthy();
+    expect(within(form).queryByLabelText('Vincular a Dados')).toBeNull();
+    await user.type(within(form).getByLabelText('Nome'), 'Nova');
+    await user.type(within(form).getByLabelText('E-mail'), 'nova@example.com');
+    await user.click(within(form).getByLabelText('Vincular a Infra'));
+    await user.selectOptions(within(form).getByLabelText('Papel em Infra'), 'manager');
+    await user.click(within(form).getByRole('button', { name: 'Pré-cadastrar' }));
+    expect(await screen.findByText('Nova foi pré-cadastrado e vinculado às equipes.')).toBeTruthy();
+    expect(writes(fetchMock)).toEqual([
+      {
+        url: '/api/users',
+        method: 'POST',
+        body: {
+          name: 'Nova',
+          email: 'nova@example.com',
+          teams: [{ teamId: 't1', role: 'manager', participatesInRotation: false }],
+        },
+      },
+    ]);
+    const panel = screen.getByRole('status', { name: 'Link de acesso' });
+    expect((within(panel).getByLabelText('Link de acesso') as HTMLInputElement).value).toBe(
+      `${window.location.origin}/login`,
+    );
   });
 
   it('valida campos obrigatórios sem chamar a API', async () => {

@@ -3,8 +3,9 @@ import { addDays, TIME_ZONE } from '@diovanibmotta/plantao365-shared';
 import { z } from 'zod';
 import { recordAudit, type AuditJson } from '../audit/index.js';
 import { enqueueEmail, renderInviteEmail } from '../email/index.js';
-import type { Role } from '../auth/index.js';
+import type { AuthUser, Role } from '../auth/index.js';
 import type { Sql } from '../db.js';
+import { setTeamMemberTx } from '../teams/index.js';
 import type {
   CreateUserInput,
   ProfileDto,
@@ -57,12 +58,28 @@ export const updateProfileSchema = z
     message: 'Informe ao menos um campo para alterar',
   });
 
+// z.uuid() recusa o id da equipe principal (versão 0); basta o formato.
+const UUID_FORMAT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const nameSchema = z.string().trim().min(1, 'Nome obrigatório').max(200);
 
 export const createUserSchema = z
   .object({
     name: nameSchema,
     email: z.string().trim().toLowerCase().max(254).pipe(z.email('E-mail inválido')),
+    teams: z
+      .array(
+        z
+          .object({
+            teamId: z.string().regex(UUID_FORMAT, 'Equipe inválida'),
+            role: z.enum(['manager', 'member']).optional(),
+            participatesInRotation: z.boolean().optional(),
+          })
+          .strict(),
+      )
+      .max(100)
+      .refine((t) => new Set(t.map((x) => x.teamId)).size === t.length, 'Equipe repetida')
+      .optional(),
   })
   .strict();
 
@@ -166,15 +183,17 @@ export async function listUsers(db: Sql): Promise<UserListItemDto[]> {
 }
 
 /**
- * Pré-cadastro: somente nome e e-mail. O usuário não entra em nenhuma equipe (papel e rodízio
- * são definidos ao vinculá-lo a uma equipe) e recebe o e-mail de convite (outbox).
+ * Pré-cadastro: nome, e-mail e, opcionalmente, as equipes (com papel e rodízio). O vínculo vale
+ * antes do primeiro acesso, então ao entrar a pessoa já vê o papel da equipe, não o de convidado.
+ * Recebe o e-mail de convite (outbox). Tudo na mesma transação: equipe inválida desfaz o cadastro.
  */
 export async function createUser(
   db: Sql,
-  actorId: string,
+  actor: AuthUser,
   input: CreateUserInput,
   opts: { appBaseUrl?: string | undefined } = {},
 ): Promise<UserListItemDto> {
+  const actorId = actor.id;
   return db.begin(async (tx) => {
     const [existing] = await tx<UserRow[]>`select id from users where email = ${input.email}`;
     if (existing) {
@@ -191,6 +210,13 @@ export async function createUser(
       entityId: row!.id,
       after: snapshot(toProfile(row!)),
     });
+    const teams = [...(input.teams ?? [])].sort((a, b) => a.teamId.localeCompare(b.teamId));
+    for (const t of teams) {
+      await setTeamMemberTx(tx as unknown as Sql, actor, t.teamId, row!.id, {
+        role: t.role,
+        participatesInRotation: t.participatesInRotation,
+      });
+    }
     const invite = renderInviteEmail({
       name: row!.name,
       appUrl: opts.appBaseUrl ? new URL('/', opts.appBaseUrl).href : undefined,
@@ -200,7 +226,7 @@ export async function createUser(
       ...invite,
       dedupeKey: `invite:${row!.id}`,
     });
-    return toListItem(row!, []);
+    return toListItem(row!, await teamIdsOf(tx, row!.id));
   });
 }
 

@@ -31,6 +31,8 @@ export interface UpdateProfileInput {
 export interface CreateUserInput {
   name: string;
   email: string;
+  /** Equipes já vinculadas no cadastro (o gestor precisa gerenciá-las). */
+  teams?: { teamId: string; role?: 'manager' | 'member'; participatesInRotation?: boolean }[];
 }
 
 export interface UpdateUserInput {
