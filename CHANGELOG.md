@@ -1,3 +1,8 @@
+# [v1.12.0](https://github.com/diovanibmotta/plantao365/compare/v1.11.0...v1.12.0) (2026-11-24)
+
+## ✨ New Features
+- [`80acc4d`](https://github.com/diovanibmotta/plantao365/commit/80acc4d)  feat(web): visões de semana e dia no calendário com jornada de trabalho (#16) (Issues: [`#16`](https://github.com/diovanibmotta/plantao365/issues/16))
+
 # [v1.11.0](https://github.com/diovanibmotta/plantao365/compare/v1.10.1...v1.11.0) (2026-11-24)
 
 ## ✨ New Features
