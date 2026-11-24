@@ -55,6 +55,7 @@ const app = createApp({
   logger,
   db,
   authOptions,
+  corsOrigins: config.CORS_ALLOWED_ORIGINS,
   ...(config.WEB_DIST_DIR && { webDistDir: config.WEB_DIST_DIR }),
 });
 

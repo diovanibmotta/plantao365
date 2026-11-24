@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import type { HealthStatus } from '@diovanibmotta/plantao365-shared';
 import { pingDb, type Sql } from './db.js';
 import {
@@ -36,6 +37,8 @@ export interface AppDeps {
   allowedOrigins?: string[];
   /** Pasta do build do front; quando definida, a API também serve a SPA (imagem única). */
   webDistDir?: string;
+  /** Origens do front em outro domínio: habilita CORS com credenciais e as aceita no CSRF. */
+  corsOrigins?: string[];
   /** IdP injetado (testes); por padrão usa o Entra ID conforme authOptions. */
   oidcProvider?: OidcProvider;
 }
@@ -46,6 +49,7 @@ export function createApp({
   authOptions,
   allowedOrigins,
   webDistDir,
+  corsOrigins = [],
   oidcProvider,
 }: AppDeps): Hono {
   const app = new Hono();
@@ -73,11 +77,22 @@ export function createApp({
   });
 
   if (db && authOptions) {
-    app.use(
-      csrfProtection({
-        allowedOrigins: allowedOrigins ?? [new URL(authOptions.appBaseUrl).origin],
-      }),
-    );
+    const csrfOrigins = [
+      ...(allowedOrigins ?? [new URL(authOptions.appBaseUrl).origin]),
+      ...corsOrigins,
+    ];
+    if (corsOrigins.length > 0) {
+      app.use(
+        cors({
+          origin: corsOrigins,
+          credentials: true,
+          allowMethods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+          allowHeaders: ['Content-Type', 'Accept', 'X-Requested-With'],
+          maxAge: 600,
+        }),
+      );
+    }
+    app.use(csrfProtection({ allowedOrigins: csrfOrigins }));
     app.route(
       '/',
       createAuthRouter({
