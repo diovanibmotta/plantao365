@@ -58,9 +58,9 @@ describe('format', () => {
       startsAt: '2026-03-02T21:00:00.000Z',
       endsAt: '2026-03-03T11:00:00.000Z',
     };
-    expect(formatPeriod(weekday)).toBe('18h–08h');
+    expect(formatPeriod(weekday)).toBe('18:00–08:00');
     expect(formatPeriod({ ...weekday, dayType: 'weekend', startsAt: null, endsAt: null })).toBe(
-      '08h–08h',
+      '08:00–08:00',
     );
   });
 });

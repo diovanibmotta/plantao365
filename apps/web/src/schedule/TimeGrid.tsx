@@ -49,7 +49,7 @@ export interface TimeGridProps {
   workPeriods: readonly WorkPeriod[];
 }
 
-/** Grade de horas (00h–24h) por dia: plantões por pessoa e jornada de trabalho do time. */
+/** Grade de horas (00:00–24:00) por dia: plantões por pessoa e jornada de trabalho do time. */
 export function TimeGrid({
   dates,
   shifts,
@@ -104,7 +104,7 @@ export function TimeGrid({
             <div className="tg-gutter">
               {HOURS.map((h) => (
                 <span key={h} className="tg-hour" style={{ top: pct(h * 60) }}>
-                  {h === 0 ? '' : `${String(h).padStart(2, '0')}h`}
+                  {h === 0 ? '' : `${String(h).padStart(2, '0')}:00`}
                 </span>
               ))}
             </div>

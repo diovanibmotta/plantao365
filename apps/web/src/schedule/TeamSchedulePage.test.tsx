@@ -218,13 +218,13 @@ describe('TeamSchedulePage', () => {
     });
     renderPage('2026-03-10');
     const day = await screen.findByTestId('day-2026-03-02');
-    expect(within(day).getByText('19h–07h')).toBeTruthy();
+    expect(within(day).getByText('19:00–07:00')).toBeTruthy();
     expect(within(day).getByTitle('Termina no dia seguinte')).toBeTruthy();
     expect(within(day).getByText('12h')).toBeTruthy();
     expect(day.querySelector('img')?.getAttribute('src')).toBe('/api/users/u2/photo');
     const legend = screen.getByRole('list', { name: 'Legenda' });
-    await waitFor(() => expect(legend.textContent).toContain('Dia útil: 19h–07h (12h)'));
-    expect(legend.textContent).toContain('Feriado: 08h–08h (24h)');
+    await waitFor(() => expect(legend.textContent).toContain('Dia útil: 19:00–07:00 (12h)'));
+    expect(legend.textContent).toContain('Feriado: 08:00–08:00 (24h)');
   });
 
   it('exibe erro de carregamento', async () => {

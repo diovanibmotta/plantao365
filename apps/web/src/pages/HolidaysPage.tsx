@@ -184,7 +184,7 @@ export function HolidaysPage() {
           Novo feriado
         </button>
       </div>
-      <p className="holidays-hint muted">Feriado conta como plantão de 24h (08h às 08h).</p>
+      <p className="holidays-hint muted">Feriado conta como plantão de 24h (08:00 às 08:00).</p>
 
       <HolidayWarnings
         warnings={warnings}
