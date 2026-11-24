@@ -35,7 +35,6 @@ const schema = z
       .regex(/^postgres(ql)?:\/\//, 'deve começar com postgres:// ou postgresql://'),
     /** E-mails dos gestores iniciais, separados por vírgula (Requisito 1.6). */
     MANAGER_EMAILS: emailList,
-    OIDC_MOCK: bool,
     OIDC_ISSUER: optional(z.url()),
     OIDC_CLIENT_ID: optional(z.string()),
     OIDC_CLIENT_SECRET: optional(z.string()),
@@ -48,17 +47,13 @@ const schema = z
     SMTP_SECURE: optional(bool),
     /** Força o atributo Secure do cookie de sessão; sem valor, vale true só em produção. */
     COOKIE_SECURE: optional(strictBool),
+    /** Master key: usuário/senha de bootstrap para o primeiro acesso (ambos ou nenhum). */
+    MASTER_USERNAME: optional(z.string().min(3).max(64)),
+    MASTER_PASSWORD: optional(z.string().min(12, 'use ao menos 12 caracteres').max(256)),
     SESSION_TTL_SECONDS: z.coerce.number().int().min(60).default(28800),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV === 'production' && env.OIDC_MOCK) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['OIDC_MOCK'],
-        message: 'não pode ser true em produção',
-      });
-    }
-    if (!env.OIDC_MOCK && env.NODE_ENV === 'production') {
+    if (env.NODE_ENV === 'production') {
       for (const k of [
         'OIDC_ISSUER',
         'OIDC_CLIENT_ID',
@@ -76,11 +71,23 @@ const schema = z
         message: 'obrigatória quando SMTP_HOST está definido',
       });
     }
-    if (env.NODE_ENV === 'production' && env.MANAGER_EMAILS.length === 0) {
+    if (Boolean(env.MASTER_USERNAME) !== Boolean(env.MASTER_PASSWORD)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [env.MASTER_USERNAME ? 'MASTER_PASSWORD' : 'MASTER_USERNAME'],
+        message: 'MASTER_USERNAME e MASTER_PASSWORD devem ser definidos juntos',
+      });
+    }
+    if (
+      env.NODE_ENV === 'production' &&
+      env.MANAGER_EMAILS.length === 0 &&
+      !(env.MASTER_USERNAME && env.MASTER_PASSWORD)
+    ) {
       ctx.addIssue({
         code: 'custom',
         path: ['MANAGER_EMAILS'],
-        message: 'informe ao menos um gestor em produção',
+        message:
+          'informe ao menos um gestor ou a master key (MASTER_USERNAME/MASTER_PASSWORD) em produção',
       });
     }
   });

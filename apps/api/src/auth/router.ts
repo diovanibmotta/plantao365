@@ -4,10 +4,10 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { recordAudit } from '../audit/index.js';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
+import { createLoginLimiter, syncMasterUser, verifyMasterCredentials } from './master.js';
 import { sessionMiddleware } from './middleware.js';
 import {
   createEntraProvider,
-  createMockProvider,
   OidcError,
   pkceChallenge,
   type OidcIdentity,
@@ -34,13 +34,7 @@ export interface AuthRouterDeps {
   provider?: OidcProvider;
 }
 
-type Denial =
-  | 'invalid_state'
-  | 'idp_error'
-  | 'invalid_token'
-  | 'not_registered'
-  | 'inactive'
-  | 'identity_mismatch';
+type Denial = 'invalid_state' | 'idp_error' | 'invalid_token' | 'inactive' | 'identity_mismatch';
 
 const DENIAL_MESSAGES: Record<Denial, { status: 400 | 403; message: string }> = {
   invalid_state: {
@@ -51,10 +45,6 @@ const DENIAL_MESSAGES: Record<Denial, { status: 400 | 403; message: string }> = 
   invalid_token: {
     status: 403,
     message: 'Não foi possível validar sua identidade. Tente entrar novamente.',
-  },
-  not_registered: {
-    status: 403,
-    message: 'Seu e-mail não está cadastrado no Plantão365. Procure um gestor para ser incluído.',
   },
   inactive: {
     status: 403,
@@ -86,16 +76,15 @@ interface UserRow {
 
 export function createAuthRouter({ db, logger, options, provider }: AuthRouterDeps): Hono<AuthEnv> {
   const { oidc, cookieSecure, sessionTtlSeconds, appBaseUrl } = options;
-  if (oidc.mock && process.env['NODE_ENV'] === 'production') {
-    throw new Error('OIDC mock não pode ser usado em produção.');
-  }
-  const idp =
+  const ssoConfigured = Boolean(oidc.issuer && oidc.clientId && oidc.clientSecret);
+  const idp: OidcProvider | undefined =
     provider ??
-    (oidc.mock
-      ? createMockProvider()
-      : createEntraProvider(oidc, oidc.redirectUri ?? new URL('/auth/callback', appBaseUrl).href));
+    (ssoConfigured
+      ? createEntraProvider(oidc, oidc.redirectUri ?? new URL('/auth/callback', appBaseUrl).href)
+      : undefined);
   const cookieOptions = { secure: cookieSecure };
   const router = new Hono<AuthEnv>();
+  const limiter = createLoginLimiter();
 
   const deny = (c: Context, reason: Denial, email?: string) => {
     deleteCookie(c, STATE_COOKIE, { path: '/', secure: cookieSecure });
@@ -116,7 +105,42 @@ export function createAuthRouter({ db, logger, options, provider }: AuthRouterDe
     );
   };
 
+  /** Cria o usuário convidado do primeiro login SSO sem convite; retorna o existente se outra requisição criou antes. */
+  const createGuest = async (
+    email: string,
+    identity: OidcIdentity,
+  ): Promise<UserRow | undefined> => {
+    const name = identity.name ?? email.split('@')[0] ?? email;
+    return db.begin(async (tx) => {
+      const [created] = await tx<UserRow[]>`
+        insert into users (email, name, role, active, participates_in_rotation, reminders_enabled)
+        values (${email}, ${name}, 'guest', true, false, false)
+        on conflict (email) do nothing
+        returning id, name, oid, active`;
+      if (!created) {
+        const [existing] = await tx<UserRow[]>`
+          select id, name, oid, active from users where email = ${email} and not is_master`;
+        return existing;
+      }
+      await recordAudit(tx, {
+        actorId: null,
+        action: 'create',
+        entityType: 'user',
+        entityId: created.id,
+        after: { email, role: 'guest', active: true },
+        reason: 'primeiro login SSO sem convite',
+      });
+      return created;
+    });
+  };
+
   router.get('/auth/login', async (c) => {
+    if (!idp) {
+      return c.json(
+        { error: 'sso_not_configured', message: 'Login SSO não configurado neste ambiente.' },
+        503,
+      );
+    }
     await db`delete from oidc_login_states where expires_at <= now()`;
     const state = newToken();
     const nonce = newToken();
@@ -131,14 +155,6 @@ export function createAuthRouter({ db, logger, options, provider }: AuthRouterDe
       maxAge: STATE_TTL_SECONDS,
     });
 
-    if (idp.mock) {
-      return c.html(
-        page(
-          'Login de desenvolvimento (IdP simulado)',
-          `<form method="get" action="/auth/callback"><input type="hidden" name="state" value="${escapeHtml(state)}"><label>E-mail <input type="email" name="email" required autofocus></label> <button type="submit">Entrar</button></form>`,
-        ),
-      );
-    }
     try {
       const url = await idp.authorizationUrl({
         state,
@@ -153,6 +169,7 @@ export function createAuthRouter({ db, logger, options, provider }: AuthRouterDe
   });
 
   router.get('/auth/callback', async (c) => {
+    if (!idp) return deny(c, 'idp_error');
     const params = new URL(c.req.url).searchParams;
     const state = params.get('state');
     const cookieState = getCookie(c, STATE_COOKIE);
@@ -177,10 +194,14 @@ export function createAuthRouter({ db, logger, options, provider }: AuthRouterDe
     }
 
     const email = identity.email.toLowerCase();
-    const [user] = await db<
+    let [user] = await db<
       UserRow[]
-    >`select id, name, oid, active from users where email = ${email}`;
-    if (!user) return deny(c, 'not_registered', email);
+    >`select id, name, oid, active from users where email = ${email} and not is_master`;
+    if (!user) {
+      // Sem convite: entra como convidado (somente leitura do calendário).
+      user = await createGuest(email, identity);
+      if (!user) return deny(c, 'inactive', email);
+    }
     if (!user.active) return deny(c, 'inactive', email);
     if (user.oid && user.oid !== identity.oid) return deny(c, 'identity_mismatch', email);
 
@@ -213,6 +234,51 @@ export function createAuthRouter({ db, logger, options, provider }: AuthRouterDe
     writeSessionCookie(c, token, sessionTtlSeconds, cookieOptions);
     logger.info({ userId: user.id }, 'login succeeded');
     return c.redirect(appBaseUrl, 302);
+  });
+
+  router.get('/auth/config', (c) =>
+    c.json({ masterLogin: options.master !== undefined, sso: idp !== undefined }),
+  );
+
+  router.post('/auth/master-login', async (c) => {
+    const master = options.master;
+    if (!master) return c.json({ error: 'master_disabled' }, 404);
+    if (limiter.blocked()) {
+      logger.warn('master login blocked: too many failures');
+      return c.json(
+        { error: 'too_many_attempts', message: 'Muitas tentativas. Aguarde alguns minutos.' },
+        429,
+      );
+    }
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      body = undefined;
+    }
+    const { username, password } = (body ?? {}) as { username?: unknown; password?: unknown };
+    if (
+      typeof username !== 'string' ||
+      typeof password !== 'string' ||
+      !verifyMasterCredentials(master, username, password)
+    ) {
+      limiter.fail();
+      logger.warn('master login denied');
+      return c.json({ error: 'invalid_credentials', message: 'Usuário ou senha inválidos.' }, 401);
+    }
+    limiter.reset();
+    const userId = await syncMasterUser(db, master);
+    if (!userId) return c.json({ error: 'master_disabled' }, 404);
+    await recordAudit(db, {
+      actorId: userId,
+      action: 'master.login',
+      entityType: 'user',
+      entityId: userId,
+    });
+    const { token } = await createSession(db, userId, sessionTtlSeconds);
+    writeSessionCookie(c, token, sessionTtlSeconds, cookieOptions);
+    logger.info({ userId }, 'master login succeeded');
+    return c.json({ ok: true });
   });
 
   router.post('/auth/logout', async (c) => {

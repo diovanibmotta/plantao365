@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
-import { requireAuth, requireRole } from './authz.js';
+import { guestGuard, requireAuth, requireRole } from './authz.js';
 import { csrfProtection } from './csrf.js';
 import type { AuthEnv, AuthUser } from './types.js';
 
@@ -12,6 +12,7 @@ const user = (role: AuthUser['role']): AuthUser => ({
   phone: null,
   participatesInRotation: true,
   remindersEnabled: true,
+  isMaster: false,
 });
 
 function build(current: AuthUser | null) {
@@ -104,5 +105,69 @@ describe('csrfProtection', () => {
     expect((await app.request('/x', { headers: { origin: 'http://evil.example' } })).status).toBe(
       200,
     );
+  });
+});
+
+describe('guest role', () => {
+  it('passes requireAuth but not member or manager routes', async () => {
+    const app = build(user('guest'));
+    expect((await app.request('/auth-only')).status).toBe(200);
+    expect((await app.request('/member')).status).toBe(403);
+    expect((await app.request('/manager')).status).toBe(403);
+  });
+});
+
+describe('guestGuard', () => {
+  function guarded(current: AuthUser | null) {
+    const app = new Hono<AuthEnv>();
+    app.use(async (c, next) => {
+      c.set('user', current);
+      await next();
+    });
+    app.use('/api/*', guestGuard());
+    app.all('/api/*', (c) => c.json({ ok: true }));
+    return app;
+  }
+
+  it('lets a guest read only the calendar endpoints', async () => {
+    const app = guarded(user('guest'));
+    for (const path of [
+      '/api/me',
+      '/api/shifts?start=2026-01-01',
+      '/api/holidays',
+      '/api/shift-settings',
+      '/api/schedules',
+      '/api/schedules/abc',
+      '/api/users/abc/photo',
+    ]) {
+      expect((await app.request(path)).status, path).toBe(200);
+    }
+  });
+
+  it('blocks everything else for a guest, including writes', async () => {
+    const app = guarded(user('guest'));
+    for (const [method, path] of [
+      ['GET', '/api/shifts/mine'],
+      ['GET', '/api/unavailabilities'],
+      ['GET', '/api/swaps'],
+      ['GET', '/api/balance'],
+      ['GET', '/api/users'],
+      ['GET', '/api/audit'],
+      ['GET', '/api/me/preferences'],
+      ['PATCH', '/api/me'],
+      ['POST', '/api/schedules'],
+      ['DELETE', '/api/holidays/x'],
+    ] as const) {
+      const res = await app.request(path, { method });
+      expect(res.status, `${method} ${path}`).toBe(403);
+      expect(await res.json()).toMatchObject({ error: 'guest_forbidden' });
+    }
+  });
+
+  it('does not interfere with members, managers or anonymous requests', async () => {
+    for (const current of [user('member'), user('manager'), null]) {
+      const res = await guarded(current).request('/api/swaps', { method: 'POST' });
+      expect(res.status).toBe(200);
+    }
   });
 });

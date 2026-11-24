@@ -1,6 +1,6 @@
 import { serve } from '@hono/node-server';
 import { createApp } from './app.js';
-import { bootstrapManagers, type AuthOptions } from './auth/index.js';
+import { bootstrapManagers, syncMasterUser, type AuthOptions } from './auth/index.js';
 import { ConfigError, loadConfig } from './config.js';
 import { createDb } from './db.js';
 import { createMailer, startOutboxWorker, type SmtpOptions } from './email/index.js';
@@ -23,12 +23,15 @@ const authOptions: AuthOptions = {
   cookieSecure: config.COOKIE_SECURE ?? config.NODE_ENV === 'production',
   sessionTtlSeconds: config.SESSION_TTL_SECONDS,
   oidc: {
-    mock: config.OIDC_MOCK,
     issuer: config.OIDC_ISSUER,
     clientId: config.OIDC_CLIENT_ID,
     clientSecret: config.OIDC_CLIENT_SECRET,
     redirectUri: config.OIDC_REDIRECT_URI,
   },
+  master:
+    config.MASTER_USERNAME && config.MASTER_PASSWORD
+      ? { username: config.MASTER_USERNAME, password: config.MASTER_PASSWORD }
+      : undefined,
 };
 
 const smtp: SmtpOptions | undefined =
@@ -44,6 +47,7 @@ const smtp: SmtpOptions | undefined =
     : undefined;
 
 await bootstrapManagers(db, config.MANAGER_EMAILS);
+await syncMasterUser(db, authOptions.master);
 const mailer = createMailer(smtp, logger);
 const worker = startOutboxWorker({ sql: db, mailer, logger });
 const reminders = startReminderJob({ sql: db, logger, appBaseUrl: config.APP_BASE_URL });

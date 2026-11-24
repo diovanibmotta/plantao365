@@ -40,6 +40,7 @@ interface TeamSchedulePageProps {
 export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
   const today = todayProp ?? todayLocal();
   const { user } = useAuth();
+  const isGuest = user?.role === 'guest';
   const [month, setMonth] = useState<MonthKey>(() => monthKeyOf(today));
   const [member, setMember] = useState('');
   const [loaded, setLoaded] = useState<{ month: MonthKey; outcome: Outcome } | null>(null);
@@ -59,10 +60,17 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
     const controller = new AbortController();
     const { from, to } = monthRange(month);
     const range = `from=${from}&to=${to}`;
+    // Convidado não acessa exceções; vê só plantões e feriados.
+    const noVacations = { items: [] as UnavailabilityDto[] };
     Promise.all([
       api.get<ShiftDto[]>(`/api/shifts?${range}`, controller.signal),
       api.get<{ items: HolidayDto[] }>(`/api/holidays?${range}`, controller.signal),
-      api.get<{ items: UnavailabilityDto[] }>(`/api/unavailabilities?${range}`, controller.signal),
+      isGuest
+        ? Promise.resolve(noVacations)
+        : api.get<{ items: UnavailabilityDto[] }>(
+            `/api/unavailabilities?${range}`,
+            controller.signal,
+          ),
     ])
       .then(([shifts, holidays, vacations]) =>
         setLoaded({
@@ -82,7 +90,7 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
         setLoaded({ month, outcome: { error } });
       });
     return () => controller.abort();
-  }, [month]);
+  }, [month, isGuest]);
 
   const outcome = loaded?.month === month ? loaded.outcome : null;
   const data = outcome && 'data' in outcome ? outcome.data : null;

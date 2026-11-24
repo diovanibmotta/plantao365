@@ -206,6 +206,60 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
       }
     });
 
+    it('enqueues an invite e-mail when a user is created', async () => {
+      const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
+      await sql`delete from email_outbox`;
+      await call('POST', '/users', g.cookie, { name: 'Bia', email: 'bia@x.com' });
+      const rows = await sql<{ to_address: string; subject: string }[]>`
+        select to_address, subject from email_outbox`;
+      expect(rows).toEqual([
+        { to_address: 'bia@x.com', subject: 'Você foi convidado para o Plantão365' },
+      ]);
+    });
+
+    it('promotes an existing guest instead of conflicting', async () => {
+      const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
+      const guest = await loginAs(sql, {
+        email: 'visita@x.com',
+        role: 'guest',
+        participatesInRotation: false,
+      });
+      const res = await call('POST', '/users', g.cookie, { name: 'Visita', email: 'visita@x.com' });
+      expect(res.status).toBe(201);
+      expect(await res.json()).toMatchObject({
+        id: guest.id,
+        role: 'member',
+        participatesInRotation: true,
+      });
+      const audit = await auditFor(guest.id);
+      expect(audit[0]).toMatchObject({ action: 'update', actor_id: g.id });
+    });
+
+    it('lets a manager demote to guest (out of the rotation) and hides the master user', async () => {
+      const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
+      const m = await loginAs(sql, { email: 'm@x.com', role: 'member' });
+      const res = await call('PATCH', `/users/${m.id}`, g.cookie, { role: 'guest' });
+      expect(await res.json()).toMatchObject({ role: 'guest', participatesInRotation: false });
+
+      const [master] = await sql<{ id: string }[]>`
+        insert into users (email, name, role, is_master, participates_in_rotation)
+        values ('master@plantao365.invalid', 'root', 'manager', true, false) returning id`;
+      const list = (await (await call('GET', '/users', g.cookie)).json()) as { id: string }[];
+      expect(list.map((u) => u.id)).not.toContain(master!.id);
+      const patch = await call('PATCH', `/users/${master!.id}`, g.cookie, { active: false });
+      expect(patch.status).toBe(404);
+    });
+
+    it('rejects inviting directly as guest', async () => {
+      const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
+      const res = await call('POST', '/users', g.cookie, {
+        name: 'X',
+        email: 'a@x.com',
+        role: 'guest',
+      });
+      expect(res.status).toBe(400);
+    });
+
     it('requires CSRF header on POST', async () => {
       const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
       const res = await app.request('/users', {

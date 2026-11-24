@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react';
 import { api, UnauthorizedError } from '../api/client';
 
-export type Role = 'manager' | 'member';
+export type Role = 'manager' | 'member' | 'guest';
 
 export interface AuthUser {
   id: string;
@@ -12,6 +12,7 @@ export interface AuthUser {
   phone: string | null;
   participatesInRotation: boolean;
   remindersEnabled: boolean;
+  isMaster: boolean;
 }
 
 export type AuthStatus = 'loading' | 'authenticated' | 'anonymous';

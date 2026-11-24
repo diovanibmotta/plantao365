@@ -157,7 +157,7 @@ export function createSwapsRouter({
           action,
           swapId: id.data,
           actorId: user.id,
-          actorRole: user.role,
+          actorRole: user.role === 'manager' ? 'manager' : 'member',
           reason,
           now: now(),
         });

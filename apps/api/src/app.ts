@@ -5,9 +5,11 @@ import { pingDb, type Sql } from './db.js';
 import {
   createAuthRouter,
   csrfProtection,
+  guestGuard,
   requireRole,
   sessionMiddleware,
   type AuthOptions,
+  type OidcProvider,
 } from './auth/index.js';
 import { createAuditRouter } from './audit/index.js';
 import { createBalanceRouter } from './balance/index.js';
@@ -31,9 +33,17 @@ export interface AppDeps {
   db?: Sql;
   authOptions?: AuthOptions;
   allowedOrigins?: string[];
+  /** IdP injetado (testes); por padrão usa o Entra ID conforme authOptions. */
+  oidcProvider?: OidcProvider;
 }
 
-export function createApp({ logger, db, authOptions, allowedOrigins }: AppDeps): Hono {
+export function createApp({
+  logger,
+  db,
+  authOptions,
+  allowedOrigins,
+  oidcProvider,
+}: AppDeps): Hono {
   const app = new Hono();
 
   app.use(async (c, next) => {
@@ -64,10 +74,26 @@ export function createApp({ logger, db, authOptions, allowedOrigins }: AppDeps):
         allowedOrigins: allowedOrigins ?? [new URL(authOptions.appBaseUrl).origin],
       }),
     );
-    app.route('/', createAuthRouter({ db, logger, options: authOptions }));
+    app.route(
+      '/',
+      createAuthRouter({
+        db,
+        logger,
+        options: authOptions,
+        ...(oidcProvider && { provider: oidcProvider }),
+      }),
+    );
     app.use(sessionMiddleware({ db, cookieOptions: { secure: authOptions.cookieSecure } }));
+    app.use('/api/*', guestGuard());
     app.route('/api', createAuditRouter({ db, guard: requireRole('manager') }));
-    app.route('/api', createUsersRouter({ db, futureShiftsFinder: findPublishedShiftsForUser }));
+    app.route(
+      '/api',
+      createUsersRouter({
+        db,
+        futureShiftsFinder: findPublishedShiftsForUser,
+        appBaseUrl: authOptions.appBaseUrl,
+      }),
+    );
     const notifyDeps = { db, appBaseUrl: authOptions.appBaseUrl, logger };
     app.route(
       '/api',

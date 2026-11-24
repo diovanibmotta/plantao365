@@ -48,7 +48,6 @@ export interface OidcExpected {
 }
 
 export interface OidcProvider {
-  readonly mock: boolean;
   authorizationUrl(params: { state: string; nonce: string; codeChallenge: string }): Promise<URL>;
   /** Valida a resposta do IdP e devolve a identidade; lança erro se o retorno for inválido. */
   exchange(callbackParams: URLSearchParams, expected: OidcExpected): Promise<OidcIdentity>;
@@ -92,7 +91,6 @@ export function createEntraProvider(opts: OidcOptions, redirectUri: string): Oid
   };
 
   return {
-    mock: false,
     async authorizationUrl({ state, nonce, codeChallenge }) {
       return client.buildAuthorizationUrl(await getConfig(), {
         redirect_uri: redirectUri,
@@ -123,22 +121,6 @@ export function createEntraProvider(opts: OidcOptions, redirectUri: string): Oid
         if (err instanceof OidcError) throw err;
         throw new OidcError('Falha na validação do login.', { cause: err });
       }
-    },
-  };
-}
-
-/** IdP falso para desenvolvimento: o e-mail vem do formulário de /auth/login. */
-export function createMockProvider(): OidcProvider {
-  return {
-    mock: true,
-    authorizationUrl() {
-      return Promise.reject(new Error('IdP mock não usa redirecionamento.'));
-    },
-    exchange(params, { state }) {
-      if (params.get('state') !== state) throw new OidcError('Estado inválido.');
-      const email = params.get('email')?.trim().toLowerCase();
-      if (!email?.includes('@')) throw new OidcError('Informe um e-mail válido.');
-      return Promise.resolve({ email, name: undefined, oid: `mock:${email}` });
     },
   };
 }

@@ -242,6 +242,7 @@ describe('tela de membros', () => {
       phone: null,
       participatesInRotation: true,
       remindersEnabled: true,
+      isMaster: false,
     };
     const fetchMock = vi.fn((url: string) =>
       Promise.resolve(url === '/auth/me' ? json(me) : json([])),

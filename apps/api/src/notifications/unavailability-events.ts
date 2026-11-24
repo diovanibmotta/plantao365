@@ -27,7 +27,7 @@ export async function notifyUnavailabilityConflict(
     select name from users where id = ${event.userId}`;
   if (!member) return 0;
   const managers = await sql<{ id: string; email: string }[]>`
-    select id, email from users where active and role = 'manager' order by id`;
+    select id, email from users where active and role = 'manager' and not is_master order by id`;
   const appUrl = opts.appBaseUrl ? new URL('/schedule', opts.appBaseUrl).href : undefined;
   const dates = [...new Set(event.dates)].sort();
   const rendered = renderUnavailabilityConflictEmail({

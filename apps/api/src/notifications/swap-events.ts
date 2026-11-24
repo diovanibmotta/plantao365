@@ -33,7 +33,7 @@ async function activeUsers(sql: Sql, ids: string[]): Promise<Map<string, Recipie
 
 async function activeManagers(sql: Sql): Promise<Recipient[]> {
   return sql<Recipient[]>`
-    select id, name, email from users where active and role = 'manager' order by id`;
+    select id, name, email from users where active and role = 'manager' and not is_master order by id`;
 }
 
 /**

@@ -19,6 +19,7 @@ const me = (role: AuthUser['role']): AuthUser => ({
   phone: null,
   participatesInRotation: true,
   remindersEnabled: true,
+  isMaster: false,
 });
 
 const months = Array.from({ length: 12 }, (_, i) => ({
