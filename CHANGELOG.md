@@ -1,3 +1,8 @@
+# [v1.19.0](https://github.com/diovanibmotta/plantao365/compare/v1.18.0...v1.19.0) (2026-11-24)
+
+## ✨ New Features
+- [`cf2a1a2`](https://github.com/diovanibmotta/plantao365/commit/cf2a1a2) : feat(web): banner fixo de recursos não configurados na implantação (#30) (Issues: [`#30`](https://github.com/diovanibmotta/plantao365/issues/30))
+
 # [v1.18.0](https://github.com/diovanibmotta/plantao365/compare/v1.17.0...v1.18.0) (2026-11-24)
 
 ## ✨ New Features
