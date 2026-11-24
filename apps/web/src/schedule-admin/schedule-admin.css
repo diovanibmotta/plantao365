@@ -138,3 +138,9 @@
   margin: var(--space) 0;
   padding: 12px;
 }
+
+.sad-periods {
+  margin: 0 0 var(--space);
+  padding: 0;
+  list-style: none;
+}
