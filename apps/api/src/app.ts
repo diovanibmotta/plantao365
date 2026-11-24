@@ -27,6 +27,7 @@ import { createOnSwapEvent } from './notifications/swap-events.js';
 import { createSwapsRouter } from './swaps/index.js';
 import { createUnavailabilityRouter } from './unavailability/index.js';
 import { createUsersRouter } from './users/index.js';
+import { mountWeb } from './web.js';
 import type { Logger } from './logger.js';
 
 export interface AppDeps {
@@ -34,6 +35,8 @@ export interface AppDeps {
   db?: Sql;
   authOptions?: AuthOptions;
   allowedOrigins?: string[];
+  /** Pasta do build do front; quando definida, a API também serve a SPA (imagem única). */
+  webDistDir?: string;
   /** Origens do front em outro domínio: habilita CORS com credenciais e as aceita no CSRF. */
   corsOrigins?: string[];
   /** IdP injetado (testes); por padrão usa o Entra ID conforme authOptions. */
@@ -45,6 +48,7 @@ export function createApp({
   db,
   authOptions,
   allowedOrigins,
+  webDistDir,
   corsOrigins = [],
   oidcProvider,
 }: AppDeps): Hono {
@@ -154,6 +158,8 @@ export function createApp({
     const ok = await pingDb(db);
     return c.json({ status: ok ? 'ok' : 'unavailable', db: ok ? 'up' : 'down' }, ok ? 200 : 503);
   });
+
+  if (webDistDir) mountWeb(app, webDistDir);
 
   return app;
 }

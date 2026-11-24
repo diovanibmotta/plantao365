@@ -66,6 +66,8 @@ const schema = z
     SMTP_PASSWORD: optional(z.string()),
     SMTP_FROM: optional(z.email()),
     SMTP_SECURE: optional(bool),
+    /** Pasta do build do front (imagem única): a API serve a SPA no mesmo domínio. */
+    WEB_DIST_DIR: optional(z.string()),
     /**
      * Origens do front servidas em outro domínio que a API (ex.: CDN em plantao.exemplo.com e API
      * em api.exemplo.com), separadas por vírgula. Habilita CORS com credenciais. Vazio: mesmo domínio.
