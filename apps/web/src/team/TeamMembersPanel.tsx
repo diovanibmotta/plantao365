@@ -1,11 +1,22 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
-import { describeError } from '../members/types';
+import { describeError, ROLE_OPTIONS } from '../members/types';
+import type { TeamRole } from '../members/types';
 
 interface TeamMember {
   id: string;
   name: string;
   email: string;
+  active: boolean;
+  role: TeamRole;
+  participatesInRotation: boolean;
+}
+
+interface Candidate {
+  id: string;
+  name: string;
+  email: string;
+  active: boolean;
 }
 
 interface Props {
@@ -13,11 +24,13 @@ interface Props {
   teamName: string;
 }
 
-/** Membros de uma equipe: lista, desvincula e vincula usuários já cadastrados. */
+/** Membros de uma equipe: papel e rodízio são definidos aqui, por equipe. */
 export function TeamMembersPanel({ teamId, teamName }: Props) {
   const [members, setMembers] = useState<TeamMember[] | null>(null);
-  const [candidates, setCandidates] = useState<TeamMember[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selected, setSelected] = useState('');
+  const [newRole, setNewRole] = useState<TeamRole>('member');
+  const [newParticipates, setNewParticipates] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,7 +38,7 @@ export function TeamMembersPanel({ teamId, teamName }: Props) {
     const controller = new AbortController();
     Promise.all([
       api.get<TeamMember[]>(`/api/teams/${teamId}/members`, controller.signal),
-      api.get<TeamMember[]>('/api/users', controller.signal),
+      api.get<Candidate[]>('/api/users', controller.signal),
     ])
       .then(([list, users]) => {
         setMembers(list);
@@ -39,21 +52,30 @@ export function TeamMembersPanel({ teamId, teamName }: Props) {
     return () => controller.abort();
   }, [teamId]);
 
-  const available = candidates.filter((u) => !members?.some((m) => m.id === u.id));
+  const available = candidates.filter((u) => u.active && !members?.some((m) => m.id === u.id));
 
-  async function link() {
-    const user = available.find((u) => u.id === selected);
-    if (!user) return;
+  async function save(userId: string, body: { role?: TeamRole; participatesInRotation?: boolean }) {
     setBusy(true);
     setError(null);
     try {
-      await api.put(`/api/teams/${teamId}/members/${user.id}`);
-      setMembers((prev) => [...(prev ?? []), user]);
-      setSelected('');
+      const saved = await api.put<TeamMember>(`/api/teams/${teamId}/members/${userId}`, body);
+      setMembers((prev) => {
+        const rest = (prev ?? []).filter((m) => m.id !== userId);
+        return [...rest, saved].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+      });
+      return true;
     } catch (err) {
-      setError(describeError(err, 'Não foi possível vincular o membro.'));
+      setError(describeError(err, 'Não foi possível salvar o membro.'));
+      return false;
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function link() {
+    if (!selected) return;
+    if (await save(selected, { role: newRole, participatesInRotation: newParticipates })) {
+      setSelected('');
     }
   }
 
@@ -87,16 +109,41 @@ export function TeamMembersPanel({ teamId, teamName }: Props) {
             <li key={m.id}>
               <span>
                 {m.name} <span className="muted">{m.email}</span>
+                {!m.active && <span className="muted"> (inativo)</span>}
               </span>
-              <button
-                type="button"
-                className="btn"
-                disabled={busy}
-                aria-label={`Desvincular ${m.name} de ${teamName}`}
-                onClick={() => void unlink(m)}
-              >
-                Desvincular
-              </button>
+              <span className="teams-member-controls">
+                <select
+                  aria-label={`Papel de ${m.name} em ${teamName}`}
+                  value={m.role}
+                  disabled={busy}
+                  onChange={(e) => void save(m.id, { role: e.target.value as TeamRole })}
+                >
+                  {ROLE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+                <label className="members-check">
+                  <input
+                    type="checkbox"
+                    aria-label={`Participa do rodízio: ${m.name}`}
+                    checked={m.participatesInRotation}
+                    disabled={busy}
+                    onChange={(e) => void save(m.id, { participatesInRotation: e.target.checked })}
+                  />
+                  Rodízio
+                </label>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  aria-label={`Desvincular ${m.name} de ${teamName}`}
+                  onClick={() => void unlink(m)}
+                >
+                  Desvincular
+                </button>
+              </span>
             </li>
           ))}
         </ul>
@@ -116,6 +163,32 @@ export function TeamMembersPanel({ teamId, teamName }: Props) {
               </option>
             ))}
           </select>
+          <select
+            aria-label="Papel do novo membro"
+            value={newRole}
+            disabled={busy}
+            onChange={(e) => {
+              const role = e.target.value as TeamRole;
+              setNewRole(role);
+              setNewParticipates(role === 'member');
+            }}
+          >
+            {ROLE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <label className="members-check">
+            <input
+              type="checkbox"
+              aria-label="Novo membro participa do rodízio"
+              checked={newParticipates}
+              disabled={busy}
+              onChange={(e) => setNewParticipates(e.target.checked)}
+            />
+            Rodízio
+          </label>
           <button
             type="button"
             className="btn primary"

@@ -71,16 +71,32 @@ describe('página Equipes', () => {
 
   it('vincula e desvincula membros da equipe', async () => {
     const teams = [{ id: 't1', name: 'Infra' }];
-    const ana = { id: '1', name: 'Ana Souza', email: 'a@b.c' };
-    const bia = { id: '2', name: 'Bia Lima', email: 'b@b.c' };
+    const ana = {
+      id: '1',
+      name: 'Ana Souza',
+      email: 'a@b.c',
+      active: true,
+      role: 'manager',
+      participatesInRotation: false,
+    };
+    const bia = {
+      id: '2',
+      name: 'Bia Lima',
+      email: 'b@b.c',
+      active: true,
+      role: 'member',
+      participatesInRotation: true,
+    };
     let members = [ana];
+    const puts: unknown[] = [];
     vi.stubGlobal(
       'fetch',
       vi.fn((url: string, init?: RequestInit) => {
         if (url === '/auth/me') return Promise.resolve(json(me));
         if (url === '/api/teams/t1/members/2' && init?.method === 'PUT') {
+          puts.push(JSON.parse(String(init.body)));
           members = [...members, bia];
-          return Promise.resolve(new Response(null, { status: 204 }));
+          return Promise.resolve(json(bia));
         }
         if (url === '/api/teams/t1/members/1' && init?.method === 'DELETE') {
           members = members.filter((m) => m.id !== '1');
@@ -104,10 +120,20 @@ describe('página Equipes', () => {
     await screen.findByRole('button', { name: 'Desvincular Ana Souza de Infra' });
 
     await userEvent.selectOptions(screen.getByLabelText('Adicionar membro a Infra'), '2');
+    await userEvent.selectOptions(screen.getByLabelText('Papel do novo membro'), 'manager');
+    await userEvent.selectOptions(screen.getByLabelText('Papel do novo membro'), 'member');
     await userEvent.click(screen.getByRole('button', { name: 'Vincular a Infra' }));
     expect(
       await screen.findByRole('button', { name: 'Desvincular Bia Lima de Infra' }),
     ).toBeTruthy();
+
+    expect(puts).toEqual([{ role: 'member', participatesInRotation: true }]);
+    expect((screen.getByLabelText('Papel de Ana Souza em Infra') as HTMLSelectElement).value).toBe(
+      'manager',
+    );
+    expect(
+      (screen.getByLabelText('Participa do rodízio: Ana Souza') as HTMLInputElement).checked,
+    ).toBe(false);
 
     await userEvent.click(screen.getByRole('button', { name: 'Desvincular Ana Souza de Infra' }));
     await waitFor(() =>

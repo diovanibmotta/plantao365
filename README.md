@@ -7,7 +7,7 @@ Gestão de escala de plantão (sobreaviso) para equipes: rodízio automático co
 ## Funcionalidades
 
 - Login corporativo via SSO Microsoft Entra ID (OIDC), com acesso master (master key) para o primeiro acesso.
-- Papéis **gestor** e **membro**; acesso apenas para e-mails pré-cadastrados.
+- Papéis **gestor** e **membro** (e participação no rodízio) definidos por equipe; acesso apenas para e-mails pré-cadastrados.
 - Calendário de feriados e férias coletivas cadastrados no sistema.
 - Regras de turno: dia útil 14h (18h–08h); fim de semana e feriado 24h (08h–08h); férias coletivas 0h. Fuso `America/Sao_Paulo`.
 - Exceções (férias, folga, outro) e preferências brandas (dias a evitar, máximo de plantões consecutivos).
@@ -174,8 +174,8 @@ Escopos solicitados: `openid`, `profile`, `email` e `User.Read` (Microsoft Graph
 ### Master key, convites e convidados
 
 - **Master key**: com `MASTER_USERNAME` e `MASTER_PASSWORD` definidos, a tela de login ganha "Acesso master". O usuário master é gestor, fica fora do rodízio e não aparece na Equipe; suas ações são auditadas. Gere a senha aleatória, como se faz com a master key do LiteLLM (ex.: `sk-$(openssl rand -hex 24)`; no PowerShell, `"sk-" + -join ((1..24) | % { '{0:x2}' -f (Get-Random -Max 256) })`), guarde-a em um cofre e não a reutilize. A partir dele, cadastre os demais (convites) e configure o restante. Remover as variáveis desativa o acesso e encerra as sessões master. Após 5 falhas em 15 minutos o login master é bloqueado (429) até a janela esvaziar. Use senha forte e HTTPS.
-- **Convite**: cadastrar um usuário em Equipe é o convite; ele entra via SSO com o papel atribuído e recebe um e-mail (fila `email_outbox`).
-- **Convidado**: quem entra via SSO sem convite vira usuário `guest` e só lê o calendário de escala publicada e feriados; qualquer outra rota ou alteração responde 403. Um gestor pode convidá-lo depois (promove o mesmo usuário) ou rebaixar alguém para convidado na Equipe.
+- **Convite**: pré-cadastrar um membro (nome e e-mail, em Membros) é o convite e envia um e-mail (fila `email_outbox`). O membro não entra em nenhuma equipe sozinho: o gestor o vincula em Equipes › Membros, onde define o papel (gestor/membro) e a participação no rodízio daquela equipe.
+- **Convidado**: quem entra via SSO sem convite vira usuário `guest` e só lê o calendário de escala publicada e feriados; qualquer outra rota ou alteração responde 403. Ao ser vinculado a uma equipe, ele deixa de ser convidado.
 
 ## Scripts
 

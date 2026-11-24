@@ -37,6 +37,7 @@ export async function bootstrapManagers(db: Sql, emails: readonly string[]): Pro
       if (existing.role === 'manager' && existing.active) return false;
       await tx`update users set role = 'manager', active = true, updated_at = now()
         where id = ${existing.id}`;
+      await tx`update team_members set role = 'manager' where user_id = ${existing.id}`;
       await recordAudit(tx, {
         actorId: null,
         action: 'update',
@@ -50,8 +51,9 @@ export async function bootstrapManagers(db: Sql, emails: readonly string[]): Pro
     });
     // Gestor sem equipe não acessa nada: entra na equipe mais antiga (a padrão da migração).
     await db`
-      insert into team_members (team_id, user_id)
-      select (select id from teams order by created_at, id limit 1), u.id from users u
+      insert into team_members (team_id, user_id, role, participates_in_rotation)
+      select (select id from teams order by created_at, id limit 1), u.id, 'manager', false
+      from users u
       where u.email = ${email}
         and not exists (select 1 from team_members m where m.user_id = u.id)
       on conflict do nothing`;

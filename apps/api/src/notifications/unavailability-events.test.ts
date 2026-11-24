@@ -27,8 +27,8 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
         values (${name}, ${`${name.toLowerCase()}@example.com`}, ${opts.active ?? true},
           ${opts.role ?? 'member'})
         returning id`;
-      await sql`insert into team_members (team_id, user_id)
-        values ('00000000-0000-0000-0000-000000000001', ${r!.id})`;
+      await sql`insert into team_members (team_id, user_id, role)
+        values ('00000000-0000-0000-0000-000000000001', ${r!.id}, ${opts.role ?? 'member'})`;
       return r!.id;
     }
 

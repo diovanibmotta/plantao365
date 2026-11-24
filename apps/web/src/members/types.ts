@@ -1,38 +1,29 @@
 import { ApiError } from '../api/client';
 
 export type MemberRole = 'manager' | 'member' | 'guest';
+export type TeamRole = 'manager' | 'member';
 
 export interface Member {
   id: string;
   name: string;
   email: string;
-  role: MemberRole;
   active: boolean;
-  participatesInRotation: boolean;
   createdAt: string;
   linked: boolean;
+  /** Equipes às quais o usuário está vinculado. */
+  teamIds: string[];
 }
 
 export interface NewMemberInput {
   name: string;
   email: string;
-  role: MemberRole;
-  participatesInRotation: boolean;
 }
 
-/** Papéis atribuíveis num convite (convidado é o papel de quem entra sem convite). */
-export const ROLE_OPTIONS: { value: MemberRole; label: string }[] = [
+/** Papéis atribuíveis a um membro numa equipe. */
+export const ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
   { value: 'member', label: 'Membro' },
   { value: 'manager', label: 'Gestor' },
 ];
-
-/** Papéis editáveis na tabela: inclui rebaixar para convidado (somente leitura). */
-export const TABLE_ROLE_OPTIONS: { value: MemberRole; label: string }[] = [
-  ...ROLE_OPTIONS,
-  { value: 'guest', label: 'Convidado' },
-];
-
-export const defaultParticipates = (role: MemberRole): boolean => role === 'member';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -61,7 +52,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   email_in_use: 'Já existe um usuário com este e-mail.',
   has_future_published_shifts:
     'Não é possível desativar: o membro tem plantões futuros publicados. Reatribua-os antes.',
-  last_manager: 'Não é possível remover ou desativar o último gestor ativo.',
+  last_manager: 'Não é possível remover, rebaixar ou desativar o último gestor ativo da equipe.',
   member_has_shifts:
     'Não é possível desvincular: o membro possui plantões nas escalas desta equipe.',
 };

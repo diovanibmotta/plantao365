@@ -7,7 +7,7 @@ import {
   TeamsError,
   createTeam,
   deleteTeam,
-  linkTeamMember,
+  setTeamMember,
   listAccessibleTeams,
   listTeamMembers,
   updateTeam,
@@ -32,7 +32,15 @@ const createTeamSchema = z
     avatar: optionalText(16),
   })
   .strict();
-const memberParams = z.object({ id: z.string().uuid(), userId: z.string().uuid() });
+const memberInputSchema = z
+  .object({
+    role: z.enum(['manager', 'member']).optional(),
+    participatesInRotation: z.boolean().optional(),
+  })
+  .strict();
+// z.uuid() recusa o id da equipe principal (versão 0); basta o formato.
+const uuid = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+const memberParams = z.object({ id: uuid, userId: uuid });
 
 export function createTeamsRouter({ db }: { db: Sql }): Hono<AuthEnv> {
   const router = new Hono<AuthEnv>();
@@ -60,7 +68,7 @@ export function createTeamsRouter({ db }: { db: Sql }): Hono<AuthEnv> {
   });
 
   router.patch('/teams/:id', requireRole('manager'), async (c) => {
-    const id = z.string().uuid().safeParse(c.req.param('id'));
+    const id = uuid.safeParse(c.req.param('id'));
     const parsed = createTeamSchema.safeParse(await c.req.json().catch(() => null));
     if (!id.success || !parsed.success) {
       return c.json(
@@ -75,14 +83,14 @@ export function createTeamsRouter({ db }: { db: Sql }): Hono<AuthEnv> {
   });
 
   router.delete('/teams/:id', requireRole('manager'), async (c) => {
-    const id = z.string().uuid().safeParse(c.req.param('id'));
+    const id = uuid.safeParse(c.req.param('id'));
     if (!id.success) return c.json({ error: 'invalid_request', message: 'Dados inválidos' }, 400);
     await deleteTeam(db, c.get('user')!, id.data);
     return c.body(null, 204);
   });
 
   router.get('/teams/:id/members', requireRole('manager'), async (c) => {
-    const id = z.string().uuid().safeParse(c.req.param('id'));
+    const id = uuid.safeParse(c.req.param('id'));
     if (!id.success) return c.json({ error: 'invalid_request', message: 'Dados inválidos' }, 400);
     return c.json(await listTeamMembers(db, c.get('user')!, id.data));
   });
@@ -90,8 +98,17 @@ export function createTeamsRouter({ db }: { db: Sql }): Hono<AuthEnv> {
   router.put('/teams/:id/members/:userId', requireRole('manager'), async (c) => {
     const ids = memberParams.safeParse({ id: c.req.param('id'), userId: c.req.param('userId') });
     if (!ids.success) return c.json({ error: 'invalid_request', message: 'Dados inválidos' }, 400);
-    await linkTeamMember(db, c.get('user')!, ids.data.id, ids.data.userId);
-    return c.body(null, 204);
+    const raw: unknown = await c.req.json().catch(() => ({}));
+    const input = memberInputSchema.safeParse(raw ?? {});
+    if (!input.success) {
+      return c.json(
+        { error: 'invalid_request', message: input.error.issues[0]?.message ?? 'Dados inválidos' },
+        400,
+      );
+    }
+    return c.json(
+      await setTeamMember(db, c.get('user')!, ids.data.id, ids.data.userId, input.data),
+    );
   });
 
   router.delete('/teams/:id/members/:userId', requireRole('manager'), async (c) => {

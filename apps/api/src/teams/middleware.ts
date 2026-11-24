@@ -8,7 +8,8 @@ export const TEAM_HEADER = 'X-Team-Id';
 /**
  * Resolve a equipe ativa da requisição em `c.var.teamId`. O front envia `X-Team-Id`; sem o
  * header usa a primeira equipe acessível (ordem alfabética). Equipe fora do acesso do usuário
- * responde 403. Montar depois do sessionMiddleware.
+ * responde 403. Também aplica ao `user` o papel e o rodízio dele na equipe ativa. Montar depois do
+ * sessionMiddleware.
  */
 export function teamMiddleware({ db }: { db: Sql }) {
   return createMiddleware<AuthEnv>(async (c, next) => {
@@ -26,6 +27,15 @@ export function teamMiddleware({ db }: { db: Sql }) {
       c.set('teamId', requested);
     } else {
       c.set('teamId', teams[0]?.id ?? null);
+    }
+    // Papel e rodízio valem por equipe: a partir daqui `user` reflete a equipe ativa.
+    const current = teams.find((t) => t.id === c.get('teamId'));
+    if (current) {
+      c.set('user', {
+        ...user,
+        role: current.role,
+        participatesInRotation: current.participatesInRotation,
+      });
     }
     await next();
   });

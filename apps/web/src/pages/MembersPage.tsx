@@ -3,7 +3,7 @@ import { api } from '../api/client';
 import { MembersTable } from '../members/MembersTable';
 import { NewMemberForm } from '../members/NewMemberForm';
 import { blockingShifts, describeError, describeShift, sortMembers } from '../members/types';
-import type { FutureShift, Member, MemberRole, NewMemberInput } from '../members/types';
+import type { FutureShift, Member, NewMemberInput } from '../members/types';
 import '../members/members.css';
 
 type Loaded = { members: Member[] } | { error: string } | null;
@@ -45,7 +45,10 @@ export function MembersPage() {
       const created = await api.post<Member>('/api/users', input);
       upsert(created);
       setShowForm(false);
-      setMessage({ kind: 'ok', text: `${created.name} foi pré-cadastrado.` });
+      setMessage({
+        kind: 'ok',
+        text: `${created.name} foi pré-cadastrado. Vincule-o a uma equipe em Equipes.`,
+      });
     } catch (err) {
       setFormError(describeError(err, 'Não foi possível cadastrar o membro.'));
     }
@@ -163,17 +166,7 @@ export function MembersPage() {
         <p className="status muted">Nenhum membro cadastrado.</p>
       )}
       {loaded !== null && 'members' in loaded && loaded.members.length > 0 && (
-        <MembersTable
-          members={loaded.members}
-          busyId={busyId}
-          onRole={(m: Member, role: MemberRole) =>
-            void update(m, { role }, `Papel de ${m.name} atualizado.`)
-          }
-          onParticipates={(m, value) =>
-            void update(m, { participatesInRotation: value }, `Rodízio de ${m.name} atualizado.`)
-          }
-          onToggleActive={toggleActive}
-        />
+        <MembersTable members={loaded.members} busyId={busyId} onToggleActive={toggleActive} />
       )}
     </section>
   );

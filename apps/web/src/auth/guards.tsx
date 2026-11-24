@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { useAuth } from './AuthContext';
 import type { Role } from './AuthContext';
+import { useRole } from '../team/TeamContext';
 
 export function RequireAuth() {
   const { status } = useAuth();
@@ -23,7 +24,8 @@ const RANK: Record<Role, number> = { guest: 0, member: 1, manager: 2 };
 /** Exige papel mínimo: 'manager' só gestor; 'member' membro ou gestor (não convidado). */
 export function RequireRole({ role }: { role: Role }) {
   const { user } = useAuth();
-  if (!user || RANK[user.role] < RANK[role]) {
+  const current = useRole();
+  if (!user || !current || RANK[current] < RANK[role]) {
     return (
       <section>
         <h1>Acesso restrito</h1>

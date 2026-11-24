@@ -1,5 +1,5 @@
 import { recordAudit } from '../audit/index.js';
-import type { AuthUser } from '../auth/types.js';
+import type { AuthUser, Role } from '../auth/types.js';
 import type { Sql } from '../db.js';
 
 export interface TeamDto {
@@ -8,6 +8,14 @@ export interface TeamDto {
   dashboardUrl: string | null;
   avatar: string | null;
 }
+
+/** Equipe acessível ao usuário, com o papel dele nela (`user.role` para master e convidado). */
+export interface AccessibleTeamDto extends TeamDto {
+  role: Role;
+  participatesInRotation: boolean;
+}
+
+export type MemberRole = 'manager' | 'member';
 
 export interface TeamInput {
   name: string;
@@ -26,17 +34,53 @@ export class TeamsError extends Error {
 }
 
 /** Master e convidado (somente leitura) enxergam todas as equipes; os demais, só as suas. */
-export async function listAccessibleTeams(db: Sql, user: AuthUser): Promise<TeamDto[]> {
+export async function listAccessibleTeams(db: Sql, user: AuthUser): Promise<AccessibleTeamDto[]> {
   if (user.isMaster || user.role === 'guest') {
-    return db<
+    const teams = await db<
       TeamDto[]
     >`select id, name, dashboard_url as "dashboardUrl", avatar from teams order by lower(name), id`;
+    return teams.map((t) => ({
+      ...t,
+      role: user.role,
+      participatesInRotation: user.participatesInRotation,
+    }));
   }
-  return db<TeamDto[]>`
-    select t.id, t.name, t.dashboard_url as "dashboardUrl", t.avatar from teams t
+  return db<AccessibleTeamDto[]>`
+    select t.id, t.name, t.dashboard_url as "dashboardUrl", t.avatar,
+      m.role, m.participates_in_rotation as "participatesInRotation"
+    from teams t
     join team_members m on m.team_id = t.id
     where m.user_id = ${user.id}
     order by lower(t.name), t.id`;
+}
+
+/**
+ * users.role é o papel global: gestor se for gestor em alguma equipe, senão membro. Quem tem
+ * ao menos uma equipe deixa de ser convidado (somente leitura).
+ */
+async function syncGlobalRole(tx: Sql, userId: string): Promise<void> {
+  await tx`
+    update users set updated_at = now(),
+      role = case when exists (
+        select 1 from team_members where user_id = ${userId} and role = 'manager')
+        then 'manager' else 'member' end
+    where id = ${userId} and not is_master
+      and (role <> 'guest' or exists (select 1 from team_members where user_id = ${userId}))`;
+}
+
+/** Bloqueia remover/rebaixar o último gestor ativo da equipe. */
+async function assertNotLastManager(tx: Sql, teamId: string, userId: string): Promise<void> {
+  const [other] = await tx`
+    select 1 from team_members m join users u on u.id = m.user_id
+    where m.team_id = ${teamId} and m.role = 'manager' and u.active and m.user_id <> ${userId}
+    limit 1`;
+  if (!other) {
+    throw new TeamsError(
+      409,
+      'last_manager',
+      'Não é possível remover ou rebaixar o último gestor ativo da equipe',
+    );
+  }
 }
 
 export async function createTeam(db: Sql, actor: AuthUser, input: TeamInput): Promise<TeamDto> {
@@ -49,7 +93,9 @@ export async function createTeam(db: Sql, actor: AuthUser, input: TeamInput): Pr
       values (${name}, ${input.dashboardUrl ?? null}, ${input.avatar ?? null})
       returning id, name, dashboard_url as "dashboardUrl", avatar`;
     if (!actor.isMaster) {
-      await tx`insert into team_members (team_id, user_id) values (${team!.id}, ${actor.id})`;
+      await tx`
+        insert into team_members (team_id, user_id, role, participates_in_rotation)
+        values (${team!.id}, ${actor.id}, 'manager', ${actor.participatesInRotation})`;
     }
     await recordAudit(tx, {
       actorId: actor.id,
@@ -64,7 +110,7 @@ export async function createTeam(db: Sql, actor: AuthUser, input: TeamInput): Pr
 
 const DEFAULT_TEAM_ID = '00000000-0000-0000-0000-000000000001';
 
-/** Master gerencia qualquer equipe; gestor, só as que integra. */
+/** Master gerencia qualquer equipe; gestor, só as equipes em que é gestor. */
 async function assertCanManage(
   tx: Sql,
   actor: AuthUser,
@@ -76,7 +122,8 @@ async function assertCanManage(
   if (!team) throw new TeamsError(404, 'team_not_found', 'Equipe não encontrada');
   if (!actor.isMaster) {
     const [member] = await tx`
-      select 1 from team_members where team_id = ${teamId} and user_id = ${actor.id}`;
+      select 1 from team_members
+      where team_id = ${teamId} and user_id = ${actor.id} and role = 'manager'`;
     if (!member) throw new TeamsError(404, 'team_not_found', 'Equipe não encontrada');
   }
   return team;
@@ -142,6 +189,9 @@ export interface TeamMemberDto {
   id: string;
   name: string;
   email: string;
+  active: boolean;
+  role: MemberRole;
+  participatesInRotation: boolean;
 }
 
 export async function listTeamMembers(
@@ -153,38 +203,82 @@ export async function listTeamMembers(
     const tx = txRaw as unknown as Sql;
     await assertCanManage(tx, actor, teamId);
     return tx<TeamMemberDto[]>`
-      select u.id, u.name, u.email from users u
+      select u.id, u.name, u.email, u.active, m.role,
+        m.participates_in_rotation as "participatesInRotation"
+      from users u
       join team_members m on m.user_id = u.id and m.team_id = ${teamId}
       where not u.is_master
       order by lower(u.name), u.id`;
   });
 }
 
-/** Gestor vincula um usuário (não master) a uma equipe que ele gerencia; idempotente. */
-export async function linkTeamMember(
+export interface TeamMemberInput {
+  role?: MemberRole | undefined;
+  participatesInRotation?: boolean | undefined;
+}
+
+/**
+ * Gestor vincula um usuário (não master) a uma equipe que ele gerencia, ou altera papel/rodízio
+ * de quem já está nela. Sem valores, o novo vínculo é membro que participa do rodízio.
+ */
+export async function setTeamMember(
   db: Sql,
   actor: AuthUser,
   teamId: string,
   userId: string,
-): Promise<void> {
-  await db.begin(async (txRaw) => {
+  input: TeamMemberInput = {},
+): Promise<TeamMemberDto> {
+  return db.begin(async (txRaw) => {
     const tx = txRaw as unknown as Sql;
     await assertCanManage(tx, actor, teamId);
-    const [user] = await tx<
-      { email: string }[]
-    >`select email from users where id = ${userId} and not is_master`;
+    const [user] = await tx<{ name: string; email: string; active: boolean }[]>`
+      select name, email, active from users where id = ${userId} and not is_master for update`;
     if (!user) throw new TeamsError(404, 'user_not_found', 'Usuário não encontrado');
-    const rows = await tx`
-      insert into team_members (team_id, user_id) values (${teamId}, ${userId})
-      on conflict do nothing returning user_id`;
-    if (rows.length === 0) return;
-    await recordAudit(tx, {
-      actorId: actor.id,
-      action: 'team.add_member',
-      entityType: 'team',
-      entityId: teamId,
-      after: { userId, email: user.email },
-    });
+    const [before] = await tx<{ role: MemberRole; participatesInRotation: boolean }[]>`
+      select role, participates_in_rotation as "participatesInRotation"
+      from team_members where team_id = ${teamId} and user_id = ${userId} for update`;
+    const role = input.role ?? before?.role ?? 'member';
+    const participates = input.participatesInRotation ?? before?.participatesInRotation ?? true;
+    if (before?.role === 'manager' && role !== 'manager') {
+      await assertNotLastManager(tx, teamId, userId);
+    }
+    if (!before) {
+      await tx`
+        insert into team_members (team_id, user_id, role, participates_in_rotation)
+        values (${teamId}, ${userId}, ${role}, ${participates})`;
+      await recordAudit(tx, {
+        actorId: actor.id,
+        action: 'team.add_member',
+        entityType: 'team',
+        entityId: teamId,
+        after: { userId, email: user.email, role, participatesInRotation: participates },
+      });
+    } else if (before.role !== role || before.participatesInRotation !== participates) {
+      await tx`
+        update team_members set role = ${role}, participates_in_rotation = ${participates}
+        where team_id = ${teamId} and user_id = ${userId}`;
+      await recordAudit(tx, {
+        actorId: actor.id,
+        action: 'team.update_member',
+        entityType: 'team',
+        entityId: teamId,
+        before: {
+          userId,
+          role: before.role,
+          participatesInRotation: before.participatesInRotation,
+        },
+        after: { userId, role, participatesInRotation: participates },
+      });
+    }
+    await syncGlobalRole(tx, userId);
+    return {
+      id: userId,
+      name: user.name,
+      email: user.email,
+      active: user.active,
+      role,
+      participatesInRotation: participates,
+    };
   });
 }
 
@@ -198,9 +292,10 @@ export async function unlinkTeamMember(
   await db.begin(async (txRaw) => {
     const tx = txRaw as unknown as Sql;
     await assertCanManage(tx, actor, teamId);
-    const [link] = await tx`
-      select 1 from team_members where team_id = ${teamId} and user_id = ${userId} for update`;
+    const [link] = await tx<{ role: MemberRole }[]>`
+      select role from team_members where team_id = ${teamId} and user_id = ${userId} for update`;
     if (!link) throw new TeamsError(404, 'member_not_found', 'Membro não encontrado na equipe');
+    if (link.role === 'manager') await assertNotLastManager(tx, teamId, userId);
     const [shift] = await tx`
       select 1 from shifts s join schedules sc on sc.id = s.schedule_id
       where sc.team_id = ${teamId} and s.user_id = ${userId} limit 1`;
@@ -212,6 +307,7 @@ export async function unlinkTeamMember(
       );
     }
     await tx`delete from team_members where team_id = ${teamId} and user_id = ${userId}`;
+    await syncGlobalRole(tx, userId);
     await recordAudit(tx, {
       actorId: actor.id,
       action: 'team.remove_member',
@@ -220,12 +316,4 @@ export async function unlinkTeamMember(
       before: { userId },
     });
   });
-}
-
-/** Vincula o usuário à equipe (idempotente); retorna true quando o vínculo foi criado. */
-export async function addTeamMember(db: Sql, teamId: string, userId: string): Promise<boolean> {
-  const rows = await db`
-    insert into team_members (team_id, user_id) values (${teamId}, ${userId})
-    on conflict do nothing returning user_id`;
-  return rows.length > 0;
 }

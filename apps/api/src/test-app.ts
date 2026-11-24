@@ -35,7 +35,10 @@ export async function loginAs(
     values (${opts.email}, ${opts.name ?? 'Fulano'}, ${opts.role ?? 'member'},
       ${opts.active ?? true}, ${opts.participatesInRotation ?? true})
     returning id`;
-  await sql`insert into team_members (team_id, user_id) values (${DEFAULT_TEAM_ID}, ${u!.id})`;
+  await sql`
+    insert into team_members (team_id, user_id, role, participates_in_rotation)
+    values (${DEFAULT_TEAM_ID}, ${u!.id}, ${opts.role ?? 'member'},
+      ${opts.participatesInRotation ?? true})`;
   const { token } = await createSession(sql, u!.id, 3600);
   return { id: u!.id, cookie: `${SESSION_COOKIE}=${token}` };
 }

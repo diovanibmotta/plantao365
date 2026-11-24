@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useRole } from '../team/TeamContext';
 import { UnavailabilityForm } from './UnavailabilityForm';
 import { KIND_LABELS, errorMessage, formatDate, formatPeriod } from './types';
 import type {
@@ -32,8 +33,9 @@ export function UnavailabilityManager({
   emptyText,
 }: Props) {
   const { user } = useAuth();
+  const role = useRole();
   const vacations = mode === 'vacations';
-  const showMembers = user?.role === 'manager';
+  const showMembers = role === 'manager';
   const [loaded, setLoaded] = useState<{ key: number; data: Loaded } | null>(null);
   const [reload, setReload] = useState(0);
   const [members, setMembers] = useState<MemberOption[]>([]);
@@ -178,7 +180,7 @@ export function UnavailabilityManager({
                 <li key={`${w.date}:${w.userId}`}>
                   Conflito com plantão publicado em {formatDate(w.date)}
                   {nameOf(w.userId) ? ` (${nameOf(w.userId)})` : ''}.{' '}
-                  {user?.role === 'manager'
+                  {role === 'manager'
                     ? 'Ajuste a escala, se necessário.'
                     : 'O gestor foi avisado por e-mail.'}
                 </li>

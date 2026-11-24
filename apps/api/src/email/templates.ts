@@ -313,17 +313,15 @@ export function renderUnavailabilityConflictEmail(
 
 export interface InviteEmailInput {
   name: string;
-  role: 'manager' | 'member';
   appUrl?: string | undefined;
 }
 
 /** Convite enviado quando o gestor cadastra o usuário: avisa do acesso e leva ao login SSO. */
 export function renderInviteEmail(input: InviteEmailInput): RenderedEmail {
-  const role = input.role === 'manager' ? 'gestor' : 'membro';
   return renderEmail({
     subject: 'Você foi convidado para o Plantão365',
     paragraphs: [
-      `Olá, ${input.name}. Você foi convidado para o Plantão365 como ${role}.`,
+      `Olá, ${input.name}. Você foi convidado para o Plantão365.`,
       'Entre com sua conta corporativa (Microsoft) para acessar a escala de plantão.',
     ],
     ...(input.appUrl ? { action: { label: 'Entrar no Plantão365', url: input.appUrl } } : {}),

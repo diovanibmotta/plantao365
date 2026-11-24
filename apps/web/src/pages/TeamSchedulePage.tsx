@@ -9,6 +9,7 @@ import {
 import type { LocalDate, ShiftTimes, WorkPeriod } from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useRole } from '../team/TeamContext';
 import { Avatar } from '../layout/Avatar';
 import {
   WEEK_HEADERS,
@@ -75,7 +76,7 @@ interface TeamSchedulePageProps {
 export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
   const today = todayProp ?? todayLocal();
   const { user } = useAuth();
-  const isGuest = user?.role === 'guest';
+  const isGuest = useRole() === 'guest';
   const [view, setView] = useState<CalendarView>('month');
   const [anchor, setAnchor] = useState<LocalDate>(today);
   const [member, setMember] = useState('');

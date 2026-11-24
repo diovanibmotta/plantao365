@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { APP_NAME } from '@diovanibmotta/plantao365-shared';
 import { useAuth } from '../auth/AuthContext';
-import { TeamProvider, useTeam } from '../team/TeamContext';
+import { TeamProvider, useRole, useTeam } from '../team/TeamContext';
 import { effectiveTheme, setTheme, type Theme } from '../theme';
 import { Avatar } from './Avatar';
 import { BrandMark, Icon } from './icons';
@@ -76,6 +76,7 @@ export function Layout() {
 function LayoutShell() {
   const { user, logout } = useAuth();
   const { activeTeam, loading } = useTeam();
+  const role = useRole();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
 
@@ -87,11 +88,11 @@ function LayoutShell() {
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
-  if (!user) return null;
-  const items = navItemsFor(user.role);
+  if (!user || !role) return null;
+  const items = navItemsFor(role);
   const roleLabel = user.isMaster
     ? 'Master'
-    : { manager: 'Gestor', member: 'Membro', guest: 'Convidado' }[user.role];
+    : { manager: 'Gestor', member: 'Membro', guest: 'Convidado' }[role];
   const current = pathname.startsWith(PROFILE_PATH)
     ? { label: 'Perfil' }
     : items.find((item) => pathname.startsWith(item.to));
@@ -142,9 +143,9 @@ function LayoutShell() {
         <TeamSwitcher />
         <div className="sidebar-foot">
           <NavLink
-            to={user.role === 'guest' ? '/schedule' : PROFILE_PATH}
+            to={role === 'guest' ? '/schedule' : PROFILE_PATH}
             className="who-link"
-            title={user.role === 'guest' ? user.email : 'Meu perfil'}
+            title={role === 'guest' ? user.email : 'Meu perfil'}
             onClick={() => setOpen(false)}
           >
             <Avatar userId={user.id} name={user.name} />

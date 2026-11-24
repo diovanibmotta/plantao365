@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { useRole } from '../team/TeamContext';
 import { Adjustments } from '../balance/Adjustments';
 import { BalanceView } from '../balance/BalanceView';
 import { TeamBalance } from '../balance/TeamBalance';
@@ -15,11 +16,12 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export function BalancePage({ currentYear: yearProp }: { currentYear?: number }) {
-  const { user, status } = useAuth();
+  const { status } = useAuth();
+  const role = useRole();
   const currentYear = yearProp ?? Number(todayLocal().slice(0, 4));
   const [year, setYear] = useState(currentYear);
   const [tab, setTab] = useState<Tab>('mine');
-  const isManager = user?.role === 'manager';
+  const isManager = role === 'manager';
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 3 + i);
 
   if (status === 'loading') {

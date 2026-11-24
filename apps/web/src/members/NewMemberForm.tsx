@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
 import type { FormEvent } from 'react';
-import { defaultParticipates, ROLE_OPTIONS, validateNewMember } from './types';
-import type { MemberRole, NewMemberErrors, NewMemberInput } from './types';
+import { validateNewMember } from './types';
+import type { NewMemberErrors, NewMemberInput } from './types';
 import './members.css';
 
 interface Props {
@@ -13,12 +13,9 @@ interface Props {
 export function NewMemberForm({ onSubmit, onCancel, serverError }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<MemberRole>('member');
-  const [participates, setParticipates] = useState<boolean | null>(null);
   const [errors, setErrors] = useState<NewMemberErrors>({});
   const [saving, setSaving] = useState(false);
   const id = useId();
-  const effective = participates ?? defaultParticipates(role);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -27,12 +24,7 @@ export function NewMemberForm({ onSubmit, onCancel, serverError }: Props) {
     if (found.name || found.email) return;
     setSaving(true);
     try {
-      await onSubmit({
-        name: name.trim(),
-        email: email.trim(),
-        role,
-        participatesInRotation: effective,
-      });
+      await onSubmit({ name: name.trim(), email: email.trim() });
     } finally {
       setSaving(false);
     }
@@ -69,28 +61,6 @@ export function NewMemberForm({ onSubmit, onCancel, serverError }: Props) {
         />
         {errors.email && <p className="members-error">{errors.email}</p>}
       </div>
-      <div className="members-field">
-        <label htmlFor={`${id}-role`}>Papel</label>
-        <select
-          id={`${id}-role`}
-          value={role}
-          onChange={(e) => setRole(e.target.value as MemberRole)}
-        >
-          {ROLE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <label className="members-check">
-        <input
-          type="checkbox"
-          checked={effective}
-          onChange={(e) => setParticipates(e.target.checked)}
-        />
-        Participa do rodízio
-      </label>
       {serverError && (
         <p className="alert" role="alert">
           {serverError}

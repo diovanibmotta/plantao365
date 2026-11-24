@@ -2,12 +2,16 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react';
 import { api, setActiveTeamId } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import type { Role } from '../auth/AuthContext';
 
 export interface Team {
   id: string;
   name: string;
   dashboardUrl?: string | null;
   avatar?: string | null;
+  /** Papel do usuário nesta equipe (o do usuário, para master e convidado). */
+  role?: Role;
+  participatesInRotation?: boolean;
 }
 
 export interface TeamInput {
@@ -89,7 +93,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const create = useCallback(
     async (input: TeamInput) => {
-      const team = await api.post<Team>('/api/teams', input);
+      const created = await api.post<Team>('/api/teams', input);
+      const team: Team = { role: 'manager', participatesInRotation: false, ...created };
       apply(
         [...teams, team].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
         activeId ?? team.id,
@@ -101,7 +106,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const update = useCallback(
     async (id: string, input: TeamInput) => {
-      const team = await api.patch<Team>(`/api/teams/${id}`, input);
+      const saved = await api.patch<Team>(`/api/teams/${id}`, input);
+      const team: Team = { ...teams.find((t) => t.id === id), ...saved };
       apply(
         teams
           .map((t) => (t.id === id ? team : t))
@@ -143,4 +149,11 @@ export function useTeam(): TeamState {
   const ctx = useContext(TeamContext);
   if (!ctx) throw new Error('useTeam deve ser usado dentro de TeamProvider');
   return ctx;
+}
+
+/** Papel do usuário na equipe ativa; sem equipe, o papel global. Funciona fora do TeamProvider. */
+export function useRole(): Role | null {
+  const { user } = useAuth();
+  const ctx = useContext(TeamContext);
+  return ctx?.activeTeam?.role ?? user?.role ?? null;
 }

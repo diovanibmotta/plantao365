@@ -118,9 +118,9 @@ export async function generateDraft(
   const holidays = await listHolidayDates(tx, from, to);
   const unavailable = await listUnavailableByDate(tx, from, to, teamId);
   const users = await tx<{ id: string; name: string; active: boolean; participates: boolean }[]>`
-    select id, name, active, participates_in_rotation as participates
+    select u.id, u.name, u.active, m.participates_in_rotation as participates
     from users u join team_members m on m.user_id = u.id and m.team_id = ${teamId}
-    where active and participates_in_rotation order by id`;
+    where u.active and m.participates_in_rotation order by u.id`;
   const history = await loadHistory(tx, from, input.now);
   const lastAssignments = await loadLastAssignments(tx, from);
   const preferences = await listPreferences(

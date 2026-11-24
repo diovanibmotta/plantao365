@@ -55,7 +55,10 @@ export async function validateAssignment(
     return warnings;
   }
   const [user] = await sql<{ active: boolean; participates: boolean }[]>`
-    select active, participates_in_rotation as participates from users where id = ${input.userId}`;
+    select u.active, coalesce(m.participates_in_rotation, false) as participates
+    from users u
+    left join team_members m on m.user_id = u.id and m.team_id = ${input.teamId ?? null}
+    where u.id = ${input.userId}`;
   if (user) {
     if (!user.active) warnings.push({ code: 'user_inactive', message: 'Usuário inativo' });
     if (!user.participates) {

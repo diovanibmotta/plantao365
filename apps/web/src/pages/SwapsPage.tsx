@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useRole } from '../team/TeamContext';
 import { SwapCard } from '../swaps/SwapCard';
 import { OPEN_STATUSES } from '../swaps/types';
 import type { SwapAction, SwapDto } from '../swaps/types';
@@ -25,7 +26,7 @@ const EMPTY: Record<Tab, string> = {
 
 export function SwapsPage() {
   const { user } = useAuth();
-  const isManager = user?.role === 'manager';
+  const isManager = useRole() === 'manager';
   const tabs: Tab[] = isManager
     ? ['received', 'sent', 'approval', 'history']
     : ['received', 'sent'];
