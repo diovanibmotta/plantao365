@@ -25,15 +25,27 @@ import type { CalendarView, MonthKey } from '../schedule/calendar';
 import { TimeGrid } from '../schedule/TimeGrid';
 import {
   DAY_TYPE_LABEL,
+  SHIFT_STATUS_LABEL,
   formatDayShort,
   formatHours,
   formatPeriod,
   formatShiftTime,
   holidayMap,
+  shiftStatus,
   todayLocal,
 } from '../schedule/format';
+import type { ShiftStatusFilter } from '../schedule/format';
 import type { HolidayDto, ShiftDto, UnavailabilityDto } from '../schedule/types';
 import '../schedule/schedule.css';
+import { PageTitle } from '../team/PageTitle';
+
+/** Opção do filtro de membro que representa o usuário logado (como o @me do Azure DevOps). */
+const ME = '@me';
+
+interface Colleague {
+  id: string;
+  name: string;
+}
 
 interface MonthData {
   shifts: ShiftDto[];
@@ -80,7 +92,8 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
   const [view, setView] = useState<CalendarView>('month');
   const [anchor, setAnchor] = useState<LocalDate>(today);
   const [member, setMember] = useState('');
-  const [onlyMine, setOnlyMine] = useState(false);
+  const [status, setStatus] = useState<ShiftStatusFilter>('');
+  const [colleagues, setColleagues] = useState<Colleague[]>([]);
   const [loaded, setLoaded] = useState<{ key: string; outcome: Outcome } | null>(null);
   const [shiftTimes, setShiftTimes] = useState<ShiftTimes | null>(null);
   const [workPeriods, setWorkPeriods] = useState<WorkPeriod[]>([...DEFAULT_WORK_PERIODS]);
@@ -99,6 +112,11 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
     api
       .get<{ periods: WorkPeriod[] }>('/api/work-hours', controller.signal)
       .then((r) => setWorkPeriods(r.periods))
+      .catch(() => undefined);
+    // Membros da equipe para o filtro; sem eles, o filtro usa só quem aparece na escala.
+    api
+      .get<Colleague[]>('/api/users/colleagues', controller.signal)
+      .then((list) => setColleagues(Array.isArray(list) ? list : []))
       .catch(() => undefined);
     return () => controller.abort();
   }, []);
@@ -143,19 +161,23 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
 
   const members = useMemo(() => {
     const byId = new Map<string, string>();
+    for (const c of colleagues) byId.set(c.id, c.name);
     for (const s of data?.shifts ?? []) {
       if (s.userId && s.userName) byId.set(s.userId, s.userName);
     }
+    // O usuário logado aparece como "@me", não pelo nome.
+    if (user) byId.delete(user.id);
     return [...byId].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'));
-  }, [data]);
+  }, [data, colleagues, user]);
 
-  const selectedMember = members.some(([id]) => id === member) ? member : '';
-  // "Meus plantões" prevalece sobre o filtro por membro.
-  const activeMember = onlyMine && user ? user.id : selectedMember;
+  const canFilterMe = user !== null && !isGuest;
+  const selectedMember =
+    (member === ME && canFilterMe) || members.some(([id]) => id === member) ? member : '';
+  const activeMember = selectedMember === ME && user ? user.id : selectedMember;
 
   return (
     <section>
-      <h1>Calendário</h1>
+      <PageTitle>Calendário</PageTitle>
       <div className="sched-toolbar">
         <div className="sched-nav">
           <button
@@ -194,29 +216,24 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
             </button>
           ))}
         </div>
-        {user && !isGuest && (
-          <label className="sched-filter sched-filter--mine">
-            <input
-              type="checkbox"
-              checked={onlyMine}
-              onChange={(e) => setOnlyMine(e.target.checked)}
-            />
-            Meus plantões
-          </label>
-        )}
         <label className="sched-filter sched-filter--member">
           Membro
-          <select
-            value={onlyMine ? '' : selectedMember}
-            disabled={onlyMine}
-            onChange={(e) => setMember(e.target.value)}
-          >
+          <select value={selectedMember} onChange={(e) => setMember(e.target.value)}>
             <option value="">Todos</option>
+            {canFilterMe && <option value={ME}>{ME}</option>}
             {members.map(([id, name]) => (
               <option key={id} value={id}>
                 {name}
               </option>
             ))}
+          </select>
+        </label>
+        <label className="sched-filter">
+          Status
+          <select value={status} onChange={(e) => setStatus(e.target.value as ShiftStatusFilter)}>
+            <option value="">Todos</option>
+            <option value="done">{SHIFT_STATUS_LABEL.done}</option>
+            <option value="pending">{SHIFT_STATUS_LABEL.pending}</option>
           </select>
         </label>
       </div>
@@ -238,6 +255,7 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
           today={today}
           userId={user?.id ?? null}
           member={activeMember}
+          status={status}
           shiftTimes={shiftTimes}
         />
       )}
@@ -250,6 +268,7 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
           today={today}
           userId={user?.id ?? null}
           member={activeMember}
+          status={status}
           shiftTimes={shiftTimes}
           workPeriods={workPeriods}
         />
@@ -264,13 +283,23 @@ interface MonthCalendarProps {
   today: LocalDate;
   userId: string | null;
   member: string;
+  status: ShiftStatusFilter;
   shiftTimes: ShiftTimes | null;
 }
 
-function MonthCalendar({ month, data, today, userId, member, shiftTimes }: MonthCalendarProps) {
+function MonthCalendar({
+  month,
+  data,
+  today,
+  userId,
+  member,
+  status,
+  shiftTimes,
+}: MonthCalendarProps) {
   const shiftsByDate = new Map<LocalDate, ShiftDto[]>();
   for (const s of data.shifts) {
     if (member && s.userId !== member) continue;
+    if (status && shiftStatus(s, today) !== status) continue;
     shiftsByDate.set(s.date, [...(shiftsByDate.get(s.date) ?? []), s]);
   }
   const dayTypeByDate = new Map<LocalDate, ShiftDto['dayType']>();
@@ -305,8 +334,8 @@ function MonthCalendar({ month, data, today, userId, member, shiftTimes }: Month
           else if (isWeekend(date)) classes.push('sched-day--weekend');
           if (mine) classes.push('sched-day--mine');
           if (date === today) classes.push('sched-day--today');
-          // Com filtro de membro, só os dias dele ficam em destaque; os demais esmaecem sem detalhes.
-          const dimmed = member !== '' && shifts.length === 0;
+          // Com filtro de membro ou status, só os dias dele ficam em destaque; os demais esmaecem sem detalhes.
+          const dimmed = (member !== '' || status !== '') && shifts.length === 0;
           if (dimmed) classes.push('sched-day--dimmed');
           else if (shifts.length === 0 && !holiday && !vacation) classes.push('sched-day--empty');
           return (
@@ -335,6 +364,9 @@ function MonthCalendar({ month, data, today, userId, member, shiftTimes }: Month
                         <abbr title="Termina no dia seguinte"> +1</abbr>
                       )}{' '}
                       <span className="muted">{formatHours(s.hours)}</span>
+                    </span>
+                    <span className={`sched-status sched-status--${shiftStatus(s, today)}`}>
+                      {SHIFT_STATUS_LABEL[shiftStatus(s, today)]}
                     </span>
                   </span>
                 </span>

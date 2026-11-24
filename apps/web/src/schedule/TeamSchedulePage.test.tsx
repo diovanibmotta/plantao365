@@ -43,6 +43,7 @@ interface Data {
   shifts?: ShiftDto[];
   holidays?: unknown[];
   vacations?: unknown[];
+  colleagues?: unknown[];
 }
 
 function mockApi(data: Data = {}) {
@@ -57,6 +58,7 @@ function mockApi(data: Data = {}) {
         }),
       );
     }
+    if (url === '/api/users/colleagues') return Promise.resolve(json(data.colleagues ?? []));
     if (url.startsWith('/api/shifts')) return Promise.resolve(json(data.shifts ?? []));
     if (url.startsWith('/api/holidays'))
       return Promise.resolve(json({ items: data.holidays ?? [] }));
@@ -161,20 +163,20 @@ describe('TeamSchedulePage', () => {
       within(select)
         .getAllByRole('option')
         .map((o) => o.textContent),
-    ).toEqual(['Todos', 'Ana Souza', 'Bruno Lima']);
+    ).toEqual(['Todos', '@me', 'Bruno Lima']);
     await userEvent.selectOptions(select, 'u2');
     expect(within(screen.getByTestId('day-2026-03-02')).queryByText(/Ana Souza/)).toBeNull();
     expect(within(screen.getByTestId('day-2026-03-03')).getByText('Bruno Lima')).toBeTruthy();
   });
 
-  it('filtra "Meus plantões": esmaece dias sem plantão do usuário logado', async () => {
+  it('filtra "@me": esmaece dias sem plantão do usuário logado', async () => {
     mockApi({
       shifts: [shift('2026-03-02', 'u1', 'Ana Souza'), shift('2026-03-03', 'u2', 'Bruno Lima')],
       holidays: [{ id: 'h', date: '2026-03-03', name: 'Dia Teste', scope: 'national' }],
     });
     renderPage('2026-03-10');
     await screen.findByTestId('day-2026-03-02');
-    await userEvent.click(await screen.findByRole('checkbox', { name: 'Meus plantões' }));
+    await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Membro' }), '@me');
 
     const mine = screen.getByTestId('day-2026-03-02');
     expect(within(mine).getByText(/Ana Souza/)).toBeTruthy();
@@ -185,8 +187,40 @@ describe('TeamSchedulePage', () => {
     expect(within(other).queryByText(/Feriado/)).toBeNull();
     expect(screen.getByTestId('day-2026-03-05').className).toContain('sched-day--dimmed');
 
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Meus plantões' }));
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Membro' }), '');
     expect(within(screen.getByTestId('day-2026-03-03')).getByText(/Bruno Lima/)).toBeTruthy();
+  });
+
+  it('lista os membros da equipe no filtro, mesmo sem plantão no período', async () => {
+    mockApi({
+      shifts: [shift('2026-03-02', 'u1', 'Ana Souza')],
+      colleagues: [{ id: 'u3', name: 'Carla Dias' }],
+    });
+    renderPage('2026-03-10');
+    await screen.findByTestId('day-2026-03-02');
+    const select = await screen.findByRole('combobox', { name: 'Membro' });
+    await waitFor(() =>
+      expect(within(select).getByRole('option', { name: 'Carla Dias' })).toBeTruthy(),
+    );
+    expect(within(select).getByRole('option', { name: '@me' })).toBeTruthy();
+    expect(within(select).queryByRole('option', { name: 'Ana Souza' })).toBeNull();
+  });
+
+  it('filtra por status: realizado (já terminou) e pendente (ainda não)', async () => {
+    mockApi({
+      shifts: [shift('2026-03-02', 'u1', 'Ana Souza'), shift('2026-03-20', 'u2', 'Bruno Lima')],
+    });
+    renderPage('2026-03-10');
+    await screen.findByTestId('day-2026-03-02');
+    const status = await screen.findByRole('combobox', { name: 'Status' });
+
+    await userEvent.selectOptions(status, 'done');
+    expect(within(screen.getByTestId('day-2026-03-02')).getByText('Realizado')).toBeTruthy();
+    expect(screen.getByTestId('day-2026-03-20').className).toContain('sched-day--dimmed');
+
+    await userEvent.selectOptions(status, 'pending');
+    expect(within(screen.getByTestId('day-2026-03-20')).getByText('Pendente')).toBeTruthy();
+    expect(screen.getByTestId('day-2026-03-02').className).toContain('sched-day--dimmed');
   });
 
   it('navega entre meses, inclusive virada de ano, consultando o intervalo certo', async () => {

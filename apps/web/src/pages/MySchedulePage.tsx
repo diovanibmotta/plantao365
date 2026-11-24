@@ -8,6 +8,7 @@ import { ShiftItem } from '../schedule/ShiftItem';
 import type { HolidayDto, ShiftDto } from '../schedule/types';
 import { SwapRequestAction } from '../swaps/SwapRequestAction';
 import '../schedule/schedule.css';
+import { PageTitle } from '../team/PageTitle';
 
 const PAST_DAYS = 120;
 const FUTURE_DAYS = 240;
@@ -64,7 +65,7 @@ export function MySchedulePage({ today: todayProp, renderActions }: MySchedulePa
 
   return (
     <section>
-      <h1>Plantão</h1>
+      <PageTitle>Plantão</PageTitle>
       {outcome === null && (
         <p className="status" role="status">
           Carregando…

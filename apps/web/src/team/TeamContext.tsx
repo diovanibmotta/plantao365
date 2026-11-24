@@ -155,6 +155,11 @@ export function useTeam(): TeamState {
   return ctx;
 }
 
+/** Equipe ativa; nula sem equipe. Funciona fora do TeamProvider. */
+export function useActiveTeam(): Team | null {
+  return useContext(TeamContext)?.activeTeam ?? null;
+}
+
 /** Papel do usuário na equipe ativa; sem equipe, o papel global. Funciona fora do TeamProvider. */
 export function useRole(): Role | null {
   const { user } = useAuth();

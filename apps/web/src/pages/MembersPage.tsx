@@ -7,6 +7,7 @@ import { NewMemberForm } from '../members/NewMemberForm';
 import { blockingShifts, describeError, describeShift, sortMembers } from '../members/types';
 import type { FutureShift, Member, NewMemberInput } from '../members/types';
 import '../members/members.css';
+import { PageTitle } from '../team/PageTitle';
 
 const memberError = (err: ApiError) => describeError(err, 'Não foi possível concluir a operação.');
 
@@ -86,7 +87,7 @@ export function MembersPage() {
   return (
     <section>
       <div className="members-head">
-        <h1>Membros</h1>
+        <PageTitle>Membros</PageTitle>
         {!showForm && (
           <button type="button" className="btn primary" onClick={() => setShowForm(true)}>
             Pré-cadastrar membro

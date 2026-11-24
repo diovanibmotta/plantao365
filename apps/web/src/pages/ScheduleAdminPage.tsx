@@ -12,6 +12,7 @@ import type {
   ScheduleDto,
 } from '../schedule-admin/types';
 import '../schedule-admin/schedule-admin.css';
+import { PageTitle } from '../team/PageTitle';
 
 type StatusFilter = '' | ScheduleDto['status'];
 type Tab = 'schedules' | 'times' | 'work-hours';
@@ -96,7 +97,7 @@ export function ScheduleAdminPage() {
   return (
     <section>
       <div className="sad-head">
-        <h1>Escala</h1>
+        <PageTitle>Escala</PageTitle>
         <button type="button" className="btn primary" onClick={() => setGenerating(true)}>
           Gerar escala
         </button>

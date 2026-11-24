@@ -6,6 +6,7 @@ import { BalanceView } from '../balance/BalanceView';
 import { TeamBalance } from '../balance/TeamBalance';
 import { todayLocal } from '../schedule/format';
 import '../balance/balance.css';
+import { PageTitle } from '../team/PageTitle';
 
 type Tab = 'mine' | 'team' | 'adjustments';
 
@@ -34,7 +35,7 @@ export function BalancePage({ currentYear: yearProp }: { currentYear?: number })
 
   return (
     <section>
-      <h1>Saldo de horas</h1>
+      <PageTitle>Saldo de horas</PageTitle>
       <div className="bal-toolbar">
         <label className="bal-field">
           Ano

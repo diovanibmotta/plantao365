@@ -20,6 +20,7 @@ import type {
   RecalculateResult,
 } from '../holidays/types';
 import '../holidays/holidays.css';
+import { PageTitle } from '../team/PageTitle';
 
 const saveError = (err: ApiError) => errorMessage(err, 'Não foi possível concluir a operação.');
 
@@ -167,7 +168,7 @@ export function HolidaysPage() {
   return (
     <section>
       <div className="holidays-header">
-        <h1>Feriados</h1>
+        <PageTitle>Feriados</PageTitle>
         <label className="holidays-year">
           Ano
           <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
