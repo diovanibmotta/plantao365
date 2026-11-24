@@ -29,12 +29,12 @@ export const NAV_GROUP_LABELS: Record<NavGroup, string> = {
 
 export const NAV_ITEMS: NavItem[] = [
   { to: '/minha-escala', label: 'Minha escala', icon: 'calendar-check', group: 'schedule' },
-  { to: '/escala', label: 'Escala', icon: 'grid', group: 'schedule' },
+  { to: '/escala', label: 'Calendário', icon: 'grid', group: 'schedule' },
   { to: '/trocas', label: 'Trocas', icon: 'repeat', group: 'schedule' },
   { to: '/saldo', label: 'Saldo', icon: 'clock', group: 'schedule' },
   {
     to: '/gerenciar-escala',
-    label: 'Gerenciar escala',
+    label: 'Escala',
     icon: 'sliders',
     group: 'admin',
     role: 'manager',

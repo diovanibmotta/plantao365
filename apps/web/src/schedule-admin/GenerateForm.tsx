@@ -40,7 +40,7 @@ export function GenerateForm({ names, onGenerated, result }: GenerateFormProps) 
 
   return (
     <section aria-labelledby="sad-generate-title" className="sad-block">
-      <h2 id="sad-generate-title">Gerar rascunho</h2>
+      <h2 id="sad-generate-title">Gerar escala</h2>
       <form className="sad-row" onSubmit={(e) => void submit(e)}>
         <label>
           De

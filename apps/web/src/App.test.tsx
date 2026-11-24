@@ -53,7 +53,7 @@ describe('guarda de rota', () => {
   it('mostra o conteúdo para autenticado', async () => {
     mockApi(user('member'));
     renderAt('/escala');
-    expect(await screen.findByRole('heading', { name: 'Escala' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Calendário' })).toBeTruthy();
   });
 
   it('mostra página 404', async () => {

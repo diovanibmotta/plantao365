@@ -52,11 +52,6 @@ export function formatDate(date: LocalDate): string {
   return `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`;
 }
 
-export function scheduleLabel(s: ScheduleDto): string {
-  const state = s.status === 'draft' ? 'Rascunho' : 'Publicada';
-  return `${formatDate(s.startDate)} a ${formatDate(s.endDate)} · ${state}`;
-}
-
 export function errorCode(err: unknown): string {
   if (err instanceof ApiError && typeof err.body === 'object' && err.body !== null) {
     const code = (err.body as { error?: unknown }).error;
