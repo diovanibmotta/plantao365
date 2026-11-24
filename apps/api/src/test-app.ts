@@ -3,6 +3,7 @@ import { csrfProtection, sessionMiddleware, SESSION_COOKIE } from './auth/index.
 import type { AuthEnv } from './auth/index.js';
 import { createSession } from './auth/sessions.js';
 import type { Sql } from './db.js';
+import { teamMiddleware } from './teams/index.js';
 import { OidcError, type OidcProvider } from './auth/oidc.js';
 
 export const TEST_ORIGIN = 'http://localhost:5173';
@@ -16,6 +17,9 @@ export interface TestUser {
 }
 
 /** Cria um usuário (ativo por padrão) e uma sessão; devolve o header Cookie pronto. */
+/** Equipe criada pela migração 0015; os usuários de teste entram nela. */
+export const DEFAULT_TEAM_ID = '00000000-0000-0000-0000-000000000001';
+
 export async function loginAs(
   sql: Sql,
   opts: {
@@ -31,6 +35,7 @@ export async function loginAs(
     values (${opts.email}, ${opts.name ?? 'Fulano'}, ${opts.role ?? 'member'},
       ${opts.active ?? true}, ${opts.participatesInRotation ?? true})
     returning id`;
+  await sql`insert into team_members (team_id, user_id) values (${DEFAULT_TEAM_ID}, ${u!.id})`;
   const { token } = await createSession(sql, u!.id, 3600);
   return { id: u!.id, cookie: `${SESSION_COOKIE}=${token}` };
 }
@@ -43,6 +48,7 @@ export function buildTestApp(sql: Sql, mount: (app: Hono<AuthEnv>) => void): Hon
   const app = new Hono<AuthEnv>();
   app.use(csrfProtection({ allowedOrigins: [TEST_ORIGIN] }));
   app.use(sessionMiddleware({ db: sql, cookieOptions: { secure: false } }));
+  app.use(teamMiddleware({ db: sql }));
   mount(app);
   return app;
 }

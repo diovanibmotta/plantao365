@@ -111,6 +111,7 @@ export function createSwapsRouter({
         counterpartShiftId: b.counterpartShiftId ?? null,
         note: b.note ?? null,
         now: now(),
+        ...(c.get('teamId') && { teamId: c.get('teamId')! }),
       });
       if (r.ok) await emit(tx, 'requested', r.value, user.id, null);
       return r;
@@ -127,6 +128,7 @@ export function createSwapsRouter({
     const items = await listSwaps(db, {
       userId: user.role === 'manager' ? undefined : user.id,
       status: parsed.data.status,
+      teamId: c.get('teamId') ?? undefined,
     });
     return c.json({ items });
   });
@@ -134,7 +136,7 @@ export function createSwapsRouter({
   router.get('/swaps/:id', async (c) => {
     const user = c.get('user')!;
     const id = z.uuid().safeParse(c.req.param('id'));
-    const swap = id.success ? await getSwap(db, id.data) : null;
+    const swap = id.success ? await getSwap(db, id.data, c.get('teamId') ?? undefined) : null;
     const visible =
       swap &&
       (user.role === 'manager' || swap.requesterId === user.id || swap.counterpartId === user.id);
@@ -151,6 +153,9 @@ export function createSwapsRouter({
       const body = actionBody.safeParse(raw ? await c.req.json().catch(() => null) : {});
       if (!body.success) return invalid(c, body.error);
       const reason = body.data.reason ?? null;
+      if (user.role === 'manager' && !(await getSwap(db, id.data, c.get('teamId') ?? undefined))) {
+        return notFound(c);
+      }
       const result = await db.begin(async (t) => {
         const tx = t as unknown as Sql;
         const r = await transitionSwap(tx, {

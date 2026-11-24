@@ -134,7 +134,8 @@ export function createApp({
           const rows = await findPublishedShiftsForUser(sql, args);
           return rows.flatMap((r) => (r.userId ? [{ date: r.date, userId: r.userId }] : []));
         },
-        collectiveImpactChecker: (sql, dates) => countPublishedShiftsOnDates(sql, dates),
+        collectiveImpactChecker: (sql, dates, teamId) =>
+          countPublishedShiftsOnDates(sql, dates, teamId),
         onConflict: createOnUnavailabilityConflict(notifyDeps),
       }),
     );

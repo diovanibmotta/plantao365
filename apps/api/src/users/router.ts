@@ -2,6 +2,7 @@ import { Hono, type Context } from 'hono';
 import type { ZodType } from 'zod';
 import { requireAuth, requireRole, type AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
+import { requireTeam } from '../teams/middleware.js';
 import type { FutureShiftsFinder } from './types.js';
 import {
   PROTECTED_PROFILE_FIELDS,
@@ -91,12 +92,13 @@ export function createUsersRouter({
     return c.json(await updateProfile(db, c.get('user')!.id, input.data));
   });
 
-  router.get('/users/colleagues', requireAuth(), async (c) => {
+  router.get('/users/colleagues', requireAuth(), requireTeam(), async (c) => {
     const me = c.get('user')!.id;
     const rows = await db<{ id: string; name: string }[]>`
-      select id, name from users
-      where active and participates_in_rotation and id <> ${me}
-      order by name, id`;
+      select u.id, u.name from users u
+      join team_members m on m.user_id = u.id and m.team_id = ${c.get('teamId')}
+      where u.active and u.participates_in_rotation and u.id <> ${me}
+      order by u.name, u.id`;
     return c.json(rows);
   });
 
@@ -115,17 +117,22 @@ export function createUsersRouter({
     return c.body(new Uint8Array(row.photo));
   });
 
-  router.get('/users', requireRole('manager'), async (c) => c.json(await listUsers(db)));
+  router.get('/users', requireRole('manager'), requireTeam(), async (c) =>
+    c.json(await listUsers(db, c.get('teamId')!)),
+  );
 
-  router.post('/users', requireRole('manager'), async (c) => {
+  router.post('/users', requireRole('manager'), requireTeam(), async (c) => {
     const body = await readJson(c);
     if ('response' in body) return body.response;
     const input = parseWith(c, createUserSchema, body.raw);
     if ('response' in input) return input.response;
-    return c.json(await createUser(db, c.get('user')!.id, input.data, { appBaseUrl }), 201);
+    return c.json(
+      await createUser(db, c.get('user')!.id, input.data, { appBaseUrl, teamId: c.get('teamId')! }),
+      201,
+    );
   });
 
-  router.patch('/users/:id', requireRole('manager'), async (c) => {
+  router.patch('/users/:id', requireRole('manager'), requireTeam(), async (c) => {
     const id = c.req.param('id');
     if (!UUID.test(id)) {
       return c.json({ error: 'not_found', message: 'Usuário não encontrado' }, 404);
@@ -135,7 +142,11 @@ export function createUsersRouter({
     const input = parseWith(c, updateUserSchema, body.raw);
     if ('response' in input) return input.response;
     return c.json(
-      await updateUser(db, c.get('user')!.id, id, input.data, { finder: futureShiftsFinder, now }),
+      await updateUser(db, c.get('user')!.id, id, input.data, {
+        finder: futureShiftsFinder,
+        now,
+        teamId: c.get('teamId')!,
+      }),
     );
   });
 

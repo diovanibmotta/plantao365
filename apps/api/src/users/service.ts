@@ -150,9 +150,14 @@ export async function updateProfile(
   });
 }
 
-export async function listUsers(db: Sql): Promise<UserListItemDto[]> {
+/** Membros da equipe e convidados (sem equipe, ainda não admitidos), para o gestor admitir. */
+export async function listUsers(db: Sql, teamId: string): Promise<UserListItemDto[]> {
   const rows = await db<UserRow[]>`
-    select * from users where not is_master order by lower(name), email`;
+    select * from users
+    where not is_master
+      and (role = 'guest'
+        or id in (select user_id from team_members where team_id = ${teamId}))
+    order by lower(name), email`;
   return rows.map(toListItem);
 }
 
@@ -164,7 +169,7 @@ export async function createUser(
   db: Sql,
   actorId: string,
   input: CreateUserInput,
-  opts: { appBaseUrl?: string | undefined } = {},
+  opts: { appBaseUrl?: string | undefined; teamId: string },
 ): Promise<UserListItemDto> {
   const role = input.role ?? 'member';
   const participates = input.participatesInRotation ?? role === 'member';
@@ -199,8 +204,25 @@ export async function createUser(
         reason: 'convite de convidado',
       });
     } else {
-      throw new UsersError(409, 'email_in_use', 'Já existe um usuário com este e-mail');
+      const [member] = await tx`
+        select 1 from team_members where team_id = ${opts.teamId} and user_id = ${existing.id}`;
+      if (member) {
+        throw new UsersError(409, 'email_in_use', 'Este usuário já faz parte da equipe');
+      }
+      // Usuário de outra equipe: só é vinculado a esta (papel e dados globais não mudam).
+      await tx`insert into team_members (team_id, user_id) values (${opts.teamId}, ${existing.id})`;
+      await recordAudit(tx, {
+        actorId,
+        action: 'team.add_member',
+        entityType: 'team',
+        entityId: opts.teamId,
+        after: { userId: existing.id, email: existing.email },
+      });
+      return toListItem(existing);
     }
+    await tx`
+      insert into team_members (team_id, user_id) values (${opts.teamId}, ${row!.id})
+      on conflict do nothing`;
     const invite = renderInviteEmail({
       name: row!.name,
       role: role,
@@ -282,13 +304,18 @@ export async function updateUser(
   actorId: string,
   userId: string,
   input: UpdateUserInput,
-  opts: { finder?: FutureShiftsFinder; now?: () => Date } = {},
+  opts: { finder?: FutureShiftsFinder; now?: () => Date; teamId: string },
 ): Promise<UserListItemDto> {
   return db.begin(async (tx) => {
     const managers = await tx<{ id: string }[]>`
       select id from users where role = 'manager' and active and not is_master order by id for update`;
     const [before] = await tx<UserRow[]>`select * from users where id = ${userId} for update`;
     if (!before || before.is_master) {
+      throw new UsersError(404, 'not_found', 'Usuário não encontrado');
+    }
+    const [inTeam] = await tx`
+      select 1 from team_members where team_id = ${opts.teamId} and user_id = ${userId}`;
+    if (!inTeam && before.role !== 'guest') {
       throw new UsersError(404, 'not_found', 'Usuário não encontrado');
     }
 

@@ -48,6 +48,13 @@ export async function bootstrapManagers(db: Sql, emails: readonly string[]): Pro
       });
       return true;
     });
+    // Gestor sem equipe não acessa nada: entra na equipe mais antiga (a padrão da migração).
+    await db`
+      insert into team_members (team_id, user_id)
+      select (select id from teams order by created_at, id limit 1), u.id from users u
+      where u.email = ${email}
+        and not exists (select 1 from team_members m where m.user_id = u.id)
+      on conflict do nothing`;
     if (didChange) changed.push(email);
   }
   return changed;

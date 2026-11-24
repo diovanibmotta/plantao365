@@ -3,7 +3,7 @@ import type { SqlOrTx } from '../audit/index.js';
 import type { UnavailabilityDto, UnavailabilityKind, UnavailableByDate } from './types.js';
 
 const columns = (sql: Sql) => sql`
-  id, user_id as "userId", kind, start_date::text as "startDate", end_date::text as "endDate",
+  id, user_id as "userId", team_id as "teamId", kind, start_date::text as "startDate", end_date::text as "endDate",
   note, created_by as "createdBy", created_at::text as "createdAt", updated_at::text as "updatedAt"`;
 
 export interface ListFilters {
@@ -23,7 +23,12 @@ export async function listUnavailabilities(
     select ${columns(db)} from unavailabilities
     where true
       ${visibleTo ? db`and (user_id = ${visibleTo} or user_id is null)` : db``}
-      ${teamId ? db`and (user_id is not null or team_id is null or team_id = ${teamId})` : db``}
+      ${
+        teamId
+          ? db`and ((user_id is null and (team_id is null or team_id = ${teamId}))
+            or user_id in (select user_id from team_members where team_id = ${teamId}))`
+          : db``
+      }
       ${userId ? db`and user_id = ${userId}` : db``}
       ${from ? db`and end_date >= ${from}::date` : db``}
       ${to ? db`and start_date <= ${to}::date` : db``}

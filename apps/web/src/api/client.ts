@@ -35,6 +35,15 @@ export class NetworkError extends Error {
 export const CSRF_HEADER = 'X-Requested-With';
 export const CSRF_VALUE = 'plantao360';
 
+let activeTeamId: string | null = null;
+
+/** Equipe ativa: enviada em `X-Team-Id` em toda chamada à API. */
+export function setActiveTeamId(id: string | null): void {
+  activeTeamId = id;
+}
+
+export const TEAM_HEADER = 'X-Team-Id';
+
 export interface RequestOptions {
   method?: string;
   body?: unknown;
@@ -58,6 +67,7 @@ export async function request<T = unknown>(
   const verb = method.toUpperCase();
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (verb !== 'GET') headers[CSRF_HEADER] = CSRF_VALUE;
+  if (activeTeamId) headers[TEAM_HEADER] = activeTeamId;
   const init: RequestInit = { method: verb, headers, credentials: apiCredentials() };
   if (signal) init.signal = signal;
   if (body !== undefined) {

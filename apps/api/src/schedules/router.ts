@@ -83,7 +83,9 @@ export function createSchedulesRouter({
         403,
       );
     }
-    return c.json(await listShiftsInRange(db, { ...parsed.data, status, teamId: c.get('teamId')! }));
+    return c.json(
+      await listShiftsInRange(db, { ...parsed.data, status, teamId: c.get('teamId')! }),
+    );
   });
 
   return router;

@@ -8,6 +8,8 @@ export type UnavailabilityKind = (typeof UNAVAILABILITY_KINDS)[number];
 export interface UnavailabilityDto {
   id: string;
   userId: string | null;
+  /** Equipe das férias coletivas (nulo nas exceções de membro e nas coletivas legadas). */
+  teamId: string | null;
   kind: UnavailabilityKind;
   startDate: string;
   endDate: string;
@@ -48,6 +50,7 @@ export interface UnavailabilityConflictEvent {
 export type CollectiveImpactChecker = (
   sql: Sql,
   dates: string[],
+  teamId?: string,
 ) => Promise<Array<{ date: string; count: number }>>;
 
 export interface ConflictArgs {

@@ -117,7 +117,11 @@ export function createUnavailabilityRouter({
       userId: f.userId,
     }));
     if (row.userId === null && collectiveImpactChecker) {
-      const impact = await collectiveImpactChecker(sql, expandDates(row.startDate, row.endDate));
+      const impact = await collectiveImpactChecker(
+        sql,
+        expandDates(row.startDate, row.endDate),
+        row.teamId ?? undefined,
+      );
       for (const i of impact) {
         if (i.count > 0)
           warnings.push({ type: 'published_shifts_affected', date: i.date, count: i.count });
@@ -174,6 +178,7 @@ export function createUnavailabilityRouter({
       to,
       userId,
       visibleTo: isManager ? undefined : user.id,
+      teamId: c.get('teamId') ?? undefined,
     });
     return c.json({ items });
   });
@@ -232,6 +237,7 @@ export function createUnavailabilityRouter({
           endDate: input.endDate,
           note: input.note ?? null,
           createdBy: user.id,
+          teamId: c.get('teamId'),
         });
         await recordAudit(tx, {
           actorId: user.id,
