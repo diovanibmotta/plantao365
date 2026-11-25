@@ -1,3 +1,8 @@
+# [v1.24.1](https://github.com/diovanibmotta/plantao365/compare/v1.24.0...v1.24.1) (2026-11-25)
+
+## 🐛 Bug Fixes
+- [`647ec15`](https://github.com/diovanibmotta/plantao365/commit/647ec15) : fix(web): ícone da busca sobrepondo o placeholder (#37) (Issues: [`#37`](https://github.com/diovanibmotta/plantao365/issues/37))
+
 # [v1.24.0](https://github.com/diovanibmotta/plantao365/compare/v1.23.0...v1.24.0) (2026-11-25)
 
 ## ✨ New Features
