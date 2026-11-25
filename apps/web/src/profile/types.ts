@@ -30,6 +30,29 @@ export function validatePhone(raw: string): string | null {
   return null;
 }
 
+function formatNationalPhone(digits: string): string {
+  if (digits === '') return '';
+  const ddd = digits.slice(0, 2);
+  if (digits.length <= 2) return `(${ddd}`;
+  const rest = digits.slice(2);
+  if (rest.length <= 4) return `(${ddd}) ${rest}`;
+  const split = digits.length <= 10 ? 4 : 5;
+  return `(${ddd}) ${rest.slice(0, split)}-${rest.slice(split)}`;
+}
+
+/** Máscara de telefone brasileiro: (DD) 9XXXX-XXXX, com prefixo +55 opcional. */
+export function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (raw.trim().startsWith('+')) {
+    if (digits.startsWith('55')) {
+      const national = formatNationalPhone(digits.slice(2, 13));
+      return national === '' ? '+55' : `+55 ${national}`;
+    }
+    return `+${digits.slice(0, 15)}`;
+  }
+  return formatNationalPhone(digits.slice(0, 11));
+}
+
 export function validateBadge(raw: string): string | null {
   return raw.trim().length > 30 ? 'Crachá muito longo (máx. 30 caracteres).' : null;
 }
