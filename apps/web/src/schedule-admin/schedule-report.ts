@@ -32,6 +32,8 @@ const isVacation = (s: ShiftDto) => s.dayType === 'collective_vacation';
 
 export interface MemberTotal {
   name: string;
+  /** Matrícula/crachá (opcional no cadastro). */
+  badge: string | null;
   shifts: number;
   weekendHolidayShifts: number;
   hours: number;
@@ -44,6 +46,7 @@ export function memberTotals(shifts: readonly ShiftDto[]): MemberTotal[] {
     if (isVacation(s) || !s.userId) continue;
     const t = totals.get(s.userId) ?? {
       name: s.userName ?? 'Membro',
+      badge: s.userBadgeNumber ?? null,
       shifts: 0,
       weekendHolidayShifts: 0,
       hours: 0,

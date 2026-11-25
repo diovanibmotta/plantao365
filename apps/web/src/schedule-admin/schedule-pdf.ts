@@ -129,8 +129,10 @@ export async function buildSchedulePdf(
     bodyStyles: { lineWidth: { bottom: 0.2 } },
   };
 
-  // Plantões
+  // Plantões; matrícula é opcional no cadastro: a coluna só aparece se alguém tiver.
   const withBadge = schedule.shifts.some((s) => s.userBadgeNumber);
+  const badgeCell = (badge: string | null | undefined) => (withBadge ? [badge ?? '—'] : []);
+  const memberColumn = withBadge ? 3 : 2;
   sectionTitle('PLANTÕES', 57);
   autoTable(doc, {
     ...tableStyle,
@@ -139,8 +141,8 @@ export async function buildSchedulePdf(
       [
         'Data',
         'Dia',
-        'Responsável',
         ...(withBadge ? ['Matrícula'] : []),
+        'Responsável',
         'Horário',
         { content: 'Horas', styles: { halign: 'right' } },
       ],
@@ -150,8 +152,8 @@ export async function buildSchedulePdf(
       return [
         formatDate(s.date),
         dayLabel(s),
+        ...badgeCell(s.userBadgeNumber),
         memberLabel(s),
-        ...(withBadge ? [s.userBadgeNumber ?? '—'] : []),
         vacation ? '—' : formatPeriod(s).replace('–', ' - '),
         { content: vacation ? '—' : formatHours(s.hours), styles: { halign: 'right' } },
       ];
@@ -162,7 +164,7 @@ export async function buildSchedulePdf(
       if (!s) return;
       if (s.dayType === 'holiday') data.cell.styles.fillColor = HOLIDAY;
       else if (s.dayType !== 'weekday') data.cell.styles.fillColor = WEEKEND;
-      if (data.column.index === 2 && !s.userId && s.dayType !== 'collective_vacation') {
+      if (data.column.index === memberColumn && !s.userId && s.dayType !== 'collective_vacation') {
         data.cell.styles.textColor = DANGER;
         data.cell.styles.fontStyle = 'bold';
       }
@@ -186,6 +188,7 @@ export async function buildSchedulePdf(
     startY: y + 3,
     head: [
       [
+        ...(withBadge ? ['Matrícula'] : []),
         'Membro',
         { content: 'Plantões', styles: right },
         { content: 'Fins de semana e feriados', styles: right },
@@ -194,6 +197,7 @@ export async function buildSchedulePdf(
       ],
     ],
     body: totals.map((t) => [
+      ...badgeCell(t.badge),
       t.name,
       { content: String(t.shifts), styles: right },
       { content: String(t.weekendHolidayShifts), styles: right },
@@ -202,7 +206,7 @@ export async function buildSchedulePdf(
     ]),
     foot: [
       [
-        'Total',
+        { content: 'Total', colSpan: withBadge ? 2 : 1 },
         { content: String(totals.reduce((sum, t) => sum + t.shifts, 0)), styles: right },
         {
           content: String(totals.reduce((sum, t) => sum + t.weekendHolidayShifts, 0)),

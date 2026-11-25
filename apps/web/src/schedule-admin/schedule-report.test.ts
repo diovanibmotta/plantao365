@@ -29,7 +29,13 @@ const schedule: ScheduleDetail = {
   createdBy: 'm1',
   shifts: [
     shift('2026-12-24'),
-    shift('2026-12-25', { dayType: 'holiday', hours: 24, userId: 'u2', userName: 'Bruno; "B"' }),
+    shift('2026-12-25', {
+      dayType: 'holiday',
+      hours: 24,
+      userId: 'u2',
+      userName: 'Bruno; "B"',
+      userBadgeNumber: null,
+    }),
     shift('2026-12-26', { dayType: 'weekend', hours: 24 }),
     shift('2026-12-27', { dayType: 'collective_vacation', hours: 0, userId: null, userName: null }),
     shift('2026-12-28', { userId: null, userName: null, userBadgeNumber: null }),
@@ -41,8 +47,8 @@ const ctx = { teamName: 'Infraestrutura Ágil', managerName: 'Marina Alves' };
 describe('relatório da escala', () => {
   it('totaliza por membro ignorando férias coletivas e dias sem responsável', () => {
     expect(memberTotals(schedule.shifts)).toEqual([
-      { name: 'Ana Souza', shifts: 2, weekendHolidayShifts: 1, hours: 38 },
-      { name: 'Bruno; "B"', shifts: 1, weekendHolidayShifts: 1, hours: 24 },
+      { name: 'Ana Souza', badge: '10231', shifts: 2, weekendHolidayShifts: 1, hours: 38 },
+      { name: 'Bruno; "B"', badge: null, shifts: 1, weekendHolidayShifts: 1, hours: 24 },
     ]);
     expect(coverage(schedule.shifts)).toEqual({ covered: 3, total: 4 });
   });
@@ -100,5 +106,19 @@ describe('relatório da escala', () => {
     ]) {
       expect(text).toContain(piece);
     }
+    // Matrícula vem antes do nome, nos plantões e na totalização.
+    expect(text).toContain('Matr');
+    expect(text.indexOf('(10231)')).toBeLessThan(text.indexOf('(Ana Souza)'));
+    expect(text.lastIndexOf('(10231)')).toBeLessThan(text.lastIndexOf('(Ana Souza)'));
+  });
+
+  it('PDF omite a coluna de matrícula quando ninguém tem', async () => {
+    const noBadges = {
+      ...schedule,
+      shifts: schedule.shifts.map((s) => ({ ...s, userBadgeNumber: null })),
+    };
+    const text = (await buildSchedulePdf(noBadges, ctx)).output();
+    expect(text).not.toContain('Matr');
+    expect(text).toContain('(Ana Souza)');
   });
 });
