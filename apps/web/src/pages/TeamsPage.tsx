@@ -1,242 +1,149 @@
-import { useState } from 'react';
-import { toast } from '../toast/toast-store';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router';
 import { useTeam } from '../team/TeamContext';
-import type { Team, TeamInput } from '../team/TeamContext';
-import { AVATAR_OPTIONS, TeamAvatar } from '../team/TeamAvatar';
-import { TeamMembersPanel } from '../team/TeamMembersPanel';
+import { TeamAvatar } from '../team/TeamAvatar';
+import { TEAMS_NEW_PATH, teamMembersPath, teamPath } from '../team/paths';
+import { EmptyState } from '../ui/EmptyState';
+import { FilterBar, normalizeSearch } from '../ui/FilterBar';
+import { PageHeader } from '../ui/PageHeader';
 import '../team/teams.css';
 
-type Editing = { mode: 'create' } | { mode: 'edit'; team: Team } | null;
-type Tab = 'data' | 'members';
+type DashboardFilter = '' | 'with' | 'without';
 
-const URL_PATTERN = /^https?:\/\/\S+$/i;
-
+/** Listagem das equipes; cadastro, edição e exclusão ficam no formulário. */
 export function TeamsPage() {
-  const { teams, activeTeam, create, update, remove } = useTeam();
-  const [editing, setEditing] = useState<Editing>(null);
-  const [tab, setTab] = useState<Tab>('data');
-  const [name, setName] = useState('');
-  const [dashboardUrl, setDashboardUrl] = useState('');
-  const [avatar, setAvatar] = useState<string | null>(null);
-  const [removing, setRemoving] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const navigate = useNavigate();
+  const { teams, activeTeam, loading } = useTeam();
+  const [search, setSearch] = useState('');
+  const [dashboard, setDashboard] = useState<DashboardFilter>('');
 
-  function open(next: Editing, nextTab: Tab = 'data') {
-    setEditing(next);
-    setTab(nextTab);
-    const team = next?.mode === 'edit' ? next.team : null;
-    setName(team?.name ?? '');
-    setDashboardUrl(team?.dashboardUrl ?? '');
-    setAvatar(team?.avatar ?? null);
-    setRemoving(false);
-  }
+  const visible = useMemo(() => {
+    const term = normalizeSearch(search);
+    return teams.filter(
+      (t) =>
+        (!term || normalizeSearch(t.name).includes(term)) &&
+        (!dashboard || (dashboard === 'with') === Boolean(t.dashboardUrl)),
+    );
+  }, [teams, search, dashboard]);
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = name.trim();
-    const url = dashboardUrl.trim();
-    if (!trimmed || !editing) return;
-    if (url && !URL_PATTERN.test(url)) {
-      toast.warning('Informe uma URL válida, começando com http:// ou https://.');
-      return;
-    }
-    const input: TeamInput = { name: trimmed, dashboardUrl: url || null, avatar };
-    setBusy(true);
-    try {
-      if (editing.mode === 'create') {
-        const created = await create(input);
-        open({ mode: 'edit', team: created }, 'members');
-      } else {
-        const saved = await update(editing.team.id, input);
-        setEditing({ mode: 'edit', team: saved });
-      }
-    } catch {
-      // erro exibido pelo toast
-    } finally {
-      setBusy(false);
-    }
-  }
+  const clear = () => {
+    setSearch('');
+    setDashboard('');
+  };
 
-  async function confirmRemove() {
-    if (editing?.mode !== 'edit') return;
-    setBusy(true);
-    try {
-      await remove(editing.team.id);
-      open(null);
-    } catch {
-      setRemoving(false);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const editingId = editing?.mode === 'edit' ? editing.team.id : null;
+  const cta = (
+    <Link to={TEAMS_NEW_PATH} className="btn primary">
+      Nova equipe
+    </Link>
+  );
 
   return (
     <section>
-      <div className="teams-header">
-        <div>
-          <h1>Equipes</h1>
-          <p className="muted teams-lead">Dados, dashboard e membros de cada equipe.</p>
-        </div>
-        <button
-          type="button"
-          className="btn primary"
-          disabled={editing?.mode === 'create'}
-          onClick={() => open({ mode: 'create' })}
-        >
-          Nova equipe
-        </button>
-      </div>
-
-      {teams.length === 0 && editing === null ? (
-        <p className="status muted">Nenhuma equipe cadastrada.</p>
-      ) : (
-        <ul className="teams-grid" aria-label="Equipes">
-          {teams.map((t) => (
-            <li
-              key={t.id}
-              className={`teams-card${t.id === editingId ? ' teams-card-selected' : ''}`}
-            >
-              <TeamAvatar name={t.name} avatar={t.avatar} size="lg" />
-              <div className="teams-card-body">
-                <span className="teams-name">
-                  {t.name}
-                  {t.id === activeTeam?.id && <span className="teams-badge">Em exibição</span>}
-                </span>
-                {t.dashboardUrl ? (
-                  <a
-                    href={t.dashboardUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`Abrir dashboard de ${t.name}`}
-                  >
-                    Abrir dashboard
-                  </a>
-                ) : (
-                  <span className="muted">Sem dashboard</span>
-                )}
-              </div>
-              <button
-                type="button"
-                className="btn"
-                aria-label={`Gerenciar ${t.name}`}
-                onClick={() => open({ mode: 'edit', team: t })}
-              >
-                Gerenciar
-              </button>
-            </li>
-          ))}
-        </ul>
+      <PageHeader
+        title="Equipes"
+        description="Dados, dashboard e membros de cada equipe."
+        action={teams.length > 0 ? cta : undefined}
+      />
+      {loading && teams.length === 0 && (
+        <p className="status" role="status">
+          Carregando…
+        </p>
       )}
-
-      {editing && (
-        <div className="teams-editor">
-          <div className="teams-editor-head">
-            <TeamAvatar name={name || 'Nova'} avatar={avatar} size="lg" />
-            <h2>{editing.mode === 'create' ? 'Nova equipe' : editing.team.name}</h2>
-            <button type="button" className="btn" onClick={() => open(null)}>
-              Fechar
-            </button>
-          </div>
-
-          <div className="teams-tabs" role="tablist" aria-label="Seções da equipe">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'data'}
-              className="teams-tab"
-              onClick={() => setTab('data')}
+      {!loading && teams.length === 0 && (
+        <EmptyState action={cta}>Nenhuma equipe cadastrada. Crie a primeira equipe.</EmptyState>
+      )}
+      {teams.length > 0 && (
+        <>
+          <FilterBar
+            search={search}
+            onSearch={setSearch}
+            placeholder="Buscar por nome"
+            onClear={clear}
+            clearable={Boolean(search || dashboard)}
+          >
+            <select
+              aria-label="Dashboard"
+              value={dashboard}
+              onChange={(e) => setDashboard(e.target.value as DashboardFilter)}
             >
-              Dados
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'members'}
-              className="teams-tab"
-              disabled={editing.mode === 'create'}
-              onClick={() => setTab('members')}
-            >
-              Membros
-            </button>
-          </div>
-
-          {tab === 'data' && (
-            <form className="teams-form" onSubmit={(e) => void save(e)}>
-              <label>
-                Nome da equipe
-                <input
-                  value={name}
-                  maxLength={100}
-                  autoFocus
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </label>
-              <label>
-                URL do dashboard
-                <input
-                  type="url"
-                  value={dashboardUrl}
-                  maxLength={500}
-                  placeholder="https://"
-                  onChange={(e) => setDashboardUrl(e.target.value)}
-                />
-              </label>
-              <fieldset className="teams-avatars">
-                <legend>Ícone</legend>
-                <div className="teams-avatar-options">
-                  {AVATAR_OPTIONS.map((a) => (
-                    <button
-                      key={a}
-                      type="button"
-                      className="teams-avatar-option"
-                      aria-label={`Ícone ${a}`}
-                      aria-pressed={avatar === a}
-                      onClick={() => setAvatar(avatar === a ? null : a)}
+              <option value="">Com ou sem dashboard</option>
+              <option value="with">Com dashboard</option>
+              <option value="without">Sem dashboard</option>
+            </select>
+          </FilterBar>
+          {visible.length === 0 ? (
+            <p className="muted">Nenhum registro encontrado para os filtros aplicados.</p>
+          ) : (
+            <div className="ui-table-wrap">
+              <table className="ui-table" aria-label="Equipes">
+                <thead>
+                  <tr>
+                    <th scope="col">Equipe</th>
+                    <th scope="col">Dashboard</th>
+                    <th scope="col">
+                      <span className="sr-only">Ações</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((t) => (
+                    <tr
+                      key={t.id}
+                      onClick={() => void navigate(teamPath(t.id))}
+                      style={{ cursor: 'pointer' }}
                     >
-                      {a}
-                    </button>
+                      <th scope="row">
+                        <span className="teams-name-cell">
+                          <TeamAvatar name={t.name} avatar={t.avatar} size="lg" />
+                          <span>{t.name}</span>
+                          {t.id === activeTeam?.id && (
+                            <span className="teams-badge">Em exibição</span>
+                          )}
+                        </span>
+                      </th>
+                      <td>
+                        {t.dashboardUrl ? (
+                          <a
+                            href={t.dashboardUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Abrir dashboard de ${t.name}`}
+                            onClick={(ev) => ev.stopPropagation()}
+                          >
+                            Abrir dashboard
+                          </a>
+                        ) : (
+                          <span className="muted">Sem dashboard</span>
+                        )}
+                      </td>
+                      <td className="ui-col-actions">
+                        <Link
+                          to={teamMembersPath(t.id)}
+                          className="btn sm"
+                          aria-label={`Membros de ${t.name}`}
+                          onClick={(ev) => ev.stopPropagation()}
+                        >
+                          Membros
+                        </Link>{' '}
+                        <Link
+                          to={teamPath(t.id)}
+                          className="btn sm"
+                          aria-label={`Editar ${t.name}`}
+                          onClick={(ev) => ev.stopPropagation()}
+                        >
+                          Editar
+                        </Link>
+                      </td>
+                    </tr>
                   ))}
-                </div>
-              </fieldset>
-              <div className="teams-actions">
-                <button type="submit" className="btn primary" disabled={busy || !name.trim()}>
-                  {busy ? 'Salvando…' : 'Salvar'}
-                </button>
-                {editing.mode === 'edit' &&
-                  (removing ? (
-                    <div className="teams-actions" role="group" aria-label="Confirmar exclusão">
-                      <span>Excluir “{editing.team.name}”?</span>
-                      <button
-                        type="button"
-                        className="btn"
-                        disabled={busy}
-                        onClick={() => void confirmRemove()}
-                      >
-                        Confirmar exclusão
-                      </button>
-                      <button type="button" className="btn" onClick={() => setRemoving(false)}>
-                        Cancelar
-                      </button>
-                    </div>
-                  ) : (
-                    <button type="button" className="btn" onClick={() => setRemoving(true)}>
-                      Excluir equipe
-                    </button>
-                  ))}
-              </div>
-            </form>
+                </tbody>
+              </table>
+            </div>
           )}
-
-          {tab === 'members' && editing.mode === 'edit' && (
-            <TeamMembersPanel
-              key={editing.team.id}
-              teamId={editing.team.id}
-              teamName={editing.team.name}
-            />
-          )}
-        </div>
+          <p className="ui-count">
+            {visible.length} de {teams.length} {teams.length === 1 ? 'registro' : 'registros'}
+          </p>
+        </>
       )}
     </section>
   );

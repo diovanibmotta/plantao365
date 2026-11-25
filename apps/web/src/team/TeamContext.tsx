@@ -94,7 +94,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const create = useCallback(
     async (input: TeamInput) => {
       const created = await api.post<Team>('/api/teams', input, {
-        successMessage: 'Equipe criada. Vincule os membros abaixo.',
+        successMessage: 'Equipe criada.',
       });
       const team: Team = { role: 'manager', participatesInRotation: false, ...created };
       apply(
