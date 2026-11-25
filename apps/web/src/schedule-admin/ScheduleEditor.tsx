@@ -1,20 +1,24 @@
-import { Fragment, useState } from 'react';
-import { Link } from 'react-router';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router';
 import { dayOfWeek } from '@diovanibmotta/plantao365-shared';
+import type { DayType } from '@diovanibmotta/plantao365-shared';
 import { api, describeApiError } from '../api/client';
 import type { ApiError } from '../api/client';
 import { toast } from '../toast/toast-store';
 import { DAY_TYPE_LABEL, formatHours, formatPeriod } from '../schedule/format';
 import type { ShiftDto } from '../schedule/types';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { Breadcrumb } from '../ui/FormPage';
-import { SCHEDULE_ADMIN_PATH, scheduleExportPath, tabPath } from './paths';
+import { InfoDialog } from '../ui/InfoDialog';
+import { Pagination, usePagination } from '../ui/Pagination';
+import { SCHEDULE_ADMIN_PATH, scheduleExportPath, shiftEditPath, tabPath } from './paths';
 import { downloadSchedulePdf } from './schedule-pdf';
 import { WEEKDAYS } from './schedule-report';
 import type { ReportContext } from './schedule-report';
 import { StatusPill } from './StatusPill';
 import { errorCode, errorDates, formatDate } from './types';
-import type { EditResult, MemberOption, ScheduleDetail } from './types';
+import type { MemberOption, ScheduleDetail } from './types';
 
 interface ScheduleEditorProps {
   schedule: ScheduleDetail;
@@ -39,8 +43,7 @@ export function ScheduleEditor({
   onBack,
 }: ScheduleEditorProps) {
   const published = schedule.status === 'published';
-  const [pending, setPending] = useState<{ shiftId: string; userId: string } | null>(null);
-  const [reason, setReason] = useState('');
+  const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [confirmDates, setConfirmDates] = useState<string[] | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -56,49 +59,41 @@ export function ScheduleEditor({
       setPdfBusy(false);
     }
   };
+  const [search, setSearch] = useState('');
+  const [responsible, setResponsible] = useState('');
+  const [dayType, setDayType] = useState<DayType | ''>('');
+  const [onlyConflicts, setOnlyConflicts] = useState(false);
+  const [conflictShift, setConflictShift] = useState<ShiftDto | null>(null);
 
-  const persist = async (shift: ShiftDto, userId: string, why?: string) => {
-    setBusy(true);
-    try {
-      const body: { userId: string | null; reason?: string } = { userId: userId || null };
-      if (why) body.reason = why;
-      const res = await api.patch<EditResult>(
-        `/api/schedules/${schedule.id}/shifts/${shift.id}`,
-        body,
-        { successMessage: 'Plantão atualizado.' },
-      );
-      if (res.notice) toast.success(res.notice);
-      setPending(null);
-      setReason('');
-      onChanged();
-    } catch {
-      // erro exibido pelo toast
-    } finally {
-      setBusy(false);
-    }
-  };
+  const conflictCount = useMemo(
+    () => schedule.shifts.filter((s) => (s.conflicts?.length ?? 0) > 0).length,
+    [schedule.shifts],
+  );
 
-  // Rascunho grava na hora; escala publicada pede motivo antes de gravar.
-  const change = (shift: ShiftDto, userId: string) => {
-    if (userId === (shift.userId ?? '')) {
-      setPending(null);
-      return;
-    }
-    if (published) {
-      setPending({ shiftId: shift.id, userId });
-      setReason('');
-      return;
-    }
-    void persist(shift, userId);
-  };
+  const filtered = useMemo(() => {
+    const term = normalizeSearch(search);
+    return schedule.shifts.filter((s) => {
+      if (responsible === '__none') {
+        if (s.userId) return false;
+      } else if (responsible && s.userId !== responsible) {
+        return false;
+      }
+      if (dayType && s.dayType !== dayType) return false;
+      if (onlyConflicts && !(s.conflicts?.length ?? 0)) return false;
+      if (!term) return true;
+      return normalizeSearch(
+        `${formatDate(s.date)} ${WEEKDAYS[dayOfWeek(s.date)]} ${DAY_TYPE_LABEL[s.dayType]} ${s.userName ?? ''}`,
+      ).includes(term);
+    });
+  }, [schedule.shifts, search, responsible, dayType, onlyConflicts]);
 
-  const confirmPending = (shift: ShiftDto) => {
-    if (!pending) return;
-    if (!reason.trim()) {
-      toast.warning('Informe o motivo da alteração.');
-      return;
-    }
-    void persist(shift, pending.userId, reason.trim());
+  const filterKey = `${search}|${responsible}|${dayType}|${onlyConflicts}`;
+  const pager = usePagination(filtered, filterKey);
+  const clearFilters = () => {
+    setSearch('');
+    setResponsible('');
+    setDayType('');
+    setOnlyConflicts(false);
   };
 
   const publish = async (confirmUnassigned: boolean) => {
@@ -174,6 +169,55 @@ export function ScheduleEditor({
         </p>
       )}
 
+      {conflictCount > 0 && (
+        <p className="sad-note sad-note--warn" role="status">
+          ⚠ {conflictCount} {conflictCount === 1 ? 'plantão em conflito' : 'plantões em conflito'}.
+          Use o filtro "Somente com conflito" e clique em "Ver motivo".
+        </p>
+      )}
+
+      <FilterBar
+        search={search}
+        onSearch={setSearch}
+        placeholder="Buscar por data, dia ou responsável"
+        onClear={clearFilters}
+        clearable={Boolean(search || responsible || dayType || onlyConflicts)}
+      >
+        <select
+          aria-label="Responsável"
+          value={responsible}
+          onChange={(e) => setResponsible(e.target.value)}
+        >
+          <option value="">Todos os responsáveis</option>
+          <option value="__none">Sem responsável</option>
+          {members.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Tipo de dia"
+          value={dayType}
+          onChange={(e) => setDayType(e.target.value as DayType | '')}
+        >
+          <option value="">Todos os tipos de dia</option>
+          {(Object.keys(DAY_TYPE_LABEL) as DayType[]).map((t) => (
+            <option key={t} value={t}>
+              {DAY_TYPE_LABEL[t]}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Conflitos"
+          value={onlyConflicts ? 'only' : ''}
+          onChange={(e) => setOnlyConflicts(e.target.value === 'only')}
+        >
+          <option value="">Com e sem conflito</option>
+          <option value="only">Somente com conflito</option>
+        </select>
+      </FilterBar>
+
       <div className="sad-table-wrap">
         <table className="sad-table sad-shifts" aria-label="Plantões da escala">
           <thead>
@@ -183,96 +227,97 @@ export function ScheduleEditor({
               <th scope="col">Responsável</th>
               <th scope="col">Horário</th>
               <th scope="col">Horas</th>
+              <th scope="col">Conflito</th>
+              <th scope="col">
+                <span className="sr-only">Ações</span>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {schedule.shifts.map((shift) => {
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={7} className="muted">
+                  Nenhum plantão encontrado para os filtros aplicados.
+                </td>
+              </tr>
+            )}
+            {pager.slice.map((shift) => {
               const vacation = shift.dayType === 'collective_vacation';
-              const editing = pending?.shiftId === shift.id;
-              const value = editing ? pending.userId : (shift.userId ?? '');
+              const editPath = shiftEditPath(schedule.id, shift.id);
               return (
-                <Fragment key={shift.id}>
-                  <tr
-                    className={`sad-shift-row${
-                      shift.dayType === 'holiday'
-                        ? ' sad-shift-row--holiday'
-                        : shift.dayType === 'weekend'
-                          ? ' sad-shift-row--weekend'
-                          : ''
-                    }${!vacation && !shift.userId ? ' sad-shift-row--empty' : ''}`}
-                  >
-                    <td>{formatDate(shift.date)}</td>
-                    <td>
-                      {WEEKDAYS[dayOfWeek(shift.date)]}
-                      {shift.dayType !== 'weekday' && (
-                        <span className="muted"> · {DAY_TYPE_LABEL[shift.dayType]}</span>
-                      )}
-                    </td>
-                    <td>
-                      {vacation ? (
-                        <span className="muted">Férias coletivas</span>
-                      ) : (
-                        <select
-                          aria-label={`Responsável em ${formatDate(shift.date)}`}
-                          value={value}
-                          disabled={busy}
-                          onChange={(e) => change(shift, e.target.value)}
-                        >
-                          <option value="">Sem responsável</option>
-                          {members
-                            .filter((m) => m.active || m.id === shift.userId)
-                            .map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.name}
-                                {m.active ? '' : ' (inativo)'}
-                              </option>
-                            ))}
-                        </select>
-                      )}
-                    </td>
-                    <td>{vacation ? '—' : formatPeriod(shift)}</td>
-                    <td className="sad-num">{vacation ? '—' : formatHours(shift.hours)}</td>
-                  </tr>
-                  {editing && (
-                    <tr className="sad-shift-reason">
-                      <td colSpan={5}>
-                        <div className="sad-row">
-                          <label>
-                            Motivo (obrigatório)
-                            <input
-                              type="text"
-                              value={reason}
-                              onChange={(e) => setReason(e.target.value)}
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            className="btn primary"
-                            disabled={busy}
-                            onClick={() => confirmPending(shift)}
-                          >
-                            Salvar plantão
-                          </button>
-                          <button
-                            type="button"
-                            className="btn"
-                            onClick={() => {
-                              setPending(null);
-                              setReason('');
-                            }}
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
+                <tr
+                  key={shift.id}
+                  onClick={vacation ? undefined : () => void navigate(editPath)}
+                  style={vacation ? undefined : { cursor: 'pointer' }}
+                  className={`sad-shift-row${
+                    shift.dayType === 'holiday'
+                      ? ' sad-shift-row--holiday'
+                      : shift.dayType === 'weekend'
+                        ? ' sad-shift-row--weekend'
+                        : ''
+                  }${!vacation && !shift.userId ? ' sad-shift-row--empty' : ''}`}
+                >
+                  <td>{formatDate(shift.date)}</td>
+                  <td>
+                    {WEEKDAYS[dayOfWeek(shift.date)]}
+                    {shift.dayType !== 'weekday' && (
+                      <span className="muted"> · {DAY_TYPE_LABEL[shift.dayType]}</span>
+                    )}
+                  </td>
+                  <td>
+                    {vacation ? (
+                      <span className="muted">Férias coletivas</span>
+                    ) : (
+                      (shift.userName ?? <span className="muted">Sem responsável</span>)
+                    )}
+                  </td>
+                  <td>{vacation ? '—' : formatPeriod(shift)}</td>
+                  <td className="sad-num">{vacation ? '—' : formatHours(shift.hours)}</td>
+                  <td>
+                    {(shift.conflicts?.length ?? 0) > 0 ? (
+                      <button
+                        type="button"
+                        className="btn sm sad-conflict-btn"
+                        aria-label={`Ver motivo do conflito em ${formatDate(shift.date)}`}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setConflictShift(shift);
+                        }}
+                      >
+                        ⚠ Ver motivo
+                      </button>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
+                  <td className="ui-col-actions">
+                    {!vacation && (
+                      <Link
+                        to={editPath}
+                        className="btn sm"
+                        aria-label={`Editar plantão de ${formatDate(shift.date)}`}
+                        onClick={(ev) => ev.stopPropagation()}
+                      >
+                        Editar
+                      </Link>
+                    )}
+                  </td>
+                </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+      <Pagination
+        total={schedule.shifts.length}
+        filtered={filtered.length}
+        page={pager.page}
+        pages={pager.pages}
+        pageSize={pager.pageSize}
+        onPage={pager.setPage}
+        onPageSize={pager.setPageSize}
+        noun={['plantão', 'plantões']}
+      />
 
       <div className="ui-actions">
         {!published && (
@@ -301,6 +346,22 @@ export function ScheduleEditor({
         )}
       </div>
 
+      {conflictShift && (
+        <InfoDialog
+          title={`Conflito em ${formatDate(conflictShift.date)}`}
+          onClose={() => setConflictShift(null)}
+        >
+          <p>
+            {WEEKDAYS[dayOfWeek(conflictShift.date)]}
+            {conflictShift.userName ? ` · ${conflictShift.userName}` : ' · sem responsável'}
+          </p>
+          <ul className="sad-conflict-reasons">
+            {(conflictShift.conflicts ?? []).map((c, i) => (
+              <li key={`${c.code}-${i}`}>{c.message}</li>
+            ))}
+          </ul>
+        </InfoDialog>
+      )}
       {confirmDates && (
         <ConfirmDialog
           tone="primary"

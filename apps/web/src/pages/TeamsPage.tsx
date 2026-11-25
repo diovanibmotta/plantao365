@@ -6,6 +6,7 @@ import { TEAMS_NEW_PATH, teamMembersPath, teamPath } from '../team/paths';
 import { EmptyState } from '../ui/EmptyState';
 import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { PageHeader } from '../ui/PageHeader';
+import { Pagination, usePagination } from '../ui/Pagination';
 import '../team/teams.css';
 
 type DashboardFilter = '' | 'with' | 'without';
@@ -26,6 +27,7 @@ export function TeamsPage() {
     );
   }, [teams, search, dashboard]);
 
+  const pager = usePagination(visible, [search, dashboard].join('|'));
   const clear = () => {
     setSearch('');
     setDashboard('');
@@ -87,7 +89,7 @@ export function TeamsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((t) => (
+                  {pager.slice.map((t) => (
                     <tr
                       key={t.id}
                       onClick={() => void navigate(teamPath(t.id))}
@@ -148,9 +150,15 @@ export function TeamsPage() {
               </table>
             </div>
           )}
-          <p className="ui-count">
-            {visible.length} de {teams.length} {teams.length === 1 ? 'registro' : 'registros'}
-          </p>
+          <Pagination
+            total={teams.length}
+            filtered={visible.length}
+            page={pager.page}
+            pages={pager.pages}
+            pageSize={pager.pageSize}
+            onPage={pager.setPage}
+            onPageSize={pager.setPageSize}
+          />
         </>
       )}
     </section>

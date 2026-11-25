@@ -361,3 +361,23 @@
   font-size: 12px;
   text-align: right;
 }
+
+.sad-note--warn {
+  border-color: #d29922;
+}
+
+.sad-conflict-btn {
+  color: #d29922;
+  white-space: nowrap;
+}
+
+.sad-conflict-reasons {
+  margin: 0 0 var(--space);
+  padding-left: 18px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.sad-conflict-reasons li + li {
+  margin-top: 6px;
+}

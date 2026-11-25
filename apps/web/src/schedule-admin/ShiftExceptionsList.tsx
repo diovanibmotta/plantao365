@@ -7,6 +7,7 @@ import { formatHours } from '../schedule/format';
 import { EmptyState } from '../ui/EmptyState';
 import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { PageHeader } from '../ui/PageHeader';
+import { Pagination, usePagination } from '../ui/Pagination';
 import { EXCEPTIONS_NEW_PATH, exceptionPath } from './paths';
 import { describe, formatDate } from './types';
 
@@ -51,6 +52,7 @@ export function ShiftExceptionsList() {
     );
   }, [items, search, year, work]);
 
+  const pager = usePagination(visible, [search, year, work].join('|'));
   const clear = () => {
     setSearch('');
     setYear('');
@@ -130,7 +132,7 @@ export function ShiftExceptionsList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((e) => (
+                  {pager.slice.map((e) => (
                     <tr
                       key={e.date}
                       onClick={() => void navigate(exceptionPath(e.date))}
@@ -173,9 +175,15 @@ export function ShiftExceptionsList() {
               </table>
             </div>
           )}
-          <p className="ui-count">
-            {visible.length} de {items.length} {items.length === 1 ? 'registro' : 'registros'}
-          </p>
+          <Pagination
+            total={items.length}
+            filtered={visible.length}
+            page={pager.page}
+            pages={pager.pages}
+            pageSize={pager.pageSize}
+            onPage={pager.setPage}
+            onPageSize={pager.setPageSize}
+          />
         </>
       )}
     </section>

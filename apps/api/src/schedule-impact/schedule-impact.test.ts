@@ -5,6 +5,7 @@ import { runScheduleImpact } from './run.js';
 import {
   assessScheduleConflicts,
   assessScheduleImpact,
+  assessShiftConflicts,
   createScheduleImpactNotifier,
 } from './service.js';
 
@@ -151,6 +152,24 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
       const [conflicts] = [...(await assessScheduleConflicts(sql, TEAM, ids)).values()];
       expect(conflicts).toEqual({ unavailable: 2, outdated: 1 });
       expect((await assessScheduleConflicts(sql, TEAM, [])).size).toBe(0);
+    });
+
+    it('conflitos por plantão: motivo de férias do responsável e de plantão desatualizado', async () => {
+      await published(['2099-06-01', '2099-06-02', '2099-06-03'], ana);
+      const [{ id: scheduleId }] = await sql<{ id: string }[]>`select id from schedules`;
+      expect((await assessShiftConflicts(sql, TEAM, scheduleId!)).size).toBe(0);
+      await sql`insert into unavailabilities (user_id, kind, start_date, end_date, created_by)
+        values (${ana}, 'vacation', '2099-06-02', '2099-06-03', ${gestor})`;
+      await sql`insert into shift_exceptions (team_id, date, start_hour, end_hour)
+        values (${TEAM}, '2099-06-01', 12, 8)`;
+      const byShift = await assessShiftConflicts(sql, TEAM, scheduleId!);
+      const rows = await sql<{ id: string; date: string }[]>`
+        select id, date::text as date from shifts order by date`;
+      const codes = rows.map((r) => byShift.get(r.id)?.map((c) => c.code));
+      expect(codes).toEqual([['outdated'], ['member_unavailable'], ['member_unavailable']]);
+      expect(byShift.get(rows[1]!.id)![0]!.message).toContain(
+        'de férias de 02/06/2099 a 03/06/2099',
+      );
     });
 
     it('falha do notificador não derruba a mutação (savepoint)', async () => {

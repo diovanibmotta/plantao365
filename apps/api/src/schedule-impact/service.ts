@@ -7,6 +7,7 @@ import { listUnavailableByDate } from '../unavailability/service.js';
 import { impactMessage } from './message.js';
 import type {
   ScheduleConflicts,
+  ShiftConflict,
   ScheduleImpact,
   ScheduleImpactNotifier,
   ScheduleImpactPayload,
@@ -65,6 +66,7 @@ async function datesShifts(sql: Sql, dates: string[]) {
 }
 
 interface FutureShiftRow {
+  id: string;
   schedule_id: string;
   date: string;
   day_type: DayType;
@@ -75,6 +77,15 @@ interface FutureShiftRow {
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
+interface OutdatedShift {
+  id: string;
+  schedule_id: string;
+  date: string;
+  current: { dayType: DayType; hours: number };
+  next: { dayType: DayType; hours: number };
+  sameTimes: boolean;
+}
+
 /**
  * Plantões de hoje em diante cujo tipo de dia, horas ou horário divergem do que as configurações
  * atuais da equipe produziriam (mesma comparação do recálculo por feriado). Sem `scheduleIds`,
@@ -84,9 +95,9 @@ async function outdatedShifts(
   sql: Sql,
   teamId: string,
   scheduleIds?: string[],
-): Promise<Array<{ schedule_id: string; date: string }>> {
+): Promise<OutdatedShift[]> {
   const rows = await sql<FutureShiftRow[]>`
-    select s.schedule_id, s.date::text as date, s.day_type, s.hours, s.starts_at, s.ends_at
+    select s.id, s.schedule_id, s.date::text as date, s.day_type, s.hours, s.starts_at, s.ends_at
     from shifts s join schedules sc on sc.id = s.schedule_id
     where sc.team_id = ${teamId}
       ${scheduleIds ? sql`and sc.id = any(${scheduleIds}::uuid[])` : sql`and sc.status = 'published'`}
@@ -102,17 +113,21 @@ async function outdatedShifts(
     weekdayTimes: await getWeekdayTimes(sql, teamId),
     shiftExceptions: await getShiftExceptionTimes(sql, teamId, from, to),
   };
-  return rows
-    .filter((r) => {
-      const next = shiftForDate(r.date, ctx);
-      return !(
-        r.day_type === next.dayType &&
-        r.hours === next.hours &&
-        iso(r.starts_at) === iso(next.start) &&
-        iso(r.ends_at) === iso(next.end)
-      );
-    })
-    .map((r) => ({ schedule_id: r.schedule_id, date: r.date }));
+  const outdated: OutdatedShift[] = [];
+  for (const r of rows) {
+    const next = shiftForDate(r.date, ctx);
+    const sameTimes = iso(r.starts_at) === iso(next.start) && iso(r.ends_at) === iso(next.end);
+    if (r.day_type === next.dayType && r.hours === next.hours && sameTimes) continue;
+    outdated.push({
+      id: r.id,
+      schedule_id: r.schedule_id,
+      date: r.date,
+      current: { dayType: r.day_type, hours: r.hours },
+      next: { dayType: next.dayType, hours: next.hours },
+      sameTimes,
+    });
+  }
+  return outdated;
 }
 
 const settingsShifts = async (sql: Sql, teamId: string): Promise<TeamDateRow[]> =>
@@ -145,6 +160,82 @@ export async function assessScheduleConflicts(
   for (const r of unavailable) result.get(r.schedule_id)!.unavailable = r.n;
   for (const r of await outdatedShifts(sql, teamId, scheduleIds)) {
     result.get(r.schedule_id)!.outdated += 1;
+  }
+  return result;
+}
+
+const DAY_TYPE_TEXT: Record<DayType, string> = {
+  weekday: 'dia útil',
+  weekend: 'fim de semana',
+  holiday: 'feriado',
+  collective_vacation: 'férias coletivas',
+};
+
+const KIND_TEXT: Record<string, string> = {
+  vacation: 'férias',
+  time_off: 'folga',
+  other: 'exceção',
+};
+
+const brDate = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+const brPeriod = (a: string, b: string) =>
+  a === b ? `em ${brDate(a)}` : `de ${brDate(a)} a ${brDate(b)}`;
+
+/** Motivos de conflito de cada plantão (de hoje em diante) de uma escala, por id do plantão. */
+export async function assessShiftConflicts(
+  sql: Sql,
+  teamId: string,
+  scheduleId: string,
+): Promise<Map<string, ShiftConflict[]>> {
+  const result = new Map<string, ShiftConflict[]>();
+  const add = (shiftId: string, conflict: ShiftConflict) => {
+    const list = result.get(shiftId);
+    if (list) list.push(conflict);
+    else result.set(shiftId, [conflict]);
+  };
+  const unavailable = await sql<
+    { id: string; kind: string; user_name: string | null; start_date: string; end_date: string }[]
+  >`
+    select s.id, u.kind, m.name as user_name,
+      u.start_date::text as start_date, u.end_date::text as end_date
+    from shifts s
+    join schedules sc on sc.id = s.schedule_id
+    join unavailabilities u on s.date between u.start_date and u.end_date
+      and ((u.user_id is not null and u.user_id = s.user_id)
+        or (u.user_id is null and (u.team_id is null or u.team_id = sc.team_id)))
+    left join users m on m.id = u.user_id
+    where sc.id = ${scheduleId} and sc.team_id = ${teamId} and s.hours > 0
+      and s.date >= (now() at time zone 'America/Sao_Paulo')::date
+    order by s.date, u.start_date`;
+  for (const r of unavailable) {
+    const period = brPeriod(r.start_date, r.end_date);
+    if (r.kind === 'collective_vacation') {
+      add(r.id, {
+        code: 'collective_vacation',
+        message: `Dia em férias coletivas ${period}; o plantão não deveria existir.`,
+      });
+    } else {
+      add(r.id, {
+        code: 'member_unavailable',
+        message: `${r.user_name ?? 'O responsável'} está de ${KIND_TEXT[r.kind] ?? 'exceção'} ${period}.`,
+      });
+    }
+  }
+  for (const r of await outdatedShifts(sql, teamId, [scheduleId])) {
+    const diffs: string[] = [];
+    if (r.current.dayType !== r.next.dayType) {
+      diffs.push(
+        `tipo de dia (${DAY_TYPE_TEXT[r.current.dayType]} na escala, ${DAY_TYPE_TEXT[r.next.dayType]} hoje)`,
+      );
+    }
+    if (r.current.hours !== r.next.hours) {
+      diffs.push(`horas (${r.current.hours}h na escala, ${r.next.hours}h hoje)`);
+    }
+    if (!r.sameTimes) diffs.push('horário de início e fim');
+    add(r.id, {
+      code: 'outdated',
+      message: `Diferente da configuração atual de feriados e horários: ${diffs.join('; ')}.`,
+    });
   }
   return result;
 }

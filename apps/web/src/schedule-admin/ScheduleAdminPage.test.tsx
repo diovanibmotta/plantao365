@@ -10,6 +10,7 @@ import { ToastViewport } from '../toast/ToastViewport';
 import { toast } from '../toast/toast-store';
 import { ScheduleEditorPage } from './ScheduleEditorPage';
 import { ScheduleGenerateForm } from './ScheduleGenerateForm';
+import { ShiftEditForm } from './ShiftEditForm';
 import { ShiftTimeForm } from './ShiftTimeForm';
 import { WorkHoursForm } from './WorkHoursForm';
 
@@ -114,6 +115,7 @@ function renderApp(path: string) {
         <Route path="/schedule-admin" element={<ScheduleAdminPage />} />
         <Route path="/schedule-admin/schedules/new" element={<ScheduleGenerateForm />} />
         <Route path="/schedule-admin/schedules/:id" element={<ScheduleEditorPage />} />
+        <Route path="/schedule-admin/schedules/:id/shifts/:shiftId" element={<ShiftEditForm />} />
         <Route path="/schedule-admin/shift-times/new" element={<ShiftTimeForm />} />
         <Route path="/schedule-admin/shift-times/:key" element={<ShiftTimeForm />} />
         <Route path="/schedule-admin/work-hours/new" element={<WorkHoursForm />} />
@@ -291,7 +293,8 @@ describe('jornada de trabalho', () => {
     expect(rows[1]?.textContent).toContain('13:30');
     expect(screen.getByRole('link', { name: 'Editar período 2' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Novo período' })).toBeTruthy();
-    expect(screen.getByText(/2 períodos · Total: 8h30/)).toBeTruthy();
+    expect(screen.getByText(/2 de 2 períodos/)).toBeTruthy();
+    expect(screen.getByText(/Total: 8h30/)).toBeTruthy();
     expect(within(table).getByRole('rowheader', { name: 'Período 1' })).toBeTruthy();
   });
 
@@ -521,30 +524,138 @@ describe('escalas: editor', () => {
     expect(rows[0]?.textContent).toContain('Segunda');
     expect(rows[0]?.textContent).toContain('18:00–08:00');
     expect(rows[0]?.textContent).toContain('14h');
-    expect((screen.getByLabelText('Responsável em 02/03/2026') as HTMLSelectElement).value).toBe(
-      'u1',
-    );
-    expect((screen.getByLabelText('Responsável em 03/03/2026') as HTMLSelectElement).value).toBe(
-      '',
-    );
+    expect(rows[0]?.textContent).toContain('Ana Souza');
+    expect(rows[1]?.textContent).toContain('Sem responsável');
+    expect(screen.queryByLabelText('Responsável em 02/03/2026')).toBeNull();
   });
 
-  it('edita plantão do rascunho e exibe avisos de conflito', async () => {
-    const fetchMock = mockApi('draft', (url, init) => {
-      if (url === '/api/schedules/s1/shifts/sh-2026-03-03' && init.method === 'PATCH') {
-        return json({
-          shift: shift('2026-03-03', 'u2'),
-          warnings: [{ code: 'user_unavailable', message: 'Usuário tem exceção nesta data' }],
-        });
-      }
-      return undefined;
-    });
+  it('abre a tela de edição pelo botão Editar da linha', async () => {
+    mockApi('draft');
     const user = await openEditor();
-    await user.selectOptions(screen.getByLabelText('Responsável em 03/03/2026'), 'u2');
-    expect(await screen.findByText('Usuário tem exceção nesta data')).toBeTruthy();
+    await user.click(screen.getByRole('link', { name: 'Editar plantão de 02/03/2026' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Editar plantão de 02/03/2026' }),
+    ).toBeTruthy();
+  });
+
+  describe('filtros, paginação e conflitos', () => {
+    const day = (n: number) => `2026-03-${String(n).padStart(2, '0')}`;
+    const manyShifts = (): ShiftDto[] =>
+      Array.from({ length: 30 }, (_, i) => shift(day(i + 1), i % 2 === 0 ? 'u1' : 'u2'));
+    const withShifts = (shifts: ShiftDto[]) => (url: string, init: RequestInit) =>
+      url === '/api/schedules/s1' && (init.method ?? 'GET') === 'GET'
+        ? json({ ...schedule('published'), startDate: day(1), endDate: day(30), shifts })
+        : undefined;
+    const rowsOf = () =>
+      within(screen.getByRole('table', { name: 'Plantões da escala' }))
+        .getAllByRole('row')
+        .slice(1);
+
+    const openMany = async (shifts: ShiftDto[]) => {
+      mockApi('published', withShifts(shifts));
+      const user = userEvent.setup();
+      renderApp('/schedule-admin/schedules/s1');
+      await screen.findByRole('table', { name: 'Plantões da escala' });
+      return user;
+    };
+
+    it('pagina os plantões e navega entre as páginas', async () => {
+      const user = await openMany(manyShifts());
+      expect(rowsOf()).toHaveLength(25);
+      expect(screen.getByText('30 de 30 plantões')).toBeTruthy();
+      await user.click(screen.getByRole('button', { name: 'Próxima' }));
+      expect(rowsOf()).toHaveLength(5);
+      expect(screen.getByText('2 de 2 páginas')).toBeTruthy();
+      await user.selectOptions(screen.getByLabelText('Registros por página'), '10');
+      expect(rowsOf()).toHaveLength(10);
+      expect(screen.getByText('1 de 3 páginas')).toBeTruthy();
+    });
+
+    it('filtra por responsável, busca e limpa os filtros voltando à página 1', async () => {
+      const user = await openMany(manyShifts());
+      await user.click(screen.getByRole('button', { name: 'Próxima' }));
+      await user.selectOptions(screen.getByRole('combobox', { name: 'Responsável' }), 'u2');
+      expect(rowsOf()).toHaveLength(15);
+      expect(screen.getByText('1 de 1 página')).toBeTruthy();
+      await user.type(screen.getByRole('searchbox'), '02/03/2026');
+      expect(rowsOf()).toHaveLength(1);
+      await user.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+      expect(rowsOf()).toHaveLength(25);
+    });
+
+    it('mostra mensagem quando o filtro zera a lista', async () => {
+      const user = await openMany(manyShifts());
+      await user.type(screen.getByRole('searchbox'), 'zzz');
+      expect(screen.getByText('Nenhum plantão encontrado para os filtros aplicados.')).toBeTruthy();
+    });
+
+    it('destaca plantões em conflito e explica o motivo no diálogo', async () => {
+      const shifts = manyShifts();
+      shifts[1] = {
+        ...shifts[1]!,
+        conflicts: [
+          { code: 'member_unavailable', message: 'Bruno Lima está de férias em 02/03/2026.' },
+        ],
+      };
+      const user = await openMany(shifts);
+      expect(screen.getByRole('status').textContent).toContain('1 plantão em conflito');
+      await user.selectOptions(screen.getByLabelText('Conflitos'), 'only');
+      expect(rowsOf()).toHaveLength(1);
+      await user.click(
+        screen.getByRole('button', { name: 'Ver motivo do conflito em 02/03/2026' }),
+      );
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByText('Bruno Lima está de férias em 02/03/2026.')).toBeTruthy();
+      await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  it('edita responsável e horário do rascunho em tela própria e volta à escala', async () => {
+    const fetchMock = mockApi('draft', (url, init) =>
+      url === '/api/schedules/s1/shifts/sh-2026-03-03' && init.method === 'PATCH'
+        ? json({ shift: shift('2026-03-03', 'u2'), warnings: [] })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    renderApp('/schedule-admin/schedules/s1/shifts/sh-2026-03-03');
+    await screen.findByRole('heading', { name: 'Editar plantão de 03/03/2026' });
+    expect(screen.getByRole('button', { name: 'Salvar' }).hasAttribute('disabled')).toBe(true);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Responsável' }), 'u2');
+    await user.selectOptions(screen.getByLabelText('Início'), '19');
+    await user.selectOptions(screen.getByLabelText('Fim'), '9');
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    await screen.findByText('Plantão atualizado.');
     expect(bodyOf(fetchMock, '/api/schedules/s1/shifts/sh-2026-03-03', 'PATCH')).toEqual({
       userId: 'u2',
+      startHour: 19,
+      endHour: 9,
     });
+    expect(await screen.findByRole('table', { name: 'Plantões da escala' })).toBeTruthy();
+  });
+
+  it('envia só o que mudou: horário sem trocar o responsável', async () => {
+    const fetchMock = mockApi('draft', (url, init) =>
+      url === '/api/schedules/s1/shifts/sh-2026-03-02' && init.method === 'PATCH'
+        ? json({ shift: shift('2026-03-02', 'u1'), warnings: [] })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    renderApp('/schedule-admin/schedules/s1/shifts/sh-2026-03-02');
+    await screen.findByRole('heading', { name: 'Editar plantão de 02/03/2026' });
+    await user.selectOptions(screen.getByLabelText('Fim'), '10');
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    await screen.findByText('Plantão atualizado.');
+    expect(bodyOf(fetchMock, '/api/schedules/s1/shifts/sh-2026-03-02', 'PATCH')).toEqual({
+      startHour: 18,
+      endHour: 10,
+    });
+  });
+
+  it('mostra mensagem para plantão inexistente', async () => {
+    mockApi('draft');
+    renderApp('/schedule-admin/schedules/s1/shifts/nao-existe');
+    expect((await screen.findByRole('alert')).textContent).toContain('Plantão não encontrado.');
   });
 
   it('publica com confirmação quando há dias sem responsável', async () => {
@@ -609,14 +720,15 @@ describe('escalas: editor', () => {
           })
         : undefined,
     );
-    const user = await openEditor();
-    expect(screen.getByText(/o membro será notificado/)).toBeTruthy();
-    await user.selectOptions(screen.getByLabelText('Responsável em 02/03/2026'), 'u2');
-    await user.click(screen.getByRole('button', { name: 'Salvar plantão' }));
-    expect(await screen.findByText('Informe o motivo da alteração.')).toBeTruthy();
-    expect(bodyOf(fetchMock, '/api/schedules/s1/shifts/sh-2026-03-02', 'PATCH')).toBeUndefined();
+    const user = userEvent.setup();
+    renderApp('/schedule-admin/schedules/s1/shifts/sh-2026-03-02');
+    await screen.findByRole('heading', { name: 'Editar plantão de 02/03/2026' });
+    expect(screen.getByText(/os membros serão notificados/)).toBeTruthy();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Responsável' }), 'u2');
+    expect(screen.getByRole('alert').textContent).toContain('Informe o motivo');
+    expect(screen.getByRole('button', { name: 'Salvar' }).hasAttribute('disabled')).toBe(true);
     await user.type(screen.getByLabelText('Motivo (obrigatório)'), 'Troca combinada');
-    await user.click(screen.getByRole('button', { name: 'Salvar plantão' }));
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
     await screen.findByText('Os membros envolvidos serão notificados da alteração.');
     expect(bodyOf(fetchMock, '/api/schedules/s1/shifts/sh-2026-03-02', 'PATCH')).toEqual({
       userId: 'u2',

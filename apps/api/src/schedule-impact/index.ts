@@ -9,6 +9,7 @@ export { runScheduleImpact } from './run.js';
 export {
   assessScheduleConflicts,
   assessScheduleImpact,
+  assessShiftConflicts,
   createScheduleImpactNotifier,
 } from './service.js';
 export {
@@ -19,5 +20,6 @@ export {
   type ScheduleImpactPayload,
   type ScheduleImpactSource,
   type ScheduleImpactTrigger,
+  type ShiftConflict,
   type TeamImpact,
 } from './types.js';

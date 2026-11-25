@@ -4,7 +4,11 @@ import { requireAuth } from '../auth/authz.js';
 import type { AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
-import { assessScheduleConflicts, type ScheduleImpactNotifier } from '../schedule-impact/index.js';
+import {
+  assessScheduleConflicts,
+  assessShiftConflicts,
+  type ScheduleImpactNotifier,
+} from '../schedule-impact/index.js';
 import { requireTeam } from '../teams/middleware.js';
 import { registerEditRoutes, type ShiftChangedHook } from './edit.js';
 import { registerGenerateRoute } from './generate.js';
@@ -72,7 +76,13 @@ export function createSchedulesRouter({
     if (!schedule || (!isManager && schedule.status !== 'published')) {
       return c.json({ error: 'not_found', message: 'Escala não encontrada' }, 404);
     }
-    return c.json({ ...schedule, shifts: await listShiftsOfSchedule(db, schedule.id) });
+    const shifts = await listShiftsOfSchedule(db, schedule.id);
+    if (!isManager) return c.json({ ...schedule, shifts });
+    const conflicts = await assessShiftConflicts(db, c.get('teamId')!, schedule.id);
+    return c.json({
+      ...schedule,
+      shifts: shifts.map((s) => ({ ...s, conflicts: conflicts.get(s.id) ?? [] })),
+    });
   });
 
   router.get('/shifts/mine', async (c) => {

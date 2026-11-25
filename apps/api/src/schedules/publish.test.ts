@@ -135,6 +135,27 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('publicar/editar escalas (Pos
       expect(changes).toHaveLength(0);
     });
 
+    it('altera o horário (início e fim), recalcula horas e mantém o responsável', async () => {
+      const d = await seed('draft', '2027-07-10', [['2027-07-10', ana.id]]);
+      const shiftId = d.shifts.get('2027-07-10');
+      const url = `/schedules/${d.id}/shifts/${shiftId}`;
+      const res = await call('PATCH', url, manager, { startHour: 19, endHour: 9 });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        shift: { userId: string; hours: number; startsAt: string; endsAt: string };
+      };
+      expect(body.shift).toMatchObject({
+        userId: ana.id,
+        hours: 14,
+        startsAt: '2027-07-10T22:00:00.000Z',
+        endsAt: '2027-07-11T12:00:00.000Z',
+      });
+      const same = await call('PATCH', url, manager, { startHour: 8, endHour: 8 });
+      expect(((await same.json()) as { shift: { hours: number } }).shift.hours).toBe(24);
+      expect((await call('PATCH', url, manager, { startHour: 8 })).status).toBe(400);
+      expect((await call('PATCH', url, manager, { startHour: 8, endHour: 24 })).status).toBe(400);
+    });
+
     it('devolve avisos de conflito (inativo, fora do revezamento, exceção, férias coletivas)', async () => {
       const d = await seed('draft', '2027-07-02', [
         ['2027-07-02', bia.id],

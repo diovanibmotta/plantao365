@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import { formatHours } from '../schedule/format';
 import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { PageHeader } from '../ui/PageHeader';
+import { Pagination, usePagination } from '../ui/Pagination';
 import { SHIFT_TIMES_NEW_PATH, shiftTimePath } from './paths';
 import { describe } from './types';
 import { HOLIDAY_KEY, SHIFT_TARGETS, effectiveTime, targetLabel } from './weekdays';
@@ -66,6 +67,8 @@ export function ShiftTimesList() {
         (!origin || (origin === 'custom') === r.custom),
     );
   }, [rows, search, kind, origin]);
+
+  const pager = usePagination(visible, [search, kind, origin].join('|'));
 
   const clear = () => {
     setSearch('');
@@ -141,7 +144,7 @@ export function ShiftTimesList() {
               </tr>
             </thead>
             <tbody>
-              {visible.map((r) => (
+              {pager.slice.map((r) => (
                 <tr key={r.target}>
                   <th scope="row">
                     {r.label}
@@ -171,9 +174,15 @@ export function ShiftTimesList() {
         </div>
       )}
       {rows.length > 0 && (
-        <p className="ui-count">
-          {visible.length} de {rows.length} registros
-        </p>
+        <Pagination
+          total={rows.length}
+          filtered={visible.length}
+          page={pager.page}
+          pages={pager.pages}
+          pageSize={pager.pageSize}
+          onPage={pager.setPage}
+          onPageSize={pager.setPageSize}
+        />
       )}
     </section>
   );
