@@ -78,6 +78,7 @@ export function FormActions({
   busy,
   saveDisabled = false,
   saveLabel = 'Salvar',
+  deleteLabel = 'Excluir',
 }: {
   onCancel: () => void;
   onDelete?: (() => void) | undefined;
@@ -85,12 +86,14 @@ export function FormActions({
   /** Bloqueia o Salvar enquanto o formulário tem um problema visível (ex.: sobreposição). */
   saveDisabled?: boolean;
   saveLabel?: string;
+  /** Rótulo do botão destrutivo (ex.: Desativar, quando o registro não é excluído de fato). */
+  deleteLabel?: string;
 }) {
   return (
     <div className="ui-actions">
       {onDelete && (
         <button type="button" className="btn ui-danger" disabled={busy} onClick={onDelete}>
-          Excluir
+          {deleteLabel}
         </button>
       )}
       <span className="ui-actions-spacer" />
