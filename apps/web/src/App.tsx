@@ -3,6 +3,7 @@ import { useAuth } from './auth/AuthContext';
 import { RequireAuth, RequireRole } from './auth/guards';
 import { Layout } from './layout/Layout';
 import { AuditPage } from './pages/AuditPage';
+import { AdjustmentForm } from './balance/AdjustmentForm';
 import { BalancePage } from './pages/BalancePage';
 import { VacationsPage } from './exceptions/VacationsPage';
 import { LoginPage } from './pages/LoginPage';
@@ -56,6 +57,8 @@ export function App() {
             <Route path="profile" element={<ProfilePage />} />
           </Route>
           <Route element={<RequireRole role="manager" />}>
+            <Route path="balance/adjustments/new" element={<AdjustmentForm />} />
+            <Route path="balance/adjustments/:id" element={<AdjustmentForm />} />
             <Route path="teams" element={<TeamsPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="vacations" element={<VacationsPage />} />
