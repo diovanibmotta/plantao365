@@ -1,3 +1,8 @@
+# [v1.28.0](https://github.com/diovanibmotta/plantao365/compare/v1.27.0...v1.28.0) (2026-11-25)
+
+## ✨ New Features
+- [`c101469`](https://github.com/diovanibmotta/plantao365/commit/c101469)  feat(web): máscara de celular no telefone do perfil
+
 # [v1.27.0](https://github.com/diovanibmotta/plantao365/compare/v1.26.1...v1.27.0) (2026-11-25)
 
 ## ✨ New Features
