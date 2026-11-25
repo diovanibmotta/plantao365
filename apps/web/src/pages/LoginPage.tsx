@@ -100,7 +100,10 @@ export function LoginPage() {
     api
       .get<{ masterLogin: boolean; sso: boolean }>('/auth/config', controller.signal)
       .then(setConfig)
-      .catch(() => undefined);
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        setConfig({ masterLogin: true, sso: true });
+      });
     return () => controller.abort();
   }, []);
   if (status === 'authenticated') return <Navigate to="/" replace />;
