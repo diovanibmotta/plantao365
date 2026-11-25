@@ -17,11 +17,12 @@ import '../schedule-admin/schedule-admin.css';
 import { PageTitle } from '../team/PageTitle';
 
 type StatusFilter = '' | ScheduleDto['status'];
-type Tab = 'schedules' | 'times' | 'work-hours';
+type Tab = 'schedules' | 'times' | 'exceptions' | 'work-hours';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'schedules', label: 'Escalas' },
   { id: 'times', label: 'Horários dos plantões' },
+  { id: 'exceptions', label: 'Exceções' },
   { id: 'work-hours', label: 'Jornada de trabalho' },
 ];
 
@@ -107,12 +108,8 @@ export function ScheduleAdminPage() {
         ))}
       </div>
       <div id="sad-panel" role="tabpanel" aria-labelledby={`sad-tab-${tab}`}>
-        {tab === 'times' && (
-          <>
-            <ShiftSettingsForm />
-            <ShiftExceptionsForm />
-          </>
-        )}
+        {tab === 'times' && <ShiftSettingsForm />}
+        {tab === 'exceptions' && <ShiftExceptionsForm />}
         {tab === 'work-hours' && <WorkHoursForm />}
         {tab === 'schedules' && (
           <>
