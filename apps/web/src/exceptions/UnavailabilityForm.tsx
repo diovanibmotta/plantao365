@@ -15,6 +15,8 @@ import {
   errorMessage,
   formatPeriod,
   validatePeriod,
+  countDays,
+  endDateFor,
 } from './types';
 import type { ExceptionKind, MemberOption, Unavailability, UnavailabilityMutation } from './types';
 import './exceptions.css';
@@ -48,6 +50,8 @@ interface Values {
   kind: ExceptionKind;
   startDate: string;
   endDate: string;
+  /** Férias: quantidade de dias, em texto para permitir o campo vazio. */
+  days: string;
   note: string;
   userId: string;
   /** Só em Férias, ao criar: false = individual, true = coletiva. */
@@ -176,6 +180,7 @@ function UnavailabilityFormBody({
     kind: item?.kind ?? 'time_off',
     startDate: item?.startDate ?? '',
     endDate: item?.endDate ?? '',
+    days: item ? String(countDays(item.startDate, item.endDate) ?? '') : '',
     note: item?.note ?? '',
     userId: item?.userId ?? selfId,
     collective: false,
@@ -189,6 +194,18 @@ function UnavailabilityFormBody({
   const patch = (p: Partial<Values>) => {
     setProblem(null);
     setValues((v) => ({ ...v, ...p }));
+  };
+
+  /** Férias: início + dias calculam o término; mudar o término recalcula os dias. */
+  const patchPeriod = (p: Partial<Pick<Values, 'startDate' | 'endDate' | 'days'>>) => {
+    const next = { ...values, ...p };
+    if (vacations && ('startDate' in p || 'days' in p)) {
+      const end = endDateFor(next.startDate, Number(next.days));
+      if (end) next.endDate = end;
+    } else if (vacations && 'endDate' in p) {
+      next.days = String(countDays(next.startDate, next.endDate) ?? '');
+    }
+    patch({ startDate: next.startDate, endDate: next.endDate, days: next.days });
   };
 
   const activeMembers = members.filter((m) => m.active);
@@ -366,7 +383,14 @@ function UnavailabilityFormBody({
           </FormSection>
         )}
 
-        <FormSection title="Período" description="Primeiro e último dia da ausência.">
+        <FormSection
+          title="Período"
+          description={
+            vacations
+              ? 'Informe o início e a quantidade de dias: o término é calculado (e pode ser ajustado).'
+              : 'Primeiro e último dia da ausência.'
+          }
+        >
           <div className="ui-fields">
             {!vacations && (
               <label className="ui-field">
@@ -388,15 +412,27 @@ function UnavailabilityFormBody({
               <input
                 type="date"
                 value={values.startDate}
-                onChange={(e) => patch({ startDate: e.target.value })}
+                onChange={(e) => patchPeriod({ startDate: e.target.value })}
               />
             </label>
+            {vacations && (
+              <label className="ui-field">
+                Quantidade de dias
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={values.days}
+                  onChange={(e) => patchPeriod({ days: e.target.value })}
+                />
+              </label>
+            )}
             <label className="ui-field">
               Data final
               <input
                 type="date"
                 value={values.endDate}
-                onChange={(e) => patch({ endDate: e.target.value })}
+                onChange={(e) => patchPeriod({ endDate: e.target.value })}
               />
             </label>
           </div>

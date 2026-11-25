@@ -321,3 +321,34 @@ describe('férias: formulário', () => {
     expect(await screen.findByRole('table', { name: 'Férias' })).toBeTruthy();
   });
 });
+
+describe('férias: cálculo do término', () => {
+  it('calcula a data final a partir do início e da quantidade de dias', async () => {
+    const fetchMock = mockApi([]);
+    const user = userEvent.setup();
+    renderApp('/vacations/new');
+    await screen.findByRole('heading', { name: 'Novas férias' });
+    fireEvent.change(screen.getByLabelText('Data inicial'), { target: { value: '2040-12-24' } });
+    fireEvent.change(screen.getByLabelText('Quantidade de dias'), { target: { value: '30' } });
+    expect((screen.getByLabelText('Data final') as HTMLInputElement).value).toBe('2041-01-22');
+
+    fireEvent.change(screen.getByLabelText('Quantidade de dias'), { target: { value: '1' } });
+    expect((screen.getByLabelText('Data final') as HTMLInputElement).value).toBe('2040-12-24');
+
+    fireEvent.change(screen.getByLabelText('Data final'), { target: { value: '2040-12-31' } });
+    expect((screen.getByLabelText('Quantidade de dias') as HTMLInputElement).value).toBe('8');
+
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    await vi.waitFor(() => expect(writes(fetchMock)).toHaveLength(1));
+    expect(posted(fetchMock)).toMatchObject({ startDate: '2040-12-24', endDate: '2040-12-31' });
+  });
+
+  it('mostra os dias ao editar e recalcula o término ao mudar a quantidade', async () => {
+    mockApi();
+    renderApp('/vacations/c1');
+    await screen.findByRole('heading', { name: 'Editar férias' });
+    expect((screen.getByLabelText('Quantidade de dias') as HTMLInputElement).value).toBe('10');
+    fireEvent.change(screen.getByLabelText('Quantidade de dias'), { target: { value: '5' } });
+    expect((screen.getByLabelText('Data final') as HTMLInputElement).value).toBe('2040-12-28');
+  });
+});

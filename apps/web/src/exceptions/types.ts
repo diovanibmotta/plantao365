@@ -102,3 +102,21 @@ export function validatePeriod(start: string, end: string): string | null {
   if (end < start) return 'A data final não pode ser anterior à data inicial.';
   return null;
 }
+
+const DAY_MS = 86_400_000;
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Data final (inclusive) de um período de `days` dias que começa em `start`; null se inválido. */
+export function endDateFor(start: string, days: number): string | null {
+  if (!ISO.test(start) || !Number.isInteger(days) || days < 1) return null;
+  const end = new Date(Date.parse(`${start}T00:00:00Z`) + (days - 1) * DAY_MS);
+  return Number.isNaN(end.getTime()) ? null : end.toISOString().slice(0, 10);
+}
+
+/** Quantidade de dias (inclusive) entre as datas; null se alguma for inválida ou o fim vier antes. */
+export function countDays(start: string, end: string): number | null {
+  if (!ISO.test(start) || !ISO.test(end) || end < start) return null;
+  return (
+    Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / DAY_MS) + 1
+  );
+}
