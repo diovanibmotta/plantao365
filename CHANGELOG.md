@@ -1,3 +1,8 @@
+# [v1.26.0](https://github.com/diovanibmotta/plantao365/compare/v1.25.0...v1.26.0) (2026-11-25)
+
+## ✨ New Features
+- [`b4373eb`](https://github.com/diovanibmotta/plantao365/commit/b4373eb) : feat(teams): mostra gestor e ajusta visual da listagem de equipes (#44) (Issues: [`#44`](https://github.com/diovanibmotta/plantao365/issues/44))
+
 # [v1.25.0](https://github.com/diovanibmotta/plantao365/compare/v1.24.1...v1.25.0) (2026-11-25)
 
 ## ✨ New Features
