@@ -2,6 +2,8 @@
 export interface WorkPeriod {
   startMinute: number;
   endMinute: number;
+  /** Nome opcional do período (ex.: Manhã, Tarde). */
+  name?: string | undefined;
 }
 
 /** Jornada padrão: 08h00–12h00 e 13h30–18h00. */

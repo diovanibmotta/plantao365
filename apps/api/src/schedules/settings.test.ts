@@ -121,6 +121,22 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('shift settings (PostgreSQL)'
       (await call('PUT', '/work-hours', manager, { periods: [...many].reverse() })).status,
     ).toBe(200);
     expect(await (await call('GET', '/work-hours', member)).json()).toEqual({ periods: many });
+    // Nome opcional: aparado, vazio vira ausente, limite de 60 caracteres.
+    const named = {
+      periods: [
+        { startMinute: 480, endMinute: 720, name: '  Manhã ' },
+        { startMinute: 810, endMinute: 1080, name: '   ' },
+      ],
+    };
+    expect((await call('PUT', '/work-hours', manager, named)).status).toBe(200);
+    expect(await (await call('GET', '/work-hours', member)).json()).toEqual({
+      periods: [
+        { startMinute: 480, endMinute: 720, name: 'Manhã' },
+        { startMinute: 810, endMinute: 1080 },
+      ],
+    });
+    const longName = { periods: [{ startMinute: 0, endMinute: 60, name: 'x'.repeat(61) }] };
+    expect((await call('PUT', '/work-hours', manager, longName)).status).toBe(400);
     expect((await call('PUT', '/work-hours', manager, next)).status).toBe(200);
     expect(await (await call('GET', '/work-hours', member)).json()).toEqual(next);
     const [audit] = await sql<{ action: string }[]>`

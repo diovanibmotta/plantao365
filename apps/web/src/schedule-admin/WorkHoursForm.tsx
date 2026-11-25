@@ -137,6 +137,16 @@ export function WorkHoursForm() {
       >
         <FormSection title="Período" description="Intervalo em que todo o time está trabalhando.">
           <div className="ui-fields">
+            <label className="ui-field ui-field--wide">
+              Nome
+              <input
+                type="text"
+                maxLength={60}
+                value={period.name ?? ''}
+                placeholder="Manhã"
+                onChange={(e) => setPeriod((p) => ({ ...p, name: e.target.value }))}
+              />
+            </label>
             <label className="ui-field">
               Início
               <input

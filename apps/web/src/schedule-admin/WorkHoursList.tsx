@@ -64,7 +64,7 @@ export function WorkHoursList() {
             <table className="ui-table" aria-label="Jornada de trabalho">
               <thead>
                 <tr>
-                  <th scope="col">Período</th>
+                  <th scope="col">Nome</th>
                   <th scope="col">Início</th>
                   <th scope="col">Fim</th>
                   <th scope="col">Duração</th>
@@ -76,7 +76,7 @@ export function WorkHoursList() {
               <tbody>
                 {periods.map((p, i) => (
                   <tr key={`${p.startMinute}-${p.endMinute}`}>
-                    <th scope="row">Período {i + 1}</th>
+                    <th scope="row">{p.name || `Período ${i + 1}`}</th>
                     <td>{formatMinute(p.startMinute)}</td>
                     <td>{formatMinute(p.endMinute)}</td>
                     <td>{formatDuration(p.endMinute - p.startMinute)}</td>

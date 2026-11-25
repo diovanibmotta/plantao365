@@ -89,9 +89,14 @@ const toJson = (t: ShiftTimes) => Object.fromEntries(SHIFT_DAY_TYPES.map((k) => 
 
 /** Jornada de trabalho da equipe, em ordem cronológica. */
 export async function getWorkPeriods(sql: Sql, teamId: string): Promise<WorkPeriod[]> {
-  return sql<WorkPeriod[]>`
-    select start_minute as "startMinute", end_minute as "endMinute"
+  const rows = await sql<{ startMinute: number; endMinute: number; name: string | null }[]>`
+    select start_minute as "startMinute", end_minute as "endMinute", name
     from work_periods where team_id = ${teamId} order by position`;
+  return rows.map((r) =>
+    r.name
+      ? { startMinute: r.startMinute, endMinute: r.endMinute, name: r.name }
+      : { startMinute: r.startMinute, endMinute: r.endMinute },
+  );
 }
 
 const minute = z
@@ -99,11 +104,23 @@ const minute = z
   .int('Horário inválido')
   .min(0, 'Horário deve estar entre 00:00 e 24:00')
   .max(1440, 'Horário deve estar entre 00:00 e 24:00');
-const workHoursBody = z
+const periodSchema = z
   .object({
-    periods: z.array(z.object({ startMinute: minute, endMinute: minute }).strict()),
+    startMinute: minute,
+    endMinute: minute,
+    name: z.string().trim().max(60, 'Nome deve ter no máximo 60 caracteres').nullish(),
   })
   .strict();
+/** Períodos em ordem cronológica, com o nome só quando preenchido. */
+const normalizePeriods = (list: z.infer<typeof periodSchema>[]): WorkPeriod[] =>
+  sortWorkPeriods(
+    list.map((p) =>
+      p.name
+        ? { startMinute: p.startMinute, endMinute: p.endMinute, name: p.name }
+        : { startMinute: p.startMinute, endMinute: p.endMinute },
+    ),
+  );
+const workHoursBody = z.object({ periods: z.array(periodSchema) }).strict();
 
 const weekdayNumber = z
   .number({ error: 'Dia da semana inválido' })
@@ -126,10 +143,7 @@ const exceptionBody = z
   .object({
     startHour: hour,
     endHour: hour,
-    workPeriods: z
-      .array(z.object({ startMinute: minute, endMinute: minute }).strict())
-      .nullable()
-      .default(null),
+    workPeriods: z.array(periodSchema).nullable().default(null),
     note: z
       .string()
       .trim()
@@ -167,12 +181,12 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
   router.put('/work-hours', requireRole('manager'), async (c) => {
     const parsed = workHoursBody.safeParse(await c.req.json().catch(() => null));
     const problem = parsed.success
-      ? validateWorkPeriods(parsed.data.periods)
+      ? validateWorkPeriods(normalizePeriods(parsed.data.periods))
       : (parsed.error.issues[0]?.message ?? 'Dados inválidos');
     if (!parsed.success || problem) {
       return c.json({ error: 'validation_error', message: problem ?? 'Dados inválidos' }, 400);
     }
-    const next = sortWorkPeriods(parsed.data.periods);
+    const next = normalizePeriods(parsed.data.periods);
     const teamId = c.get('teamId')!;
     await db.begin(async (txRaw) => {
       const tx = txRaw as unknown as Sql;
@@ -184,6 +198,7 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
           position,
           start_minute: p.startMinute,
           end_minute: p.endMinute,
+          name: p.name ?? null,
         }));
         await tx`insert into work_periods ${tx(rows)}`;
       }
@@ -306,14 +321,14 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
     const parsed = exceptionBody.safeParse(await c.req.json().catch(() => null));
     const problem = parsed.success
       ? parsed.data.workPeriods
-        ? validateWorkPeriods(parsed.data.workPeriods)
+        ? validateWorkPeriods(normalizePeriods(parsed.data.workPeriods))
         : null
       : (parsed.error.issues[0]?.message ?? 'Dados inválidos');
     if (!parsed.success || problem) {
       return c.json({ error: 'validation_error', message: problem ?? 'Dados inválidos' }, 400);
     }
     const { startHour, endHour, note } = parsed.data;
-    const workPeriods = parsed.data.workPeriods ? sortWorkPeriods(parsed.data.workPeriods) : null;
+    const workPeriods = parsed.data.workPeriods ? normalizePeriods(parsed.data.workPeriods) : null;
     const teamId = c.get('teamId')!;
     const saved: ShiftException = { date, startHour, endHour, workPeriods, note: note || null };
     await db.begin(async (txRaw) => {

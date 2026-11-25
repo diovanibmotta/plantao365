@@ -270,6 +270,7 @@ describe('jornada de trabalho', () => {
     expect(screen.getByRole('link', { name: 'Editar período 2' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Novo período' })).toBeTruthy();
     expect(screen.getByText(/2 períodos · Total: 8h30/)).toBeTruthy();
+    expect(within(table).getByRole('rowheader', { name: 'Período 1' })).toBeTruthy();
   });
 
   it('mostra estado vazio com CTA quando não há jornada', async () => {
@@ -336,12 +337,13 @@ describe('jornada de trabalho', () => {
     fireEvent.change(screen.getByLabelText('Fim'), { target: { value: '13:00' } });
     expect((await screen.findByRole('alert')).textContent).toContain('depois do início');
     fireEvent.change(screen.getByLabelText('Fim'), { target: { value: '17:30' } });
+    await user.type(screen.getByLabelText('Nome'), '  Tarde ');
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
     await screen.findByText('Período atualizado.');
     expect(bodyOf(fetchMock, '/api/work-hours', 'PUT')).toEqual({
       periods: [
         { startMinute: 480, endMinute: 720 },
-        { startMinute: 810, endMinute: 1050 },
+        { startMinute: 810, endMinute: 1050, name: '  Tarde ' },
       ],
     });
   });
