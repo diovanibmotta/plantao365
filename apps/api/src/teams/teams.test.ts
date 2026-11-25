@@ -55,6 +55,17 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('equipes (PostgreSQL)', () =>
     ).toBe(200);
   });
 
+  it('lista os nomes dos gestores de cada equipe', async () => {
+    const gestor = await loginAs(sql, { email: 'gm@x.com', role: 'manager', name: 'Gabi Gestora' });
+    const created = await call('POST', '/teams', gestor.cookie, undefined, { name: 'Gestores' });
+    const { id } = (await created.json()) as { id: string };
+    const list = (await (await call('GET', '/teams', gestor.cookie)).json()) as {
+      id: string;
+      managers: string[];
+    }[];
+    expect(list.find((x) => x.id === id)?.managers).toEqual(['Gabi Gestora']);
+  });
+
   it('isola membros e escalas por equipe', async () => {
     const gestor = await loginAs(sql, { email: 'g2@x.com', role: 'manager' });
     const { id } = (await (

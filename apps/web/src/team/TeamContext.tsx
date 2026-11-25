@@ -9,6 +9,8 @@ export interface Team {
   name: string;
   dashboardUrl?: string | null;
   avatar?: string | null;
+  /** Nomes dos gestores da equipe. */
+  managers?: string[];
   /** Papel do usuário nesta equipe (o do usuário, para master e convidado). */
   role?: Role;
   participatesInRotation?: boolean;
@@ -96,14 +98,19 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const created = await api.post<Team>('/api/teams', input, {
         successMessage: 'Equipe criada.',
       });
-      const team: Team = { role: 'manager', participatesInRotation: false, ...created };
+      const team: Team = {
+        role: 'manager',
+        participatesInRotation: false,
+        managers: user ? [user.name] : [],
+        ...created,
+      };
       apply(
         [...teams, team].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
         activeId ?? team.id,
       );
       return team;
     },
-    [teams, activeId, apply],
+    [teams, activeId, apply, user],
   );
 
   const update = useCallback(
