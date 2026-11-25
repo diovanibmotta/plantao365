@@ -67,9 +67,6 @@ export const updateProfileSchema = z
 // z.uuid() recusa o id da equipe principal (versão 0); basta o formato.
 const UUID_FORMAT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// z.uuid() recusa o id da equipe principal (versão 0); basta o formato.
-const UUID_FORMAT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 const nameSchema = z.string().trim().min(1, 'Nome obrigatório').max(200);
 
 export const createUserSchema = z
