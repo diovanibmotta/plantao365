@@ -1,3 +1,8 @@
+# [v1.20.0](https://github.com/diovanibmotta/plantao365/compare/v1.19.0...v1.20.0) (2026-11-25)
+
+## ✨ New Features
+- [`fe2ddfe`](https://github.com/diovanibmotta/plantao365/commit/fe2ddfe) : feat(web): foto do Entra ID ou iniciais no perfil (#31) (Issues: [`#31`](https://github.com/diovanibmotta/plantao365/issues/31))
+
 # [v1.19.0](https://github.com/diovanibmotta/plantao365/compare/v1.18.0...v1.19.0) (2026-11-24)
 
 ## ✨ New Features
