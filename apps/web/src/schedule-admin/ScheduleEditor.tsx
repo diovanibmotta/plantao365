@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react';
+import { Link } from 'react-router';
 import { dayOfWeek } from '@diovanibmotta/plantao365-shared';
 import { api, describeApiError } from '../api/client';
 import type { ApiError } from '../api/client';
@@ -7,7 +8,10 @@ import { DAY_TYPE_LABEL, formatHours, formatPeriod } from '../schedule/format';
 import type { ShiftDto } from '../schedule/types';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { Breadcrumb } from '../ui/FormPage';
-import { SCHEDULE_ADMIN_PATH, tabPath } from './paths';
+import { SCHEDULE_ADMIN_PATH, scheduleExportPath, tabPath } from './paths';
+import { downloadSchedulePdf } from './schedule-pdf';
+import { WEEKDAYS } from './schedule-report';
+import type { ReportContext } from './schedule-report';
 import { StatusPill } from './StatusPill';
 import { errorCode, errorDates, formatDate } from './types';
 import type { EditResult, MemberOption, ScheduleDetail } from './types';
@@ -15,12 +19,11 @@ import type { EditResult, MemberOption, ScheduleDetail } from './types';
 interface ScheduleEditorProps {
   schedule: ScheduleDetail;
   members: MemberOption[];
+  report: ReportContext;
   onChanged: () => void;
   onDiscarded: () => void;
   onBack: () => void;
 }
-
-const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
 const publishError = (err: ApiError): string =>
   errorCode(err) === 'schedule_overlap_published'
@@ -30,6 +33,7 @@ const publishError = (err: ApiError): string =>
 export function ScheduleEditor({
   schedule,
   members,
+  report,
   onChanged,
   onDiscarded,
   onBack,
@@ -40,6 +44,18 @@ export function ScheduleEditor({
   const [busy, setBusy] = useState(false);
   const [confirmDates, setConfirmDates] = useState<string[] | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  const downloadPdf = async () => {
+    setPdfBusy(true);
+    try {
+      await downloadSchedulePdf(schedule, report);
+    } catch {
+      toast.error('Não foi possível gerar o PDF da escala.');
+    } finally {
+      setPdfBusy(false);
+    }
+  };
 
   const persist = async (shift: ShiftDto, userId: string, why?: string) => {
     setBusy(true);
@@ -138,6 +154,19 @@ export function ScheduleEditor({
           {formatDate(schedule.endDate)}
         </h2>
         <StatusPill status={schedule.status} />
+        <div className="sad-editor-actions sad-editor-exports">
+          <button
+            type="button"
+            className="btn"
+            disabled={pdfBusy}
+            onClick={() => void downloadPdf()}
+          >
+            {pdfBusy ? 'Gerando PDF…' : 'Relatório PDF'}
+          </button>
+          <Link className="btn" to={scheduleExportPath(schedule.id)}>
+            Exportar CSV
+          </Link>
+        </div>
       </div>
       {published && (
         <p className="sad-note">

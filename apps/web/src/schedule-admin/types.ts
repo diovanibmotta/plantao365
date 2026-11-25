@@ -10,6 +10,9 @@ export interface ScheduleDto {
   endDate: LocalDate;
   status: 'draft' | 'published';
   publishedAt: string | null;
+  /** Gestor que gerou a escala. */
+  createdBy?: string;
+  createdAt?: string;
 }
 
 export interface ScheduleDetail extends ScheduleDto {

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { api } from '../api/client';
+import { useActiveTeam } from '../team/TeamContext';
 import { ScheduleEditor } from './ScheduleEditor';
 import { GenerateReport } from './GenerateReport';
 import { tabPath } from './paths';
+import { reportContext } from './schedule-report';
 import { describe } from './types';
 import type { GenerateResult, MemberOption, ScheduleDetail } from './types';
 
@@ -16,6 +18,7 @@ export function ScheduleEditorPage() {
   const [detail, setDetail] = useState<ScheduleDetail | null>(null);
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const team = useActiveTeam();
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -72,6 +75,7 @@ export function ScheduleEditorPage() {
         key={detail.id}
         schedule={detail}
         members={members}
+        report={reportContext(detail, names, team)}
         onChanged={() => {
           load().catch((err: unknown) =>
             setError(describe(err, 'Não foi possível abrir a escala.')),

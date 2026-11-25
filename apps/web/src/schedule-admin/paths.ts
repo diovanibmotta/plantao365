@@ -8,6 +8,7 @@ export const tabPath = (tab: ScheduleAdminTab) =>
 
 export const SCHEDULE_NEW_PATH = `${SCHEDULE_ADMIN_PATH}/schedules/new`;
 export const schedulePath = (id: string) => `${SCHEDULE_ADMIN_PATH}/schedules/${id}`;
+export const scheduleExportPath = (id: string) => `${schedulePath(id)}/export`;
 
 export const SHIFT_TIMES_NEW_PATH = `${SCHEDULE_ADMIN_PATH}/shift-times/new`;
 /** Chave: dia da semana (0 = domingo … 6 = sábado) ou `holiday`. */
