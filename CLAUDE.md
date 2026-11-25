@@ -41,7 +41,7 @@ Convenções do Plantão365 para agentes e pessoas. Visão geral e setup no [REA
 - **Padrão de telas** (componentes em `apps/web/src/ui/`; referência: exceções de horário em `schedule-admin/ShiftExceptions*.tsx`):
   - Listagem e CUD nunca na mesma visão. A listagem mostra os registros (`PageHeader` + CTA único, `FilterBar` com busca textual e filtros relevantes, tabela, contagem "N de M registros", `EmptyState` com o CTA quando vazia). Não tem botão de excluir.
   - Cadastrar, editar e excluir acontecem em rota própria de formulário (`/…/new` e `/…/:id`) com `FormPage` (breadcrumb, `FormSection`, barra fixa `FormActions`: Excluir à esquerda só na edição, Cancelar e Salvar à direita). Excluir pede `ConfirmDialog` que diz o efeito. Salvar/excluir voltam à listagem (toast, regra acima).
-  - Telas de configuração única (sem cadastro de itens) também seguem o padrão: listagem somente leitura com CTA "Editar" e formulário em rota própria. Lista fixa e curta dispensa busca/filtros.
+  - Telas de configuração única também seguem o padrão: um registro por linha, com "Editar" e formulário em rota própria. Toda listagem tem a barra de busca (`FilterBar`), mesmo curta.
   - Clicar na linha ou em "Editar" abre o formulário. Filtro e busca rodam no cliente até a tela justificar paginação na API.
 - Guardas de rota em `auth/guards.tsx` (`RequireAuth`, `RequireRole`).
 

@@ -167,6 +167,28 @@ describe('horários dos plantões', () => {
     expect(screen.getByRole('link', { name: 'Editar horário de Sábado' })).toBeTruthy();
   });
 
+  it('pesquisa os horários por texto, tipo de dia e origem', async () => {
+    mockApi('draft', () => undefined, [{ weekday: 1, startHour: 16, endHour: 8 }]);
+    const user = userEvent.setup();
+    renderApp('/schedule-admin?tab=times');
+    const table = await screen.findByRole('table', { name: 'Horários dos plantões' });
+    const names = () =>
+      within(table)
+        .queryAllByRole('rowheader')
+        .map((r) => r.textContent);
+    await user.type(screen.getByRole('searchbox'), 'TERCA');
+    expect(names()).toEqual(['Terça padrão']);
+    await user.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    await user.selectOptions(screen.getByLabelText('Tipo de dia'), 'weekend');
+    expect(names()).toEqual(['Sábado padrão', 'Domingo padrão']);
+    await user.selectOptions(screen.getByLabelText('Tipo de dia'), '');
+    await user.selectOptions(screen.getByLabelText('Horário'), 'custom');
+    expect(names()).toEqual(['Segunda', 'Feriado']);
+    expect(screen.getByText('2 de 8 registros')).toBeTruthy();
+    await user.type(screen.getByRole('searchbox'), 'zzz');
+    expect(screen.getByText(/Nenhum registro encontrado/)).toBeTruthy();
+  });
+
   it('cadastra o mesmo horário para vários dias, incluindo fim de semana e feriado', async () => {
     const fetchMock = mockApi('draft');
     const user = userEvent.setup();
@@ -271,6 +293,35 @@ describe('jornada de trabalho', () => {
     expect(screen.getByRole('link', { name: 'Novo período' })).toBeTruthy();
     expect(screen.getByText(/2 períodos · Total: 8h30/)).toBeTruthy();
     expect(within(table).getByRole('rowheader', { name: 'Período 1' })).toBeTruthy();
+  });
+
+  it('pesquisa os períodos por nome, horário e turno, mantendo a posição ao editar', async () => {
+    mockApi('draft', (url, init) =>
+      url === '/api/work-hours' && (init.method ?? 'GET') === 'GET'
+        ? json({
+            periods: [
+              { startMinute: 480, endMinute: 720, name: 'Manhã' },
+              { startMinute: 810, endMinute: 1080 },
+              { startMinute: 1140, endMinute: 1260, name: 'Plantão noturno' },
+            ],
+          })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    renderApp('/schedule-admin?tab=work-hours');
+    const table = await screen.findByRole('table', { name: 'Jornada de trabalho' });
+    const names = () =>
+      within(table)
+        .queryAllByRole('rowheader')
+        .map((r) => r.textContent);
+    expect(names()).toEqual(['Manhã', 'Período 2', 'Plantão noturno']);
+    await user.type(screen.getByRole('searchbox'), 'manha');
+    expect(names()).toEqual(['Manhã']);
+    await user.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    await user.selectOptions(screen.getByLabelText('Turno'), 'evening');
+    expect(names()).toEqual(['Plantão noturno']);
+    expect(screen.getByRole('link', { name: 'Editar período 3' })).toBeTruthy();
+    expect(screen.getByText(/1 de 3 períodos/)).toBeTruthy();
   });
 
   it('mostra estado vazio com CTA quando não há jornada', async () => {

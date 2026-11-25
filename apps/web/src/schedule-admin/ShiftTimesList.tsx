@@ -4,10 +4,17 @@ import { shiftDuration } from '@diovanibmotta/plantao365-shared';
 import type { ShiftTimes, WeekdayShiftTime } from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
 import { formatHours } from '../schedule/format';
+import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { PageHeader } from '../ui/PageHeader';
 import { SHIFT_TIMES_NEW_PATH, shiftTimePath } from './paths';
 import { describe } from './types';
-import { SHIFT_TARGETS, effectiveTime, targetLabel } from './weekdays';
+import { HOLIDAY_KEY, SHIFT_TARGETS, effectiveTime, targetLabel } from './weekdays';
+
+type KindFilter = '' | 'weekday' | 'weekend' | 'holiday';
+type OriginFilter = '' | 'custom' | 'default';
+
+const kindOf = (target: number | typeof HOLIDAY_KEY): Exclude<KindFilter, ''> =>
+  target === HOLIDAY_KEY ? 'holiday' : target === 0 || target === 6 ? 'weekend' : 'weekday';
 
 const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
@@ -16,6 +23,9 @@ export function ShiftTimesList() {
   const [times, setTimes] = useState<ShiftTimes | null>(null);
   const [weekdays, setWeekdays] = useState<WeekdayShiftTime[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [kind, setKind] = useState<KindFilter>('');
+  const [origin, setOrigin] = useState<OriginFilter>('');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -44,6 +54,25 @@ export function ShiftTimesList() {
     [times, weekdays],
   );
 
+  const visible = useMemo(() => {
+    const term = normalizeSearch(search);
+    return rows.filter(
+      (r) =>
+        (!term ||
+          normalizeSearch(`${r.label} ${hh(r.time.startHour)} ${hh(r.time.endHour)}`).includes(
+            term,
+          )) &&
+        (!kind || kindOf(r.target) === kind) &&
+        (!origin || (origin === 'custom') === r.custom),
+    );
+  }, [rows, search, kind, origin]);
+
+  const clear = () => {
+    setSearch('');
+    setKind('');
+    setOrigin('');
+  };
+
   return (
     <section className="sad-block">
       <PageHeader
@@ -66,6 +95,38 @@ export function ShiftTimesList() {
         </p>
       )}
       {rows.length > 0 && (
+        <FilterBar
+          search={search}
+          onSearch={setSearch}
+          placeholder="Buscar por dia ou horário"
+          onClear={clear}
+          clearable={Boolean(search || kind || origin)}
+        >
+          <select
+            aria-label="Tipo de dia"
+            value={kind}
+            onChange={(e) => setKind(e.target.value as KindFilter)}
+          >
+            <option value="">Todos os tipos de dia</option>
+            <option value="weekday">Dias úteis</option>
+            <option value="weekend">Fim de semana</option>
+            <option value="holiday">Feriado</option>
+          </select>
+          <select
+            aria-label="Horário"
+            value={origin}
+            onChange={(e) => setOrigin(e.target.value as OriginFilter)}
+          >
+            <option value="">Cadastrado ou padrão</option>
+            <option value="custom">Cadastrado</option>
+            <option value="default">Padrão</option>
+          </select>
+        </FilterBar>
+      )}
+      {rows.length > 0 && visible.length === 0 && (
+        <p className="muted">Nenhum registro encontrado para os filtros aplicados.</p>
+      )}
+      {visible.length > 0 && (
         <div className="ui-table-wrap">
           <table className="ui-table" aria-label="Horários dos plantões">
             <thead>
@@ -80,7 +141,7 @@ export function ShiftTimesList() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {visible.map((r) => (
                 <tr key={r.target}>
                   <th scope="row">
                     {r.label}
@@ -108,6 +169,11 @@ export function ShiftTimesList() {
             </tbody>
           </table>
         </div>
+      )}
+      {rows.length > 0 && (
+        <p className="ui-count">
+          {visible.length} de {rows.length} registros
+        </p>
       )}
     </section>
   );
