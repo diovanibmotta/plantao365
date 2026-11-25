@@ -22,7 +22,10 @@ import {
   createSchedulesRouter,
   findPublishedShiftsForUser,
 } from './schedules/index.js';
-import { createScheduleImpactNotifier } from './schedule-impact/index.js';
+import {
+  createScheduleImpactNotifier,
+  impactConfirmationResponse,
+} from './schedule-impact/index.js';
 import { createOnSwapEvent } from './notifications/swap-events.js';
 import { createSwapsRouter } from './swaps/index.js';
 import { createSystemRouter, type ConfigWarning } from './system/index.js';
@@ -77,6 +80,8 @@ export function createApp({
   });
 
   app.onError((err, c) => {
+    const confirmation = impactConfirmationResponse(err, c);
+    if (confirmation) return confirmation;
     logger.error({ err, method: c.req.method, path: c.req.path }, 'unhandled error');
     return c.json({ error: 'internal_error' }, 500);
   });

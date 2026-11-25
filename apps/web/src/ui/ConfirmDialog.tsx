@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import './ui.css';
 
 /** Confirmação de ação destrutiva; o texto diz o efeito da exclusão. */
@@ -6,6 +6,8 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel,
+  cancelLabel = 'Cancelar',
+  children,
   busy = false,
   tone = 'danger',
   onConfirm,
@@ -14,6 +16,9 @@ export function ConfirmDialog({
   title: string;
   message: string;
   confirmLabel: string;
+  cancelLabel?: string;
+  /** Conteúdo extra abaixo da mensagem. */
+  children?: ReactNode;
   busy?: boolean;
   /** danger: ação destrutiva (excluir); primary: confirmação comum (publicar). */
   tone?: 'danger' | 'primary';
@@ -32,9 +37,10 @@ export function ConfirmDialog({
       <div className="ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title">
         <h2 id="ui-dialog-title">{title}</h2>
         <p>{message}</p>
+        {children}
         <div className="ui-dialog-actions">
           <button type="button" className="btn" ref={cancel} onClick={onCancel}>
-            Cancelar
+            {cancelLabel}
           </button>
           <button
             type="button"

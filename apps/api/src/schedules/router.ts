@@ -4,7 +4,7 @@ import { requireAuth } from '../auth/authz.js';
 import type { AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
-import type { ScheduleImpactNotifier } from '../schedule-impact/index.js';
+import { assessScheduleConflicts, type ScheduleImpactNotifier } from '../schedule-impact/index.js';
 import { requireTeam } from '../teams/middleware.js';
 import { registerEditRoutes, type ShiftChangedHook } from './edit.js';
 import { registerGenerateRoute } from './generate.js';
@@ -55,7 +55,15 @@ export function createSchedulesRouter({
 
   router.get('/schedules', async (c) => {
     const isManager = c.get('user')!.role === 'manager';
-    return c.json(await listSchedules(db, { publishedOnly: !isManager, teamId: c.get('teamId')! }));
+    const teamId = c.get('teamId')!;
+    const schedules = await listSchedules(db, { publishedOnly: !isManager, teamId });
+    if (!isManager) return c.json(schedules);
+    const conflicts = await assessScheduleConflicts(
+      db,
+      teamId,
+      schedules.map((s) => s.id),
+    );
+    return c.json(schedules.map((s) => ({ ...s, conflicts: conflicts.get(s.id)! })));
   });
 
   router.get('/schedules/:id', async (c) => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { impactMessage, mergeScheduleImpacts } from './message.js';
+import { impactConfirmMessage, impactMessage, mergeScheduleImpacts } from './message.js';
 import type { ScheduleImpact } from './types.js';
 
 describe('aviso de impacto em escala publicada', () => {
@@ -19,9 +19,19 @@ describe('aviso de impacto em escala publicada', () => {
     }
   });
 
+  it('confirmação prévia usa futuro; exclusão tem texto próprio', () => {
+    const before = impactConfirmMessage('collective_vacation', 2);
+    expect(before).toContain('2 plantões publicados');
+    expect(before).toContain('serão avisados por e-mail');
+    expect(before).not.toContain('foram avisados');
+    expect(impactConfirmMessage('member_exception', 1, true)).toContain('no período desta exceção');
+    expect(impactMessage('shift_exception', 1, true)).toContain('depois da exclusão');
+  });
+
   it('une avisos: soma plantões, une datas e agrupa por equipe', () => {
     const a: ScheduleImpact = {
       source: 'member_exception',
+      removed: false,
       shifts: 2,
       dates: ['2026-12-02', '2026-12-03'],
       teams: [{ teamId: 'a', dates: ['2026-12-02', '2026-12-03'], shifts: 2 }],

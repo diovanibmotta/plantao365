@@ -3,6 +3,8 @@ import { ApiError } from '../api/client';
 import type { ShiftDto } from '../schedule/types';
 
 export interface ScheduleDto {
+  /** Conflitos da escala (só na listagem do gestor). */
+  conflicts?: { unavailable: number; outdated: number };
   id: string;
   startDate: LocalDate;
   endDate: LocalDate;

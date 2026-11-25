@@ -307,3 +307,16 @@
 .sad-modal h2 {
   margin-top: 0;
 }
+
+.sad-conflict {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+.sad-conflict--ok {
+  color: #3fb950;
+}
+.sad-conflict--warn {
+  color: #d29922;
+}

@@ -37,6 +37,7 @@ export async function notifyScheduleImpact(
       memberName: member?.name,
       start: payload.start,
       end: payload.end,
+      removed: payload.removed,
       dates: team.dates,
       shifts: team.shifts,
       appUrl,

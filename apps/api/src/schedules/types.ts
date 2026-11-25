@@ -12,6 +12,8 @@ export interface ScheduleDto {
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Só na listagem do gestor: conflitos da escala com férias, exceções, feriados e horários. */
+  conflicts?: { unavailable: number; outdated: number };
 }
 
 export interface ShiftDto {

@@ -146,6 +146,8 @@ export interface ScheduleImpactEmailInput {
   memberName?: string | undefined;
   start?: string | undefined;
   end?: string | undefined;
+  /** A alteração foi uma exclusão. */
+  removed?: boolean | undefined;
   /** Datas (AAAA-MM-DD) com plantão publicado afetado. */
   dates: string[];
   shifts: number;
@@ -158,9 +160,13 @@ function impactCause(i: ScheduleImpactEmailInput): string {
   const period = i.start && i.end ? ` (${formatDateRange(i.start, i.end)})` : '';
   switch (i.source) {
     case 'member_exception':
-      return `${i.memberName ?? 'Um membro'} teve uma exceção de disponibilidade registrada${period} por ${i.actorName}.`;
+      return i.removed
+        ? `${i.actorName} removeu uma exceção de disponibilidade de ${i.memberName ?? 'um membro'}${period}.`
+        : `${i.memberName ?? 'Um membro'} teve uma exceção de disponibilidade registrada${period} por ${i.actorName}.`;
     case 'collective_vacation':
-      return `${i.actorName} cadastrou ou alterou férias coletivas${period}.`;
+      return i.removed
+        ? `${i.actorName} removeu férias coletivas${period}.`
+        : `${i.actorName} cadastrou ou alterou férias coletivas${period}.`;
     case 'holiday':
       return `${i.actorName} cadastrou, alterou ou removeu um feriado.`;
     case 'shift_times':

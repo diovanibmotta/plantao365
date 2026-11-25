@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
+import { ImpactConfirmDialog } from '../api/ImpactConfirmDialog';
 import { ToastViewport } from '../toast/ToastViewport';
 import { toast } from '../toast/toast-store';
 import { ExceptionsSection } from './ExceptionsSection';
@@ -56,6 +57,7 @@ function renderApp(path = '/profile') {
         <Route path="/profile/exceptions/:id" element={<MemberExceptionForm />} />
       </Routes>
       <ToastViewport />
+      <ImpactConfirmDialog />
     </MemoryRouter>,
   );
 }
@@ -171,38 +173,55 @@ describe('exceções do membro: formulário', () => {
     expect(optionsOf()).toEqual(['Férias', 'Folga', 'Outro']);
   });
 
-  it('cria exceção e mostra avisos de conflito na listagem', async () => {
+  it('plantão publicado afetado: pede confirmação (Sim/Não) antes de salvar', async () => {
     const created = item('n', { kind: 'time_off', note: 'Médico' });
-    const fetchMock = mockApi((_url, init) =>
-      init?.method === 'POST'
-        ? json(
-            {
-              unavailability: created,
-              warnings: [{ type: 'published_shift_conflict', date: '2026-07-03', userId: 'u1' }],
-            },
-            201,
-          )
-        : json({ items: [] }),
-    );
+    const impact = {
+      error: 'schedule_impact_confirmation_required',
+      message: '1 plantão publicado em conflito com esta exceção de disponibilidade.',
+      scheduleImpact: { dates: ['2026-07-03'], shifts: 1 },
+    };
+    const fetchMock = mockApi((url, init) => {
+      if (init?.method !== 'POST') return json({ items: [] });
+      return url.includes('confirmImpact=true')
+        ? json({ unavailability: created }, 201)
+        : json(impact, 409);
+    });
     const user = userEvent.setup();
     renderApp('/profile/exceptions/new');
     await user.selectOptions(await screen.findByLabelText('Tipo'), 'time_off');
     setDates('2026-07-01', '2026-07-10');
     await user.type(screen.getByLabelText('Observação (opcional)'), 'Médico');
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
-    const warning = await screen.findByRole('status', { name: 'Aviso de conflito' });
-    expect(warning.textContent).toContain('03/07/2026');
-    expect(warning.textContent).toContain('O gestor foi avisado por e-mail');
-    const [url, init] = writes(fetchMock)[0]!;
-    expect(url).toBe('/api/unavailabilities');
-    expect(JSON.parse(String(init.body))).toEqual({
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('1 plantão publicado em conflito');
+    expect(dialog.textContent).toContain('03/07/2026');
+    expect(dialog.textContent).toContain('Deseja continuar?');
+
+    // Não: nada é salvo e o usuário continua no formulário
+    await user.click(within(dialog).getByRole('button', { name: 'Não' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Nova exceção' })).toBeTruthy();
+    expect(writes(fetchMock)).toHaveLength(1);
+
+    // Sim: repete a chamada confirmando o impacto
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Sim' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Nova exceção' })).toBeNull());
+    const calls = writes(fetchMock);
+    expect(calls.map((c) => c[0])).toEqual([
+      '/api/unavailabilities',
+      '/api/unavailabilities',
+      '/api/unavailabilities?confirmImpact=true',
+    ]);
+    expect(JSON.parse(String(calls[2]![1].body))).toEqual({
       kind: 'time_off',
       startDate: '2026-07-01',
       endDate: '2026-07-10',
       note: 'Médico',
     });
-    await user.click(screen.getByRole('button', { name: 'Dispensar' }));
-    expect(screen.queryByRole('status', { name: 'Aviso de conflito' })).toBeNull();
   });
 
   it('edita com PATCH', async () => {

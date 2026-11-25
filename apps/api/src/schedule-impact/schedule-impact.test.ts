@@ -2,7 +2,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Sql } from '../db.js';
 import { createTestDb, drainEvents, type TestDb } from '../test-utils.js';
 import { runScheduleImpact } from './run.js';
-import { assessScheduleImpact, createScheduleImpactNotifier } from './service.js';
+import {
+  assessScheduleConflicts,
+  assessScheduleImpact,
+  createScheduleImpactNotifier,
+} from './service.js';
 
 const TEAM = '00000000-0000-0000-0000-000000000001';
 const BASE = 'https://plantao.example';
@@ -130,6 +134,21 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
         teamId: TEAM,
       });
       expect(teams).toEqual([{ teamId: TEAM, dates: ['2099-06-02'], shifts: 1 }]);
+    });
+
+    it('conflitos da escala: férias do responsável, férias coletivas e plantão desatualizado', async () => {
+      await published(['2099-06-01', '2099-06-02', '2099-06-03'], ana);
+      const ids = (await sql<{ id: string }[]>`select id from schedules`).map((r) => r.id);
+      expect([...(await assessScheduleConflicts(sql, TEAM, ids)).values()]).toEqual([
+        { unavailable: 0, outdated: 0 },
+      ]);
+      await sql`insert into unavailabilities (user_id, kind, start_date, end_date, created_by)
+        values (${ana}, 'vacation', '2099-06-02', '2099-06-03', ${gestor})`;
+      await sql`insert into shift_exceptions (team_id, date, start_hour, end_hour)
+        values (${TEAM}, '2099-06-01', 12, 8)`;
+      const [conflicts] = [...(await assessScheduleConflicts(sql, TEAM, ids)).values()];
+      expect(conflicts).toEqual({ unavailable: 2, outdated: 1 });
+      expect((await assessScheduleConflicts(sql, TEAM, [])).size).toBe(0);
     });
 
     it('falha do notificador não derruba a mutação (savepoint)', async () => {

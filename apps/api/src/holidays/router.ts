@@ -1,10 +1,11 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { recordAudit } from '../audit/index.js';
 import { requireAuth, requireRole, type AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
 import {
+  isImpactConfirmed,
   runScheduleImpact,
   type ScheduleImpact,
   type ScheduleImpactNotifier,
@@ -56,8 +57,19 @@ export function createHolidaysRouter({
   const router = new Hono<AuthEnv>();
   const manager = requireRole('manager');
 
-  const impactOf = (tx: Sql, dates: string[], actorId: string): Promise<ScheduleImpact | null> =>
-    runScheduleImpact(tx, scheduleImpactNotifier, { source: 'holiday', actorId, dates }, logger);
+  const impactOf = (
+    c: Context,
+    tx: Sql,
+    dates: string[],
+    actorId: string,
+    removed = false,
+  ): Promise<ScheduleImpact | null> =>
+    runScheduleImpact(
+      tx,
+      scheduleImpactNotifier,
+      { source: 'holiday', actorId, dates, removed },
+      { logger, confirmed: isImpactConfirmed(c) },
+    );
 
   async function warningsFor(dates: string[]): Promise<HolidayWarning[]> {
     const unique = [...new Set(dates)].sort();
@@ -101,7 +113,7 @@ export function createHolidaysRouter({
           entityId: dto.id,
           after: { ...dto },
         });
-        return { dto, impact: await impactOf(tx as unknown as Sql, [dto.date], actor.id) };
+        return { dto, impact: await impactOf(c, tx as unknown as Sql, [dto.date], actor.id) };
       });
     } catch (err) {
       if (isUniqueViolation(err)) return c.json({ error: 'duplicate_holiday' }, 409);
@@ -160,7 +172,7 @@ export function createHolidaysRouter({
         const impact =
           before.date === after.date
             ? null
-            : await impactOf(tx as unknown as Sql, [before.date, after.date], actor.id);
+            : await impactOf(c, tx as unknown as Sql, [before.date, after.date], actor.id);
         return { before, after, impact };
       });
     } catch (err) {
@@ -193,7 +205,10 @@ export function createHolidaysRouter({
         entityId: dto.id,
         before: { ...dto },
       });
-      return { dto, impact: await impactOf(tx as unknown as Sql, [dto.date], actor.id) };
+      return {
+        dto,
+        impact: await impactOf(c, tx as unknown as Sql, [dto.date], actor.id, true),
+      };
     });
     if (!removed) return c.json({ error: 'not_found' }, 404);
     return c.json({

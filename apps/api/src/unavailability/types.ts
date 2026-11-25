@@ -8,6 +8,8 @@ export type UnavailabilityKind = (typeof UNAVAILABILITY_KINDS)[number];
 export interface UnavailabilityDto {
   id: string;
   userId: string | null;
+  /** Nome do membro (nulo nas férias coletivas de todo o time). */
+  userName: string | null;
   /** Equipe das férias coletivas (nulo nas exceções de membro e nas coletivas legadas). */
   teamId: string | null;
   kind: UnavailabilityKind;

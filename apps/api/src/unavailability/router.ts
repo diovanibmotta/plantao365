@@ -7,6 +7,7 @@ import type { TransactionSql } from 'postgres';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
 import {
+  isImpactConfirmed,
   mergeScheduleImpacts,
   runScheduleImpact,
   type ScheduleImpact,
@@ -175,9 +176,11 @@ export function createUnavailabilityRouter({
 
   /** Roda dentro da transação da mutação: avisa a tela e os gestores se a escala publicada é atingida. */
   const impactOf = (
+    c: Ctx,
     tx: TransactionSql,
     row: UnavailabilityDto,
     actor: AuthUser,
+    removed = false,
   ): Promise<ScheduleImpact | null> =>
     runScheduleImpact(
       tx as unknown as Sql,
@@ -189,6 +192,7 @@ export function createUnavailabilityRouter({
             userId: row.userId,
             start: row.startDate,
             end: row.endDate,
+            removed,
           }
         : {
             source: 'collective_vacation',
@@ -196,8 +200,9 @@ export function createUnavailabilityRouter({
             teamId: row.teamId,
             start: row.startDate,
             end: row.endDate,
+            removed,
           },
-      logger,
+      { logger, confirmed: isImpactConfirmed(c) },
     );
 
   const canTouch = (user: AuthUser, row: UnavailabilityDto) =>
@@ -289,7 +294,7 @@ export function createUnavailabilityRouter({
         });
         created.push(item);
         warnings.push(...(await warnAndNotify(tx, item, user)));
-        const impact = await impactOf(tx, item, user);
+        const impact = await impactOf(c, tx, item, user);
         if (impact) impacts.push(impact);
       }
       return { created, warnings, scheduleImpact: mergeScheduleImpacts(impacts) };
@@ -340,7 +345,7 @@ export function createUnavailabilityRouter({
         status: 200 as const,
         after,
         warnings: await warnAndNotify(tx, after, user),
-        scheduleImpact: await impactOf(tx, after, user),
+        scheduleImpact: await impactOf(c, tx, after, user),
       };
     });
 
@@ -379,6 +384,7 @@ export function createUnavailabilityRouter({
         entityId: id.data,
         before: { ...before },
       });
+      await impactOf(c, tx, before, user, true);
       return 204 as const;
     });
 

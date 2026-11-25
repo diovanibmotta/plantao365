@@ -3,7 +3,7 @@ import type { SqlOrTx } from '../audit/index.js';
 import type { UnavailabilityDto, UnavailabilityKind, UnavailableByDate } from './types.js';
 
 const columns = (sql: Sql) => sql`
-  id, user_id as "userId", team_id as "teamId", kind, start_date::text as "startDate", end_date::text as "endDate",
+  id, user_id as "userId", (select name from users where id = user_id) as "userName", team_id as "teamId", kind, start_date::text as "startDate", end_date::text as "endDate",
   note, created_by as "createdBy", created_at::text as "createdAt", updated_at::text as "updatedAt"`;
 
 export interface ListFilters {

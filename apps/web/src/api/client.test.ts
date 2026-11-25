@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toast, getToasts } from '../toast/toast-store';
+import { answerImpactConfirmation, getImpactConfirmation } from './impact-confirm-store';
 import {
   api,
+  ImpactCancelledError,
   ForbiddenError,
   NetworkError,
   setUnauthorizedHandler,
@@ -125,5 +127,43 @@ describe('api client', () => {
       await expect(api.post('/api/x', {})).rejects.toBeInstanceOf(NetworkError);
       expect(kinds()).toEqual(['error:Não foi possível conectar ao servidor.']);
     });
+  });
+});
+
+describe('confirmação de impacto em escala publicada', () => {
+  const impact = {
+    error: 'schedule_impact_confirmation_required',
+    message: '2 plantões publicados afetados.',
+    scheduleImpact: { dates: ['2026-12-25'], shifts: 2 },
+  };
+
+  afterEach(() => answerImpactConfirmation(false));
+
+  it('Sim: repete a chamada com confirmImpact=true', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json(impact, 409))
+      .mockResolvedValueOnce(json({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    const done = api.post('/api/x?a=1', {});
+    await vi.waitFor(() => expect(getImpactConfirmation()?.message).toBe(impact.message));
+    expect(getImpactConfirmation()?.dates).toEqual(['2026-12-25']);
+    answerImpactConfirmation(true);
+    await done;
+    expect(fetchMock.mock.calls.map((c) => c[0])).toEqual([
+      '/api/x?a=1',
+      '/api/x?a=1&confirmImpact=true',
+    ]);
+  });
+
+  it('Não: lança ImpactCancelledError e não repete nem exibe erro', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(json(impact, 409));
+    vi.stubGlobal('fetch', fetchMock);
+    const done = api.delete('/api/x');
+    await vi.waitFor(() => expect(getImpactConfirmation()).not.toBeNull());
+    answerImpactConfirmation(false);
+    await expect(done).rejects.toBeInstanceOf(ImpactCancelledError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(getToasts()).toEqual([]);
   });
 });

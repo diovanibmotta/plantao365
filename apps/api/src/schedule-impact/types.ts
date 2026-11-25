@@ -20,25 +20,48 @@ export interface TeamImpact {
 
 /** O que mudou; o notificador descobre sozinho se isso atinge escalas publicadas. */
 export type ScheduleImpactTrigger =
-  | { source: 'member_exception'; actorId: string; userId: string; start: string; end: string }
+  | {
+      source: 'member_exception';
+      actorId: string;
+      userId: string;
+      start: string;
+      end: string;
+      removed?: boolean;
+    }
   | {
       source: 'collective_vacation';
       actorId: string;
+      removed?: boolean;
       /** Nulo (férias legadas, sem equipe): vale para todas as equipes. */
       teamId: string | null;
       start: string;
       end: string;
     }
-  | { source: 'holiday'; actorId: string; dates: string[] }
-  | { source: 'shift_times' | 'shift_exception'; actorId: string; teamId: string };
+  | { source: 'holiday'; actorId: string; dates: string[]; removed?: boolean }
+  | {
+      source: 'shift_times' | 'shift_exception';
+      actorId: string;
+      teamId: string;
+      removed?: boolean;
+    };
+
+/** Conflitos de uma escala, de hoje em diante (ambos zero = sem conflito). */
+export interface ScheduleConflicts {
+  /** Plantões em dia de exceção/férias do responsável ou de férias coletivas. */
+  unavailable: number;
+  /** Plantões com tipo de dia, horas ou horário diferentes da configuração atual. */
+  outdated: number;
+}
 
 /** Resultado devolvido à tela (campo `scheduleImpact` da resposta da mutação). */
 export interface ScheduleImpact {
   source: ScheduleImpactSource;
+  /** A alteração foi uma exclusão. */
+  removed: boolean;
   shifts: number;
   dates: string[];
   teams: TeamImpact[];
-  /** Texto pt-BR exibido ao usuário (toast). */
+  /** Texto pt-BR exibido depois da mudança (toast). */
   message: string;
 }
 
@@ -47,6 +70,8 @@ export interface ScheduleImpactPayload {
   source: ScheduleImpactSource;
   actorId: string;
   /** Membro da exceção (só `member_exception`). */
+  /** A alteração foi uma exclusão. */
+  removed?: boolean;
   userId?: string;
   start?: string;
   end?: string;

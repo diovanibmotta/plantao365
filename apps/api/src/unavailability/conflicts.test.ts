@@ -15,10 +15,13 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('avisos de conflito (PostgreS
   let impactCalls: string[][];
   let failHook = false;
   let triggers: ScheduleImpactTrigger[];
+  let impactOn = false;
   const notifier: ScheduleImpactNotifier = async (_sql, trigger) => {
     triggers.push(trigger);
+    if (!impactOn) return null;
     return {
       source: trigger.source,
+      removed: trigger.removed === true,
       shifts: 1,
       dates: ['2026-12-03'],
       teams: [],
@@ -73,6 +76,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('avisos de conflito (PostgreS
     events = [];
     impactCalls = [];
     triggers = [];
+    impactOn = false;
     failHook = false;
   });
 
@@ -133,24 +137,52 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('avisos de conflito (PostgreS
     expect(events).toEqual([]);
   });
 
-  it('regra core: gestor ou membro, individual ou coletiva, sempre aciona o notificador', async () => {
-    const byManager = await call('POST', '/unavailabilities', manager, { ...mine, userId: ana.id });
-    expect((await byManager.json()).scheduleImpact.message).toBe('aviso');
-    const coll = await call('POST', '/unavailabilities', manager, {
+  it('regra core: sem confirmação o impacto devolve 409 e nada é salvo; confirmado salva', async () => {
+    impactOn = true;
+    const refused = await call('POST', '/unavailabilities', manager, { ...mine, userId: ana.id });
+    expect(refused.status).toBe(409);
+    const body = await refused.json();
+    expect(body.error).toBe('schedule_impact_confirmation_required');
+    expect(body.message).toContain('serão avisados por e-mail');
+    expect(body.scheduleImpact.dates).toEqual(['2026-12-03']);
+    expect((await sql`select 1 from unavailabilities`).length).toBe(0);
+
+    const ok = await call('POST', '/unavailabilities?confirmImpact=true', manager, {
+      ...mine,
+      userId: ana.id,
+    });
+    expect(ok.status).toBe(201);
+    expect((await ok.json()).scheduleImpact.message).toContain('avisados por e-mail');
+    expect((await sql`select 1 from unavailabilities`).length).toBe(1);
+  });
+
+  it('regra core: gestor ou membro, individual ou coletiva, edição e exclusão acionam o notificador', async () => {
+    impactOn = true;
+    const q = '?confirmImpact=true';
+    await call('POST', `/unavailabilities${q}`, manager, { ...mine, userId: ana.id });
+    const coll = await call('POST', `/unavailabilities${q}`, manager, {
       kind: 'collective_vacation',
       startDate: '2026-12-24',
       endDate: '2026-12-26',
     });
     expect((await coll.json()).scheduleImpact.source).toBe('collective_vacation');
-    const byMember = await call('POST', '/unavailabilities', ana, mine);
+    const byMember = await call('POST', `/unavailabilities${q}`, ana, mine);
     const { unavailability: u } = await byMember.json();
-    const patch = await call('PATCH', `/unavailabilities/${u.id}`, ana, { endDate: '2026-12-06' });
+    const patch = await call('PATCH', `/unavailabilities/${u.id}${q}`, ana, {
+      endDate: '2026-12-06',
+    });
     expect((await patch.json()).scheduleImpact.shifts).toBe(1);
-    expect(triggers.map((t) => t.source)).toEqual([
-      'member_exception',
-      'collective_vacation',
-      'member_exception',
-      'member_exception',
+    expect((await call('DELETE', `/unavailabilities/${u.id}`, ana, undefined)).status).toBe(409);
+    expect((await call('DELETE', `/unavailabilities/${u.id}${q}`, ana, undefined)).status).toBe(
+      204,
+    );
+    expect(triggers.map((t) => [t.source, t.removed ?? false])).toEqual([
+      ['member_exception', false],
+      ['collective_vacation', false],
+      ['member_exception', false],
+      ['member_exception', false],
+      ['member_exception', true],
+      ['member_exception', true],
     ]);
   });
 });

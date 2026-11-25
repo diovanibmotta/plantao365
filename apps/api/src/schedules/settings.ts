@@ -12,7 +12,7 @@ import {
   sortWorkPeriods,
   validateWorkPeriods,
 } from '@diovanibmotta/plantao365-shared';
-import type { Hono } from 'hono';
+import type { Context, Hono } from 'hono';
 import { z } from 'zod';
 import { recordAudit } from '../audit/index.js';
 import { requireRole } from '../auth/authz.js';
@@ -20,6 +20,7 @@ import type { AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
 import {
+  isImpactConfirmed,
   runScheduleImpact,
   type ScheduleImpact,
   type ScheduleImpactNotifier,
@@ -187,12 +188,17 @@ export function registerSettingsRoutes(
 ): void {
   const { db, scheduleImpactNotifier, logger } = deps;
   const impactOf = (
+    c: Context<AuthEnv>,
     tx: Sql,
     source: 'shift_times' | 'shift_exception',
-    teamId: string,
-    actorId: string,
+    removed = false,
   ): Promise<ScheduleImpact | null> =>
-    runScheduleImpact(tx, scheduleImpactNotifier, { source, teamId, actorId }, logger);
+    runScheduleImpact(
+      tx,
+      scheduleImpactNotifier,
+      { source, teamId: c.get('teamId')!, actorId: c.get('user')!.id, removed },
+      { logger, confirmed: isImpactConfirmed(c) },
+    );
   const withImpact = (impact: ScheduleImpact | null) => (impact ? { scheduleImpact: impact } : {});
   router.get('/shift-settings', async (c) => c.json(await getShiftTimes(db, c.get('teamId')!)));
 
@@ -292,7 +298,7 @@ export function registerSettingsRoutes(
           holiday: { ...(await getShiftTimes(tx, teamId)).holiday },
         },
       });
-      impact = await impactOf(tx, 'shift_times', teamId, c.get('user')!.id);
+      impact = await impactOf(c, tx, 'shift_times');
     });
     return c.json({ weekdays, holiday, startHour, endHour, ...withImpact(impact) });
   });
@@ -323,7 +329,7 @@ export function registerSettingsRoutes(
         before: gone.map((w) => ({ ...w })),
         after: null,
       });
-      impact = await impactOf(tx, 'shift_times', teamId, c.get('user')!.id);
+      impact = await impactOf(c, tx, 'shift_times', true);
       return true;
     });
     if (!removed) return c.json({ error: 'not_found' }, 404);
@@ -375,7 +381,7 @@ export function registerSettingsRoutes(
         before: before ? exceptionJson(before) : null,
         after: exceptionJson(saved),
       });
-      impact = await impactOf(tx, 'shift_exception', teamId, c.get('user')!.id);
+      impact = await impactOf(c, tx, 'shift_exception');
     });
     return c.json({ ...saved, ...withImpact(impact) });
   });
@@ -398,7 +404,7 @@ export function registerSettingsRoutes(
         before: exceptionJson(before),
         after: null,
       });
-      impact = await impactOf(tx, 'shift_exception', teamId, c.get('user')!.id);
+      impact = await impactOf(c, tx, 'shift_exception', true);
       return true;
     });
     if (!removed) return c.json({ error: 'not_found' }, 404);
@@ -440,7 +446,7 @@ export function registerSettingsRoutes(
         before: toJson(before),
         after: toJson(next),
       });
-      impact = await impactOf(tx, 'shift_times', teamId, c.get('user')!.id);
+      impact = await impactOf(c, tx, 'shift_times');
     });
     return c.json({ ...next, ...withImpact(impact) });
   });

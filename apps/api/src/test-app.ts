@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { impactConfirmationResponse } from './schedule-impact/index.js';
 import { csrfProtection, sessionMiddleware, SESSION_COOKIE } from './auth/index.js';
 import type { AuthEnv } from './auth/index.js';
 import { createSession } from './auth/sessions.js';
@@ -49,6 +50,9 @@ export async function loginAs(
  */
 export function buildTestApp(sql: Sql, mount: (app: Hono<AuthEnv>) => void): Hono<AuthEnv> {
   const app = new Hono<AuthEnv>();
+  app.onError(
+    (err, c) => impactConfirmationResponse(err, c) ?? c.text('Internal Server Error', 500),
+  );
   app.use(csrfProtection({ allowedOrigins: [TEST_ORIGIN] }));
   app.use(sessionMiddleware({ db: sql, cookieOptions: { secure: false } }));
   app.use(teamMiddleware({ db: sql }));

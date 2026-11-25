@@ -214,8 +214,7 @@ function UnavailabilityFormBody({
     item?.kind === 'vacation' ? [LEGACY_VACATION_OPTION, ...KIND_OPTIONS] : KIND_OPTIONS;
   const nameOf = (uid: string | null) => members.find((m) => m.id === uid)?.name ?? null;
 
-  const done = (result?: UnavailabilityMutation) =>
-    void navigate(listPath, { state: { warnings: result?.warnings ?? [] } });
+  const done = () => void navigate(listPath);
 
   const save = async () => {
     const issue =
@@ -240,11 +239,10 @@ function UnavailabilityFormBody({
         } else if (showMembers && values.userId && values.userId !== selfId) {
           body.userId = values.userId;
         }
-        done(
-          await api.post<UnavailabilityMutation>('/api/unavailabilities', body, {
-            successMessage: texts.created,
-          }),
-        );
+        await api.post<UnavailabilityMutation>('/api/unavailabilities', body, {
+          successMessage: texts.created,
+        });
+        done();
       } else {
         const body: Record<string, unknown> = {
           startDate: values.startDate,
@@ -252,11 +250,10 @@ function UnavailabilityFormBody({
           note,
         };
         if (!vacations) body.kind = values.kind;
-        done(
-          await api.patch<UnavailabilityMutation>(`/api/unavailabilities/${item.id}`, body, {
-            successMessage: texts.updated,
-          }),
-        );
+        await api.patch<UnavailabilityMutation>(`/api/unavailabilities/${item.id}`, body, {
+          successMessage: texts.updated,
+        });
+        done();
       }
     } catch {
       // O interceptor já exibe o toast de erro.
