@@ -25,9 +25,15 @@ interface TeamRow {
   name: string;
   dashboardUrl?: string | null;
   avatar?: string | null;
+  managers?: string[];
 }
 
-const infra: TeamRow = { id: 't1', name: 'Infra', dashboardUrl: 'https://grafana.x/d/1' };
+const infra: TeamRow = {
+  id: 't1',
+  name: 'Infra',
+  dashboardUrl: 'https://grafana.x/d/1',
+  managers: ['Ana Souza', 'Caio Dias'],
+};
 const dados: TeamRow = { id: 't2', name: 'Dados' };
 const ana = {
   id: '1',
@@ -95,6 +101,16 @@ describe('listagem de equipes', () => {
       '/teams/new',
     );
     expect(screen.getByText('2 de 2 registros')).toBeTruthy();
+    expect(within(table).getByText('Ana Souza, Caio Dias')).toBeTruthy();
+    expect(within(table).getByText('Sem gestor')).toBeTruthy();
+  });
+
+  it('busca também pelo nome do gestor', async () => {
+    renderAt('/teams', [infra, dados]);
+    await screen.findByRole('table', { name: 'Equipes' });
+    await userEvent.type(screen.getByRole('searchbox'), 'caio');
+    expect(screen.getByText('1 de 2 registros')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Editar Infra' })).toBeTruthy();
   });
 
   it('busca sem acento e caixa, filtra por dashboard e limpa os filtros', async () => {
