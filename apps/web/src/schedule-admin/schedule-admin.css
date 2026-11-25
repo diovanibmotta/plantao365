@@ -307,3 +307,18 @@
 .sad-modal h2 {
   margin-top: 0;
 }
+
+/* Mensagem de retorno dentro dos formulários: compacta e alinhada, não a do estado de página. */
+.sad-block .status,
+.sad-block .alert {
+  margin-top: var(--space);
+}
+
+.sad-block .status {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in oklch, var(--success) 40%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in oklch, var(--success) 9%, var(--surface));
+  color: var(--success);
+  text-align: left;
+}
