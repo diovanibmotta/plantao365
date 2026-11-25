@@ -90,11 +90,12 @@ async function loadHistory(
   return { hours, special: new Map(rows.map((r) => [r.userId, r.n])) };
 }
 
-async function loadLastAssignments(sql: Sql, from: LocalDate) {
+/** Plantões publicados da equipe logo antes do período (outra equipe tem o próprio rodízio). */
+async function loadLastAssignments(sql: Sql, from: LocalDate, teamId: string) {
   return sql<{ date: LocalDate; userId: string }[]>`
     select s.date::text as date, s.user_id as "userId"
     from shifts s join schedules sc on sc.id = s.schedule_id
-    where sc.status = 'published' and s.user_id is not null
+    where sc.status = 'published' and sc.team_id = ${teamId} and s.user_id is not null
       and s.date between ${addDays(from, -LAST_ASSIGNMENTS_DAYS)}::date
         and ${addDays(from, -1)}::date
     order by s.date`;
@@ -123,7 +124,7 @@ export async function generateDraft(
     from users u join team_members m on m.user_id = u.id and m.team_id = ${teamId}
     where u.active and m.participates_in_rotation order by u.id`;
   const history = await loadHistory(tx, from, input.now);
-  const lastAssignments = await loadLastAssignments(tx, from);
+  const lastAssignments = await loadLastAssignments(tx, from, teamId);
   const preferences = await listPreferences(
     tx,
     users.map((u) => u.id),

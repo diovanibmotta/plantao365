@@ -231,6 +231,48 @@ describe('generateRotation', () => {
     expect(returned).toBeGreaterThan(0);
   });
 
+  it('aplica exceções e férias antes de distribuir: dias com menos elegíveis vêm primeiro', () => {
+    // a e b de férias nos últimos 9 dias: c é o único elegível neles, e esses plantões
+    // entram na conta de c antes de dividir o resto do período.
+    const vacation = dateRange('2026-03-23', '2026-03-31');
+    const out = generateRotation(
+      input([
+        member('a', { unavailableDates: vacation }),
+        member('b', { unavailableDates: vacation }),
+        member('c'),
+      ]),
+    );
+    expect(out.unassignedDates).toEqual([]);
+    for (const s of out.shifts) {
+      if (vacation.includes(s.date)) expect(s.userId).toBe('c');
+    }
+    // c trabalha nos 9 dias de férias dos outros e só completa o restante
+    // (em ordem cronológica pura, c pegava 9 dos 21 dias anteriores: 18 plantões, 302h).
+    const cBefore = out.shifts.filter((s) => s.userId === 'c' && !vacation.includes(s.date));
+    expect(cBefore.length).toBeLessThanOrEqual(4);
+    expect(out.summary.find((s) => s.userId === 'c')!.shifts).toBeLessThanOrEqual(13);
+  });
+
+  it('máximo de consecutivos considera plantões já alocados depois da data', () => {
+    // b só está disponível em 03-02 e tem histórico alto; a já foi forçado em 03-03.
+    const out = generateRotation(
+      input(
+        [
+          member('a', { preferences: { avoidWeekdays: [], maxConsecutiveShifts: 1 } }),
+          member('b', {
+            unavailableDates: ['2026-03-03'],
+            history: { hoursDone: 1000, weekendHolidayShiftsDone: 0 },
+          }),
+        ],
+        { to: '2026-03-03' },
+      ),
+    );
+    expect(out.shifts.map((s) => s.userId)).toEqual(['a', 'a']);
+    expect(out.preferenceViolations).toEqual([
+      { date: '2026-03-02', userId: 'a', kind: 'max_consecutive' },
+    ]);
+  });
+
   it('3 meses x 20 membros em menos de 1s', () => {
     const members = Array.from({ length: 20 }, (_, i) =>
       member(`m${String(i).padStart(2, '0')}`, {
