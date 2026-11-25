@@ -6,7 +6,12 @@ import {
   isWeekend,
   shiftDuration,
 } from '@diovanibmotta/plantao365-shared';
-import type { LocalDate, ShiftTimes, WorkPeriod } from '@diovanibmotta/plantao365-shared';
+import type {
+  LocalDate,
+  ShiftException,
+  ShiftTimes,
+  WorkPeriod,
+} from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useRole } from '../team/TeamContext';
@@ -99,6 +104,7 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
   const [loaded, setLoaded] = useState<{ key: string; outcome: Outcome } | null>(null);
   const [shiftTimes, setShiftTimes] = useState<ShiftTimes | null>(null);
   const [workPeriods, setWorkPeriods] = useState<WorkPeriod[]>([...DEFAULT_WORK_PERIODS]);
+  const [workByDate, setWorkByDate] = useState<Map<LocalDate, WorkPeriod[]>>(new Map());
   const month = monthKeyOf(anchor);
   const { from, to } = viewRange(view, anchor);
   const key = `${view}:${from}:${to}`;
@@ -114,6 +120,19 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
     api
       .get<{ periods: WorkPeriod[] }>('/api/work-hours', controller.signal)
       .then((r) => setWorkPeriods(r.periods))
+      .catch(() => undefined);
+    // Jornadas de datas com exceção (ex.: 24/12); falha mantém a jornada padrão.
+    api
+      .get<ShiftException[]>('/api/shift-exceptions', controller.signal)
+      .then((list) =>
+        setWorkByDate(
+          new Map(
+            (Array.isArray(list) ? list : []).flatMap((e) =>
+              e.workPeriods ? [[e.date, e.workPeriods] as const] : [],
+            ),
+          ),
+        ),
+      )
       .catch(() => undefined);
     // Membros da equipe para o filtro; sem eles, o filtro usa só quem aparece na escala.
     api
@@ -277,6 +296,7 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
           status={status}
           shiftTimes={shiftTimes}
           workPeriods={workPeriods}
+          workPeriodsByDate={workByDate}
         />
       )}
     </section>

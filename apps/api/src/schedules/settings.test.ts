@@ -116,4 +116,49 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('shift settings (PostgreSQL)'
       select action from audit_log where entity_type = 'work_hours'`;
     expect(audit?.action).toBe('work_hours.update');
   });
+
+  it('exceções por data: só gestor altera, valida, audita e a geração usa o horário da exceção', async () => {
+    const body = { startHour: 15, endHour: 8, workPeriods: [{ startMinute: 480, endMinute: 900 }] };
+    expect((await call('PUT', '/shift-exceptions/2027-06-22', member, body)).status).toBe(403);
+    expect((await call('PUT', '/shift-exceptions/2027-13-40', manager, body)).status).toBe(400);
+    const bad = { ...body, startHour: 24 };
+    expect((await call('PUT', '/shift-exceptions/2027-06-22', manager, bad)).status).toBe(400);
+    const overlap = {
+      ...body,
+      workPeriods: [
+        { startMinute: 480, endMinute: 720 },
+        { startMinute: 700, endMinute: 900 },
+      ],
+    };
+    expect((await call('PUT', '/shift-exceptions/2027-06-22', manager, overlap)).status).toBe(400);
+
+    expect((await call('PUT', '/shift-exceptions/2027-06-22', manager, body)).status).toBe(200);
+    expect(await (await call('GET', '/shift-exceptions', member)).json()).toEqual([
+      { date: '2027-06-22', ...body, note: null },
+    ]);
+    const [audit] = await sql<{ action: string }[]>`
+      select action from audit_log where entity_type = 'shift_exception'`;
+    expect(audit?.action).toBe('shift_exception.create');
+
+    // 2027-06-21 segunda (horário do tipo de dia), 2027-06-22 terça (exceção 15h–08h = 17h).
+    const gen = await call('POST', '/schedules/generate', manager, {
+      from: '2027-06-21',
+      to: '2027-06-22',
+    });
+    expect(gen.status).toBe(201);
+    const { shifts } = (await gen.json()) as {
+      shifts: Array<{ date: string; hours: number; startsAt: string; endsAt: string }>;
+    };
+    expect(shifts.find((x) => x.date === '2027-06-21')).toMatchObject({ hours: 12 });
+    expect(shifts.find((x) => x.date === '2027-06-22')).toMatchObject({
+      hours: 17,
+      startsAt: '2027-06-22T18:00:00.000Z',
+      endsAt: '2027-06-23T11:00:00.000Z',
+    });
+
+    expect((await call('DELETE', '/shift-exceptions/2027-06-22', member)).status).toBe(403);
+    expect((await call('DELETE', '/shift-exceptions/2027-06-22', manager)).status).toBe(204);
+    expect((await call('DELETE', '/shift-exceptions/2027-06-22', manager)).status).toBe(404);
+    expect(await (await call('GET', '/shift-exceptions', member)).json()).toEqual([]);
+  });
 });

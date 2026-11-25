@@ -154,3 +154,17 @@ describe('shiftsForRange', () => {
     );
   });
 });
+
+describe('shiftExceptions', () => {
+  it('usa o horário da exceção na data e o padrão nas demais', () => {
+    const ctx: ShiftContext = {
+      ...noVacation,
+      shiftExceptions: new Map([['2026-12-24', { startHour: 15, endHour: 8 }]]),
+    };
+    const eve = shiftForDate('2026-12-24', ctx);
+    expect(eve.hours).toBe(17);
+    expect(eve.start).toEqual(localToInstant('2026-12-24', 15));
+    expect(eve.end).toEqual(localToInstant('2026-12-25', 8));
+    expect(shiftForDate('2026-12-23', ctx).hours).toBe(14);
+  });
+});

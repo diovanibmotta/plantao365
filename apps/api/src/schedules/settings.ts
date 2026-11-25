@@ -1,9 +1,13 @@
 import {
   DEFAULT_SHIFT_TIMES,
   SHIFT_DAY_TYPES,
+  type LocalDate,
   type ShiftDayType,
+  type ShiftException,
+  type ShiftTime,
   type ShiftTimes,
   type WorkPeriod,
+  parseLocalDate,
   validateWorkPeriods,
 } from '@diovanibmotta/plantao365-shared';
 import type { Hono } from 'hono';
@@ -21,6 +25,36 @@ export async function getShiftTimes(sql: Sql, teamId: string): Promise<ShiftTime
   const times: ShiftTimes = { ...DEFAULT_SHIFT_TIMES };
   for (const r of rows) times[r.dayType] = { startHour: r.startHour, endHour: r.endHour };
   return times;
+}
+
+/** Exceções de horário no intervalo (inclusivo), em ordem de data; sem intervalo, todas. */
+export async function listShiftExceptions(
+  sql: Sql,
+  teamId: string,
+  range?: { from: LocalDate; to: LocalDate },
+): Promise<ShiftException[]> {
+  const from = range?.from ?? null;
+  const to = range?.to ?? null;
+  const rows = await sql<ShiftException[]>`
+    select date::text as date, start_hour as "startHour", end_hour as "endHour",
+      work_periods as "workPeriods", note
+    from shift_exceptions
+    where team_id = ${teamId}
+      and (${from}::date is null or date >= ${from}::date)
+      and (${to}::date is null or date <= ${to}::date)
+    order by date`;
+  return rows.map((r) => ({ ...r }));
+}
+
+/** Mapa data -> horário do plantão, para o contexto de cálculo/geração. */
+export async function getShiftExceptionTimes(
+  sql: Sql,
+  teamId: string,
+  from: LocalDate,
+  to: LocalDate,
+): Promise<Map<LocalDate, ShiftTime>> {
+  const list = await listShiftExceptions(sql, teamId, { from, to });
+  return new Map(list.map((e) => [e.date, { startHour: e.startHour, endHour: e.endHour }]));
 }
 
 const hour = z
@@ -54,6 +88,39 @@ const workHoursBody = z
     periods: z.array(z.object({ startMinute: minute, endMinute: minute }).strict()),
   })
   .strict();
+
+const exceptionBody = z
+  .object({
+    startHour: hour,
+    endHour: hour,
+    workPeriods: z
+      .array(z.object({ startMinute: minute, endMinute: minute }).strict())
+      .nullable()
+      .default(null),
+    note: z
+      .string()
+      .trim()
+      .max(120, 'Observação deve ter no máximo 120 caracteres')
+      .nullable()
+      .default(null),
+  })
+  .strict();
+
+const asLocalDate = (v: string | undefined): LocalDate | null => {
+  if (!v) return null;
+  try {
+    return parseLocalDate(v) === v ? v : null;
+  } catch {
+    return null;
+  }
+};
+
+const exceptionJson = (e: ShiftException) => ({
+  ...e,
+  workPeriods: e.workPeriods?.map((p) => ({ ...p })) ?? null,
+});
+
+const invalidDate = { error: 'validation_error', message: 'Data inválida; use AAAA-MM-DD' };
 
 /** GET/PUT /shift-settings. Vale para escalas geradas depois; plantões existentes não mudam. */
 export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql }): void {
@@ -97,6 +164,76 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
       });
     });
     return c.json({ periods: next });
+  });
+
+  router.get('/shift-exceptions', async (c) => {
+    const teamId = c.get('teamId')!;
+    const fromQ = c.req.query('from');
+    const toQ = c.req.query('to');
+    if (!fromQ && !toQ) return c.json(await listShiftExceptions(db, teamId));
+    const from = asLocalDate(fromQ);
+    const to = asLocalDate(toQ);
+    if (!from || !to) return c.json(invalidDate, 400);
+    return c.json(await listShiftExceptions(db, teamId, { from, to }));
+  });
+
+  router.put('/shift-exceptions/:date', requireRole('manager'), async (c) => {
+    const date = asLocalDate(c.req.param('date'));
+    if (!date) return c.json(invalidDate, 400);
+    const parsed = exceptionBody.safeParse(await c.req.json().catch(() => null));
+    const problem = parsed.success
+      ? parsed.data.workPeriods
+        ? validateWorkPeriods(parsed.data.workPeriods)
+        : null
+      : (parsed.error.issues[0]?.message ?? 'Dados inválidos');
+    if (!parsed.success || problem) {
+      return c.json({ error: 'validation_error', message: problem ?? 'Dados inválidos' }, 400);
+    }
+    const { startHour, endHour, workPeriods, note } = parsed.data;
+    const teamId = c.get('teamId')!;
+    const saved: ShiftException = { date, startHour, endHour, workPeriods, note: note || null };
+    await db.begin(async (txRaw) => {
+      const tx = txRaw as unknown as Sql;
+      const [before] = await listShiftExceptions(tx, teamId, { from: date, to: date });
+      await tx`insert into shift_exceptions (team_id, date, start_hour, end_hour, work_periods, note)
+        values (${teamId}, ${date}::date, ${startHour}, ${endHour},
+          ${workPeriods ? tx.json(workPeriods) : null}, ${saved.note})
+        on conflict (team_id, date) do update set start_hour = excluded.start_hour,
+          end_hour = excluded.end_hour, work_periods = excluded.work_periods,
+          note = excluded.note, updated_at = now()`;
+      await recordAudit(tx, {
+        actorId: c.get('user')!.id,
+        action: before ? 'shift_exception.update' : 'shift_exception.create',
+        entityType: 'shift_exception',
+        entityId: null,
+        before: before ? exceptionJson(before) : null,
+        after: exceptionJson(saved),
+      });
+    });
+    return c.json(saved);
+  });
+
+  router.delete('/shift-exceptions/:date', requireRole('manager'), async (c) => {
+    const date = asLocalDate(c.req.param('date'));
+    if (!date) return c.json(invalidDate, 400);
+    const teamId = c.get('teamId')!;
+    const removed = await db.begin(async (txRaw) => {
+      const tx = txRaw as unknown as Sql;
+      const [before] = await listShiftExceptions(tx, teamId, { from: date, to: date });
+      if (!before) return false;
+      await tx`delete from shift_exceptions where team_id = ${teamId} and date = ${date}::date`;
+      await recordAudit(tx, {
+        actorId: c.get('user')!.id,
+        action: 'shift_exception.delete',
+        entityType: 'shift_exception',
+        entityId: null,
+        before: exceptionJson(before),
+        after: null,
+      });
+      return true;
+    });
+    if (!removed) return c.json({ error: 'not_found' }, 404);
+    return c.body(null, 204);
   });
 
   router.put('/shift-settings', requireRole('manager'), async (c) => {

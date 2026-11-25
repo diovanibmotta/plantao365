@@ -30,6 +30,16 @@ export function validateWorkPeriods(periods: readonly WorkPeriod[]): string | nu
   return null;
 }
 
+/** Exceção de horário em uma data: plantão e, opcionalmente, jornada do dia diferentes do padrão. */
+export interface ShiftException {
+  date: string;
+  startHour: number;
+  endHour: number;
+  /** Jornada do dia; null mantém a jornada padrão da equipe. */
+  workPeriods: WorkPeriod[] | null;
+  note: string | null;
+}
+
 /** Soma de minutos da jornada. */
 export function workMinutes(periods: readonly WorkPeriod[]): number {
   return periods.reduce((acc, p) => acc + (p.endMinute - p.startMinute), 0);

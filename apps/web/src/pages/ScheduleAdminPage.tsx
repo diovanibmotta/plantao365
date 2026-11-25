@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import { GenerateForm, GenerateReport } from '../schedule-admin/GenerateForm';
 import { StatusPill } from '../schedule-admin/StatusPill';
 import { ScheduleEditor } from '../schedule-admin/ScheduleEditor';
+import { ShiftExceptionsForm } from '../schedule-admin/ShiftExceptionsForm';
 import { ShiftSettingsForm } from '../schedule-admin/ShiftSettingsForm';
 import { WorkHoursForm } from '../schedule-admin/WorkHoursForm';
 import { describe, formatDate } from '../schedule-admin/types';
@@ -106,7 +107,12 @@ export function ScheduleAdminPage() {
         ))}
       </div>
       <div id="sad-panel" role="tabpanel" aria-labelledby={`sad-tab-${tab}`}>
-        {tab === 'times' && <ShiftSettingsForm />}
+        {tab === 'times' && (
+          <>
+            <ShiftSettingsForm />
+            <ShiftExceptionsForm />
+          </>
+        )}
         {tab === 'work-hours' && <WorkHoursForm />}
         {tab === 'schedules' && (
           <>

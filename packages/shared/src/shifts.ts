@@ -34,9 +34,22 @@ export function shiftDuration({ startHour, endHour }: ShiftTime): number {
   return endHour > startHour ? endHour - startHour : endHour - startHour + 24;
 }
 
-export function shiftHoursFor(dayType: DayType, ctx: Pick<ShiftContext, 'shiftTimes'>): number {
+/** Horário do turno de um dia: a exceção da data, se houver, senão o horário do tipo de dia. */
+export function shiftTimeFor(
+  date: LocalDate,
+  dayType: ShiftDayType,
+  ctx: Pick<ShiftContext, 'shiftTimes' | 'shiftExceptions'>,
+): ShiftTime {
+  return ctx.shiftExceptions?.get(date) ?? (ctx.shiftTimes ?? DEFAULT_SHIFT_TIMES)[dayType];
+}
+
+export function shiftHoursFor(
+  date: LocalDate,
+  dayType: DayType,
+  ctx: Pick<ShiftContext, 'shiftTimes' | 'shiftExceptions'>,
+): number {
   if (dayType === 'collective_vacation') return 0;
-  return shiftDuration((ctx.shiftTimes ?? DEFAULT_SHIFT_TIMES)[dayType]);
+  return shiftDuration(shiftTimeFor(date, dayType, ctx));
 }
 
 export interface DateInterval {
@@ -51,6 +64,8 @@ export interface ShiftContext {
   collectiveVacations: readonly DateInterval[];
   /** Horário por tipo de dia; ausente usa DEFAULT_SHIFT_TIMES. */
   shiftTimes?: ShiftTimes | undefined;
+  /** Exceções de horário por data (ex.: véspera de feriado com jornada reduzida). */
+  shiftExceptions?: ReadonlyMap<LocalDate, ShiftTime> | undefined;
 }
 
 export interface Shift {
@@ -76,9 +91,9 @@ export function classifyDay(date: LocalDate, ctx: ShiftContext): DayType {
 export function shiftForDate(date: LocalDate, ctx: ShiftContext): Shift {
   const d = parseLocalDate(date);
   const dayType = classifyDay(d, ctx);
-  const base = { date: d, month: monthOf(d), dayType, hours: shiftHoursFor(dayType, ctx) };
+  const base = { date: d, month: monthOf(d), dayType, hours: shiftHoursFor(d, dayType, ctx) };
   if (dayType === 'collective_vacation') return { ...base, start: null, end: null };
-  const time = (ctx.shiftTimes ?? DEFAULT_SHIFT_TIMES)[dayType];
+  const time = shiftTimeFor(d, dayType, ctx);
   const endDate = time.endHour > time.startHour ? d : addDays(d, 1);
   return {
     ...base,
