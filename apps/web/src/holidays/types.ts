@@ -121,9 +121,3 @@ export function errorMessage(err: unknown, fallback: string): string {
   }
   return err instanceof Error ? err.message : fallback;
 }
-
-export function yearOptions(selected: number, current: number): number[] {
-  const first = Math.min(current - 2, selected);
-  const last = Math.max(current + 3, selected);
-  return Array.from({ length: last - first + 1 }, (_, i) => first + i);
-}
