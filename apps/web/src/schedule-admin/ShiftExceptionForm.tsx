@@ -13,7 +13,7 @@ import { api } from '../api/client';
 import { formatHours } from '../schedule/format';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { FormActions, FormPage, FormSection } from '../ui/FormPage';
-import { EXCEPTIONS_LIST_PATH } from './ShiftExceptionsList';
+import { EXCEPTIONS_LIST_PATH, SCHEDULE_ADMIN_PATH } from './paths';
 import { describe, formatDate } from './types';
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
@@ -192,7 +192,7 @@ export function ShiftExceptionForm() {
   };
 
   const crumbs = [
-    { label: 'Escala', to: '/schedule-admin' },
+    { label: 'Escala', to: SCHEDULE_ADMIN_PATH },
     { label: 'Exceções de horário', to: EXCEPTIONS_LIST_PATH },
     { label: isNew ? 'Nova exceção' : draft ? `Editar ${formatDate(draft.date)}` : 'Editar' },
   ];

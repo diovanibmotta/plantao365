@@ -7,6 +7,20 @@ export interface Crumb {
   to?: string;
 }
 
+/** Trilha de navegação no topo das telas de formulário. */
+export function Breadcrumb({ crumbs }: { crumbs: Crumb[] }) {
+  return (
+    <nav aria-label="Navegação estrutural" className="ui-breadcrumb">
+      {crumbs.map((c, i) => (
+        <span key={c.label}>
+          {i > 0 && <span aria-hidden="true">/ </span>}
+          {c.to ? <Link to={c.to}>{c.label}</Link> : <span aria-current="page">{c.label}</span>}
+        </span>
+      ))}
+    </nav>
+  );
+}
+
 /** Tela de formulário: breadcrumb, título e seções; as ações ficam na barra fixa (FormActions). */
 export function FormPage({
   crumbs,
@@ -27,14 +41,7 @@ export function FormPage({
   };
   return (
     <section>
-      <nav aria-label="Navegação estrutural" className="ui-breadcrumb">
-        {crumbs.map((c, i) => (
-          <span key={c.label}>
-            {i > 0 && <span aria-hidden="true">/ </span>}
-            {c.to ? <Link to={c.to}>{c.label}</Link> : <span aria-current="page">{c.label}</span>}
-          </span>
-        ))}
-      </nav>
+      <Breadcrumb crumbs={crumbs} />
       <div className="ui-form-head">
         <h2>{title}</h2>
         {description && <p>{description}</p>}

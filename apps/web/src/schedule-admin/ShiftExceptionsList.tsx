@@ -7,11 +7,8 @@ import { formatHours } from '../schedule/format';
 import { EmptyState } from '../ui/EmptyState';
 import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { PageHeader } from '../ui/PageHeader';
+import { EXCEPTIONS_NEW_PATH, exceptionPath } from './paths';
 import { describe, formatDate } from './types';
-
-export const EXCEPTIONS_NEW_PATH = '/schedule-admin/exceptions/new';
-export const exceptionPath = (date: string) => `/schedule-admin/exceptions/${date}`;
-export const EXCEPTIONS_LIST_PATH = '/schedule-admin?tab=exceptions';
 
 const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
@@ -67,7 +64,7 @@ export function ShiftExceptionsList() {
   );
 
   return (
-    <section aria-labelledby="sad-exc-title" className="sad-block">
+    <section className="sad-block">
       <PageHeader
         title="Exceções de horário"
         description="Datas em que o plantão e a jornada fogem do padrão da equipe."

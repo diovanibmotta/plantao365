@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
+import { useNavigate } from 'react-router';
 import {
   MAX_WORK_PERIODS,
   formatMinute,
@@ -9,13 +9,18 @@ import {
 } from '@diovanibmotta/plantao365-shared';
 import type { WorkPeriod } from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
+import { FormActions, FormPage, FormSection } from '../ui/FormPage';
+import { SCHEDULE_ADMIN_PATH, tabPath } from './paths';
 import { describe } from './types';
+import { formatDuration } from './WorkHoursList';
 
-/** Jornada de trabalho do time (ex.: 08:00–12:00 | 13:30–18:00), exibida no calendário. */
+/** Edição da jornada de trabalho do time (rota própria, separada da listagem). */
 export function WorkHoursForm() {
+  const navigate = useNavigate();
   const [periods, setPeriods] = useState<WorkPeriod[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -24,49 +29,46 @@ export function WorkHoursForm() {
       .then((r) => setPeriods(r.periods))
       .catch((err: unknown) => {
         if (!controller.signal.aborted) {
-          setMessage({ ok: false, text: describe(err, 'Não foi possível carregar a jornada.') });
+          setLoadError(describe(err, 'Não foi possível carregar a jornada.'));
         }
       });
     return () => controller.abort();
   }, []);
 
+  const back = () => void navigate(tabPath('work-hours'));
+
+  const change = (next: (list: WorkPeriod[]) => WorkPeriod[]) => {
+    setProblem(null);
+    setPeriods((list) => list && next(list));
+  };
+
   const update = (index: number, key: keyof WorkPeriod, text: string) => {
     const value = parseMinute(text);
     if (value === null) return;
-    setMessage(null);
-    setPeriods((list) => list && list.map((p, i) => (i === index ? { ...p, [key]: value } : p)));
+    change((list) => list.map((p, i) => (i === index ? { ...p, [key]: value } : p)));
   };
 
-  const add = () => {
-    setMessage(null);
-    setPeriods((list) => {
-      const last = list?.at(-1)?.endMinute ?? 480;
-      const start = Math.min(last + 60, 1380);
-      return [...(list ?? []), { startMinute: start, endMinute: Math.min(start + 240, 1440) }];
+  const add = () =>
+    change((list) => {
+      const start = Math.min((list.at(-1)?.endMinute ?? 480) + 60, 1380);
+      return [...list, { startMinute: start, endMinute: Math.min(start + 240, 1440) }];
     });
-  };
 
-  const remove = (index: number) => {
-    setMessage(null);
-    setPeriods((list) => list && list.filter((_, i) => i !== index));
-  };
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
+  const save = async () => {
     if (!periods) return;
-    const problem = validateWorkPeriods(periods);
-    if (problem) {
-      setMessage({ ok: false, text: problem });
+    const invalid = validateWorkPeriods(periods);
+    if (invalid) {
+      setProblem(invalid);
       return;
     }
     setBusy(true);
     try {
-      const saved = await api.put<{ periods: WorkPeriod[] }>(
+      await api.put<{ periods: WorkPeriod[] }>(
         '/api/work-hours',
         { periods },
         { successMessage: 'Jornada salva.' },
       );
-      setPeriods(saved.periods);
+      back();
     } catch {
       // O interceptor já exibe o toast de erro.
     } finally {
@@ -74,53 +76,73 @@ export function WorkHoursForm() {
     }
   };
 
-  const total = periods ? workMinutes(periods) : 0;
+  const crumbs = [
+    { label: 'Escala', to: SCHEDULE_ADMIN_PATH },
+    { label: 'Jornada de trabalho', to: tabPath('work-hours') },
+    { label: 'Editar' },
+  ];
+
+  if (loadError) {
+    return (
+      <FormPage crumbs={crumbs} title="Jornada de trabalho" onSubmit={back}>
+        <p className="alert" role="alert">
+          {loadError}
+        </p>
+      </FormPage>
+    );
+  }
+  if (!periods) {
+    return (
+      <p className="status" role="status">
+        Carregando…
+      </p>
+    );
+  }
 
   return (
-    <section aria-labelledby="sad-work-title" className="sad-block">
-      <h2 id="sad-work-title">Jornada de trabalho</h2>
-      <p className="muted">
-        Períodos em que todo o time está trabalhando. Aparecem destacados nas visões de dia e semana
-        do calendário.
-      </p>
-      {periods === null && !message && (
-        <p className="status" role="status">
-          Carregando…
-        </p>
-      )}
-      {periods && (
-        <form onSubmit={(e) => void submit(e)}>
-          <ul className="sad-periods">
-            {periods.map((p, i) => (
-              <li key={i} className="sad-row">
-                <label>
-                  Início do período {i + 1}
-                  <input
-                    type="time"
-                    value={formatMinute(p.startMinute)}
-                    onChange={(e) => update(i, 'startMinute', e.target.value)}
-                  />
-                </label>
-                <label>
-                  Fim do período {i + 1}
-                  <input
-                    type="time"
-                    value={formatMinute(p.endMinute === 1440 ? 1439 : p.endMinute)}
-                    onChange={(e) => update(i, 'endMinute', e.target.value)}
-                  />
-                </label>
-                <button type="button" className="btn" onClick={() => remove(i)}>
-                  Remover período {i + 1}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="muted">
-            {periods.length === 0
-              ? 'Sem jornada definida.'
-              : `Total: ${Math.floor(total / 60)}h${total % 60 ? String(total % 60).padStart(2, '0') : ''} por dia útil.`}
-          </p>
-          <div className="sad-row">
+    <FormPage
+      crumbs={crumbs}
+      title="Editar jornada de trabalho"
+      description="Períodos em que todo o time está trabalhando."
+      onSubmit={() => void save()}
+    >
+      <FormSection
+        title="Períodos"
+        description={
+          periods.length === 0
+            ? 'Sem jornada definida.'
+            : `Total: ${formatDuration(workMinutes(periods))} por dia útil.`
+        }
+      >
+        <ul className="sad-periods">
+          {periods.map((p, i) => (
+            <li key={i} className="sad-row">
+              <label className="ui-field">
+                Início do período {i + 1}
+                <input
+                  type="time"
+                  value={formatMinute(p.startMinute)}
+                  onChange={(e) => update(i, 'startMinute', e.target.value)}
+                />
+              </label>
+              <label className="ui-field">
+                Fim do período {i + 1}
+                <input
+                  type="time"
+                  value={formatMinute(p.endMinute === 1440 ? 1439 : p.endMinute)}
+                  onChange={(e) => update(i, 'endMinute', e.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => change((list) => list.filter((_, idx) => idx !== i))}
+              >
+                Remover período {i + 1}
+              </button>
+            </li>
+          ))}
+          <li>
             <button
               type="button"
               className="btn"
@@ -129,17 +151,15 @@ export function WorkHoursForm() {
             >
               Adicionar período
             </button>
-            <button type="submit" className="btn primary" disabled={busy}>
-              {busy ? 'Salvando…' : 'Salvar jornada'}
-            </button>
-          </div>
-        </form>
-      )}
-      {message && (
-        <p className={message.ok ? 'status' : 'alert'} role={message.ok ? 'status' : 'alert'}>
-          {message.text}
+          </li>
+        </ul>
+      </FormSection>
+      {problem && (
+        <p className="alert" role="alert">
+          {problem}
         </p>
       )}
-    </section>
+      <FormActions busy={busy} onCancel={back} />
+    </FormPage>
   );
 }

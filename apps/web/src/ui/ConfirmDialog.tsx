@@ -7,6 +7,7 @@ export function ConfirmDialog({
   message,
   confirmLabel,
   busy = false,
+  tone = 'danger',
   onConfirm,
   onCancel,
 }: {
@@ -14,6 +15,8 @@ export function ConfirmDialog({
   message: string;
   confirmLabel: string;
   busy?: boolean;
+  /** danger: ação destrutiva (excluir); primary: confirmação comum (publicar). */
+  tone?: 'danger' | 'primary';
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -33,7 +36,12 @@ export function ConfirmDialog({
           <button type="button" className="btn" ref={cancel} onClick={onCancel}>
             Cancelar
           </button>
-          <button type="button" className="btn ui-danger" disabled={busy} onClick={onConfirm}>
+          <button
+            type="button"
+            className={tone === 'danger' ? 'btn ui-danger' : 'btn primary'}
+            disabled={busy}
+            onClick={onConfirm}
+          >
             {confirmLabel}
           </button>
         </div>
