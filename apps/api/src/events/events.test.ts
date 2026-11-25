@@ -41,6 +41,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('eventos de domínio (Postgre
   beforeEach(async () => {
     await sql`delete from domain_events`;
     await sql`delete from email_outbox`;
+    await sql`delete from schedules`;
     await sql`delete from users`;
   });
 
@@ -81,8 +82,8 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('eventos de domínio (Postgre
   it('falha do handler desfaz o que ele gravou, reagenda e esgota em failed', async () => {
     const handlers: EventHandlers = {
       'user.activated': async (tx) => {
-        await tx`insert into email_outbox (to_address, subject, text, dedupe_key)
-          values ('x@x.com', 's', 't', 'parcial')`;
+        await tx`insert into email_outbox (to_address, subject, html, text, dedupe_key)
+          values ('x@x.com', 's', 'h', 't', 'parcial')`;
         throw new Error('boom');
       },
     };

@@ -58,6 +58,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
     });
     beforeEach(async () => {
       await sql`delete from email_outbox`;
+      await sql`delete from domain_events`;
       await sql`delete from users`;
       ana = await user('Ana');
     });

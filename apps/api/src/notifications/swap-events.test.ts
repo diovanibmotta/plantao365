@@ -87,6 +87,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('notificações de troca (Pos
   });
   beforeEach(async () => {
     await sql`delete from email_outbox`;
+    await sql`delete from domain_events`;
     await sql`delete from users`;
     ana = await user('Ana');
     bia = await user('Bia');
