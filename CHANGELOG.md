@@ -1,3 +1,8 @@
+# [v1.25.0](https://github.com/diovanibmotta/plantao365/compare/v1.24.1...v1.25.0) (2026-11-25)
+
+## ✨ New Features
+- [`74d8614`](https://github.com/diovanibmotta/plantao365/commit/74d8614) : feat(web): migra férias para listagem e formulário e calcula término por dias
+
 # [v1.24.1](https://github.com/diovanibmotta/plantao365/compare/v1.24.0...v1.24.1) (2026-11-25)
 
 ## 🐛 Bug Fixes
