@@ -1,3 +1,12 @@
+# [v1.27.0](https://github.com/diovanibmotta/plantao365/compare/v1.26.1...v1.27.0) (2026-11-25)
+
+## ✨ New Features
+- [`15007de`](https://github.com/diovanibmotta/plantao365/commit/15007de) : feat(schedules): avisa gestor e tela quando alteração atinge escala publicada 
+- [`cdb2231`](https://github.com/diovanibmotta/plantao365/commit/cdb2231) : feat(schedules): confirma impacto em escala publicada antes de salvar e coluna de status 
+
+## 🐛 Bug Fixes
+- [`fbde472`](https://github.com/diovanibmotta/plantao365/commit/fbde472) : fix(api): corrige testes de impacto em escala e catálogo de eventos
+
 # [v1.26.1](https://github.com/diovanibmotta/plantao365/compare/v1.26.0...v1.26.1) (2026-11-25)
 
 ## 🐛 Bug Fixes
