@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { GenerateForm, GenerateReport } from '../schedule-admin/GenerateForm';
+import { StatusPill } from '../schedule-admin/StatusPill';
 import { ScheduleEditor } from '../schedule-admin/ScheduleEditor';
 import { ShiftSettingsForm } from '../schedule-admin/ShiftSettingsForm';
 import { WorkHoursForm } from '../schedule-admin/WorkHoursForm';
@@ -30,8 +31,6 @@ export function ScheduleAdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusFilter>('');
   const [onDate, setOnDate] = useState('');
-  const [toDelete, setToDelete] = useState<ScheduleDto | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [tab, setTab] = useState<Tab>('schedules');
   const [generating, setGenerating] = useState(false);
 
@@ -66,23 +65,6 @@ export function ScheduleAdminPage() {
       setError(describe(err, 'Não foi possível abrir a escala.'));
     }
   }, []);
-
-  const remove = async (s: ScheduleDto): Promise<void> => {
-    setDeleting(true);
-    try {
-      await api.delete(`/api/schedules/${s.id}`);
-      if (detail?.id === s.id) {
-        setDetail(null);
-        setResult(null);
-      }
-      await reload();
-    } catch (err) {
-      setError(describe(err, 'Não foi possível excluir a escala.'));
-    } finally {
-      setToDelete(null);
-      setDeleting(false);
-    }
-  };
 
   const names = useMemo(() => new Map(members.map((m) => [m.id, m.name])), [members]);
 
@@ -127,8 +109,7 @@ export function ScheduleAdminPage() {
         {tab === 'work-hours' && <WorkHoursForm />}
         {tab === 'schedules' && (
           <>
-            <section aria-labelledby="sad-list-title" className="sad-block">
-              <h2 id="sad-list-title">Pesquisar escalas</h2>
+            <section aria-label="Escalas" className="sad-block">
               <div className="sad-row" role="search">
                 <label>
                   Situação
@@ -170,58 +151,28 @@ export function ScheduleAdminPage() {
                       return (
                         <tr key={s.id}>
                           <td>{period}</td>
-                          <td>{s.status === 'draft' ? 'Rascunho' : 'Publicada'}</td>
+                          <td>
+                            <StatusPill status={s.status} />
+                          </td>
                           <td className="sad-actions">
                             <button
                               type="button"
                               className="btn"
                               aria-pressed={detail?.id === s.id}
-                              aria-label={`Alterar escala de ${period}`}
+                              aria-label={`Abrir escala de ${period}`}
                               onClick={() => {
                                 setError(null);
                                 void open(s.id);
                               }}
                             >
-                              Alterar
+                              Abrir
                             </button>
-                            {/* Backend só exclui rascunho: publicada tem trocas/saldo vinculados. */}
-                            {s.status === 'draft' && (
-                              <button
-                                type="button"
-                                className="btn"
-                                aria-label={`Excluir escala de ${period}`}
-                                onClick={() => setToDelete(s)}
-                              >
-                                Excluir
-                              </button>
-                            )}
                           </td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
-              )}
-              {toDelete && (
-                <div className="sad-confirm" role="alertdialog" aria-label="Confirmar exclusão">
-                  <p>
-                    Excluir o rascunho de {formatDate(toDelete.startDate)} a{' '}
-                    {formatDate(toDelete.endDate)}? Esta ação não pode ser desfeita.
-                  </p>
-                  <div className="sad-row">
-                    <button
-                      type="button"
-                      className="btn primary"
-                      disabled={deleting}
-                      onClick={() => void remove(toDelete)}
-                    >
-                      Confirmar exclusão
-                    </button>
-                    <button type="button" className="btn" onClick={() => setToDelete(null)}>
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
               )}
             </section>
 

@@ -72,17 +72,43 @@ interface GenerateReportProps {
 
 export function GenerateReport({ names, result }: GenerateReportProps) {
   const nameOf = (id: string) => names.get(id) ?? 'Membro';
+  const unassigned = result.unassignedDates.length;
+  const violations = result.preferenceViolations.length;
+  const totalDays = result.shifts.filter((s) => s.dayType !== 'collective_vacation').length;
+  const hours = result.summary.map((s) => s.hours);
+  const spread = hours.length > 0 ? Math.max(...hours) - Math.min(...hours) : 0;
+  const average =
+    hours.length > 0 ? Math.round(hours.reduce((sum, h) => sum + h, 0) / hours.length) : 0;
+  const tone = unassigned > 0 ? 'bad' : violations > 0 ? 'warn' : 'ok';
   return (
     <div className="sad-report" role="status" aria-label="Resultado da geração">
       <p>
         Rascunho gerado para {formatDate(result.schedule.startDate)} a{' '}
         {formatDate(result.schedule.endDate)}.
       </p>
-      <p>
-        {result.unassignedDates.length === 0
+      <p className={`sad-banner sad-banner--${tone}`}>
+        {unassigned === 0
           ? 'Todos os dias têm responsável.'
           : `Dias sem responsável: ${result.unassignedDates.map(formatDate).join(', ')}.`}
       </p>
+      <dl className="sad-kpis">
+        <div className={`sad-kpi${unassigned > 0 ? ' sad-kpi--bad' : ''}`}>
+          <dt>Dias cobertos</dt>
+          <dd>{`${Math.max(totalDays - unassigned, 0)}/${totalDays}`}</dd>
+        </div>
+        <div className={`sad-kpi${violations > 0 ? ' sad-kpi--warn' : ''}`}>
+          <dt>Preferências não atendidas</dt>
+          <dd>{violations}</dd>
+        </div>
+        <div className="sad-kpi">
+          <dt>Diferença entre maior e menor carga</dt>
+          <dd>{spread}h</dd>
+        </div>
+        <div className="sad-kpi">
+          <dt>Carga média por membro</dt>
+          <dd>{average}h</dd>
+        </div>
+      </dl>
       {result.preferenceViolations.length > 0 && (
         <>
           <p>Preferências não atendidas:</p>
