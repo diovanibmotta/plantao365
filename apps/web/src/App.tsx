@@ -17,6 +17,7 @@ import { ScheduleGenerateForm } from './schedule-admin/ScheduleGenerateForm';
 import { ShiftExceptionForm } from './schedule-admin/ShiftExceptionForm';
 import { ShiftTimeForm } from './schedule-admin/ShiftTimeForm';
 import { WorkHoursForm } from './schedule-admin/WorkHoursForm';
+import { MemberForm } from './members/MemberForm';
 import { MembersPage } from './pages/MembersPage';
 import { MySchedulePage } from './pages/MySchedulePage';
 import { NotFoundPage } from './pages/pages';
@@ -71,6 +72,8 @@ export function App() {
             <Route path="teams/:id" element={<TeamForm />} />
             <Route path="teams/:id/members" element={<TeamMembersPage />} />
             <Route path="members" element={<MembersPage />} />
+            <Route path="members/new" element={<MemberForm />} />
+            <Route path="members/:id" element={<MemberForm />} />
             <Route path="vacations" element={<VacationsPage />} />
             <Route path="vacations/new" element={<VacationForm />} />
             <Route path="vacations/:id" element={<VacationForm />} />
