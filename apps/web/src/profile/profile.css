@@ -11,6 +11,13 @@
   margin: 0 0 var(--space);
 }
 
+.avatar.profile-avatar {
+  width: 96px;
+  height: 96px;
+  margin-bottom: var(--space);
+  font-size: 32px;
+}
+
 .profile-facts {
   display: grid;
   grid-template-columns: 1fr;

@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api } from '../api/client';
+import { Avatar } from '../layout/Avatar';
 import { ROLE_LABELS, phoneToPayload, validatePhone } from './types';
 import type { Profile } from './types';
 import './profile.css';
@@ -43,6 +44,7 @@ export function PersonalDataSection({ profile, onSaved }: Props) {
   return (
     <section className="profile-section" aria-labelledby={`${phoneId}-title`}>
       <h2 id={`${phoneId}-title`}>Dados pessoais</h2>
+      <Avatar userId={profile.id} name={profile.name} className="avatar profile-avatar" />
       <dl className="profile-facts">
         <dt>Nome</dt>
         <dd>{profile.name}</dd>

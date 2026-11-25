@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ToastViewport } from '../toast/ToastViewport';
 import { toast } from '../toast/toast-store';
@@ -50,6 +50,20 @@ describe('tela de perfil', () => {
     expect(screen.queryByRole('textbox', { name: /nome|e-mail/i })).toBeNull();
     expect((screen.getByLabelText(/Telefone/) as HTMLInputElement).value).toBe('11 99999-0000');
     expect((screen.getByLabelText(/lembretes/i) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('mostra a foto do Entra ID e cai para as iniciais sem foto', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(json(profile))),
+    );
+    const { container } = render(<ProfilePage />);
+    await screen.findByText('Ana Souza');
+    const img = container.querySelector('.profile-avatar img')!;
+    expect(img.getAttribute('src')).toBe('/api/users/1/photo');
+    fireEvent.error(img);
+    expect(container.querySelector('.profile-avatar')!.textContent).toBe('AS');
+    expect(container.querySelector('.profile-avatar img')).toBeNull();
   });
 
   it('salva telefone e preferência com PATCH /api/me', async () => {
