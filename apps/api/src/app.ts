@@ -22,7 +22,7 @@ import {
   createSchedulesRouter,
   findPublishedShiftsForUser,
 } from './schedules/index.js';
-import { createOnUnavailabilityConflict } from './notifications/unavailability-events.js';
+import { createScheduleImpactNotifier } from './schedule-impact/index.js';
 import { createOnSwapEvent } from './notifications/swap-events.js';
 import { createSwapsRouter } from './swaps/index.js';
 import { createSystemRouter, type ConfigWarning } from './system/index.js';
@@ -122,12 +122,15 @@ export function createApp({
       }),
     );
     const notifyDeps = { db, appBaseUrl: authOptions.appBaseUrl, logger };
+    const scheduleImpactNotifier = createScheduleImpactNotifier();
     app.route(
       '/api',
       createHolidaysRouter({
         db,
         impactChecker: (sql, dates) => countPublishedShiftsOnDates(sql, dates),
         onShiftsRecalculated: createOnShiftsRecalculated(notifyDeps),
+        scheduleImpactNotifier,
+        logger,
       }),
     );
     app.route(
@@ -141,7 +144,7 @@ export function createApp({
         },
         collectiveImpactChecker: (sql, dates, teamId) =>
           countPublishedShiftsOnDates(sql, dates, teamId),
-        onConflict: createOnUnavailabilityConflict(notifyDeps),
+        scheduleImpactNotifier,
       }),
     );
     app.route(
@@ -150,6 +153,8 @@ export function createApp({
         db,
         onPublished: createOnPublished(notifyDeps),
         onShiftChanged: createOnShiftChanged(notifyDeps),
+        scheduleImpactNotifier,
+        logger,
       }),
     );
     app.route('/api', createSwapsRouter({ db, onSwapEvent: createOnSwapEvent(notifyDeps) }));

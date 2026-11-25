@@ -3,6 +3,12 @@ import { z } from 'zod';
 import { recordAudit } from '../audit/index.js';
 import { requireAuth, requireRole, type AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
+import type { Logger } from '../logger.js';
+import {
+  runScheduleImpact,
+  type ScheduleImpact,
+  type ScheduleImpactNotifier,
+} from '../schedule-impact/index.js';
 import {
   createHolidaySchema,
   holidayFiltersSchema,
@@ -25,6 +31,9 @@ export interface HolidaysRouterDeps {
   db: Sql;
   impactChecker?: ImpactChecker;
   onShiftsRecalculated?: ShiftsRecalculatedHook | undefined;
+  /** Regra core: aviso em tela e e-mail ao gestor quando o feriado atinge escala publicada. */
+  scheduleImpactNotifier?: ScheduleImpactNotifier | undefined;
+  logger?: Logger | undefined;
 }
 
 const idSchema = z.uuid();
@@ -41,9 +50,14 @@ export function createHolidaysRouter({
   db,
   impactChecker = noImpact,
   onShiftsRecalculated,
+  scheduleImpactNotifier,
+  logger,
 }: HolidaysRouterDeps): Hono<AuthEnv> {
   const router = new Hono<AuthEnv>();
   const manager = requireRole('manager');
+
+  const impactOf = (tx: Sql, dates: string[], actorId: string): Promise<ScheduleImpact | null> =>
+    runScheduleImpact(tx, scheduleImpactNotifier, { source: 'holiday', actorId, dates }, logger);
 
   async function warningsFor(dates: string[]): Promise<HolidayWarning[]> {
     const unique = [...new Set(dates)].sort();
@@ -73,7 +87,7 @@ export function createHolidaysRouter({
     if (!parsed.success) return c.json(validationError(parsed.error), 400);
     const actor = c.get('user')!;
     const { date, name, scope } = parsed.data;
-    let created: HolidayDto;
+    let created: { dto: HolidayDto; impact: ScheduleImpact | null };
     try {
       created = await db.begin(async (tx) => {
         const [row] = await tx<HolidayRow[]>`
@@ -87,13 +101,20 @@ export function createHolidaysRouter({
           entityId: dto.id,
           after: { ...dto },
         });
-        return dto;
+        return { dto, impact: await impactOf(tx as unknown as Sql, [dto.date], actor.id) };
       });
     } catch (err) {
       if (isUniqueViolation(err)) return c.json({ error: 'duplicate_holiday' }, 409);
       throw err;
     }
-    return c.json({ ...created, warnings: await warningsFor([created.date]) }, 201);
+    return c.json(
+      {
+        ...created.dto,
+        warnings: await warningsFor([created.dto.date]),
+        ...(created.impact && { scheduleImpact: created.impact }),
+      },
+      201,
+    );
   });
 
   router.patch('/holidays/:id', manager, async (c) => {
@@ -103,7 +124,11 @@ export function createHolidaysRouter({
     if (!parsed.success) return c.json(validationError(parsed.error), 400);
     const actor = c.get('user')!;
     const patch = parsed.data;
-    let result: { before: HolidayDto; after: HolidayDto } | null;
+    let result: {
+      before: HolidayDto;
+      after: HolidayDto;
+      impact: ScheduleImpact | null;
+    } | null;
     try {
       result = await db.begin(async (tx) => {
         const [current] = await tx<HolidayRow[]>`
@@ -131,7 +156,12 @@ export function createHolidaysRouter({
           before: { ...before },
           after: { ...after },
         });
-        return { before, after };
+        // só a data muda o cálculo dos plantões; nome e abrangência não
+        const impact =
+          before.date === after.date
+            ? null
+            : await impactOf(tx as unknown as Sql, [before.date, after.date], actor.id);
+        return { before, after, impact };
       });
     } catch (err) {
       if (isUniqueViolation(err)) return c.json({ error: 'duplicate_holiday' }, 409);
@@ -139,7 +169,11 @@ export function createHolidaysRouter({
     }
     if (!result) return c.json({ error: 'not_found' }, 404);
     const warnings = await warningsFor([result.before.date, result.after.date]);
-    return c.json({ ...result.after, warnings });
+    return c.json({
+      ...result.after,
+      warnings,
+      ...(result.impact && { scheduleImpact: result.impact }),
+    });
   });
 
   router.delete('/holidays/:id', manager, async (c) => {
@@ -159,10 +193,14 @@ export function createHolidaysRouter({
         entityId: dto.id,
         before: { ...dto },
       });
-      return dto;
+      return { dto, impact: await impactOf(tx as unknown as Sql, [dto.date], actor.id) };
     });
     if (!removed) return c.json({ error: 'not_found' }, 404);
-    return c.json({ ...removed, warnings: await warningsFor([removed.date]) });
+    return c.json({
+      ...removed.dto,
+      warnings: await warningsFor([removed.dto.date]),
+      ...(removed.impact && { scheduleImpact: removed.impact }),
+    });
   });
 
   router.post('/holidays/recalculate', manager, async (c) => {

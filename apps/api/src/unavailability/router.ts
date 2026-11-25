@@ -7,6 +7,12 @@ import type { TransactionSql } from 'postgres';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
 import {
+  mergeScheduleImpacts,
+  runScheduleImpact,
+  type ScheduleImpact,
+  type ScheduleImpactNotifier,
+} from '../schedule-impact/index.js';
+import {
   deleteUnavailability,
   getUnavailability,
   insertUnavailability,
@@ -36,6 +42,11 @@ export interface UnavailabilityRouterDeps {
    * outbox ser atômico com a mudança.
    */
   onConflict?: (event: UnavailabilityConflictEvent, sql: Sql) => Promise<void> | void;
+  /**
+   * Regra core: qualquer exceção/férias que atinja plantão publicado avisa a tela (`scheduleImpact`
+   * na resposta) e os gestores da equipe por e-mail, atomicamente com a mudança.
+   */
+  scheduleImpactNotifier?: ScheduleImpactNotifier;
   logger?: Logger | undefined;
 }
 
@@ -99,6 +110,7 @@ export function createUnavailabilityRouter({
   conflictChecker,
   collectiveImpactChecker,
   onConflict,
+  scheduleImpactNotifier,
   logger,
 }: UnavailabilityRouterDeps): Hono<AuthEnv> {
   const check: ConflictChecker = conflictChecker ?? (async () => []);
@@ -160,6 +172,33 @@ export function createUnavailabilityRouter({
     }
     return warnings;
   };
+
+  /** Roda dentro da transação da mutação: avisa a tela e os gestores se a escala publicada é atingida. */
+  const impactOf = (
+    tx: TransactionSql,
+    row: UnavailabilityDto,
+    actor: AuthUser,
+  ): Promise<ScheduleImpact | null> =>
+    runScheduleImpact(
+      tx as unknown as Sql,
+      scheduleImpactNotifier,
+      row.userId
+        ? {
+            source: 'member_exception',
+            actorId: actor.id,
+            userId: row.userId,
+            start: row.startDate,
+            end: row.endDate,
+          }
+        : {
+            source: 'collective_vacation',
+            actorId: actor.id,
+            teamId: row.teamId,
+            start: row.startDate,
+            end: row.endDate,
+          },
+      logger,
+    );
 
   const canTouch = (user: AuthUser, row: UnavailabilityDto) =>
     user.role === 'manager' || row.userId === user.id;
@@ -230,6 +269,7 @@ export function createUnavailabilityRouter({
     const row = await db.begin(async (tx) => {
       const created: UnavailabilityDto[] = [];
       const warnings: UnavailabilityWarning[] = [];
+      const impacts: ScheduleImpact[] = [];
       for (const userId of targets) {
         const item = await insertUnavailability(tx, {
           userId,
@@ -249,11 +289,18 @@ export function createUnavailabilityRouter({
         });
         created.push(item);
         warnings.push(...(await warnAndNotify(tx, item, user)));
+        const impact = await impactOf(tx, item, user);
+        if (impact) impacts.push(impact);
       }
-      return { created, warnings };
+      return { created, warnings, scheduleImpact: mergeScheduleImpacts(impacts) };
     });
     return c.json(
-      { unavailability: row.created[0], unavailabilities: row.created, warnings: row.warnings },
+      {
+        unavailability: row.created[0],
+        unavailabilities: row.created,
+        warnings: row.warnings,
+        ...(row.scheduleImpact && { scheduleImpact: row.scheduleImpact }),
+      },
       201,
     );
   });
@@ -289,7 +336,12 @@ export function createUnavailabilityRouter({
         before: { ...before },
         after: { ...after },
       });
-      return { status: 200 as const, after, warnings: await warnAndNotify(tx, after, user) };
+      return {
+        status: 200 as const,
+        after,
+        warnings: await warnAndNotify(tx, after, user),
+        scheduleImpact: await impactOf(tx, after, user),
+      };
     });
 
     switch (outcome.status) {
@@ -302,7 +354,11 @@ export function createUnavailabilityRouter({
       case 'period':
         return fail(c, 400, 'validation_error', periodMessage);
       default:
-        return c.json({ unavailability: outcome.after, warnings: outcome.warnings });
+        return c.json({
+          unavailability: outcome.after,
+          warnings: outcome.warnings,
+          ...(outcome.scheduleImpact && { scheduleImpact: outcome.scheduleImpact }),
+        });
     }
   });
 

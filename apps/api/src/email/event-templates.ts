@@ -135,3 +135,59 @@ export function renderUserStatusEmail(input: UserStatusEmailInput): RenderedEmai
     ],
   });
 }
+
+export interface ScheduleImpactEmailInput {
+  source:
+    'member_exception' | 'collective_vacation' | 'holiday' | 'shift_times' | 'shift_exception';
+  teamName: string;
+  /** Quem fez a alteração. */
+  actorName: string;
+  /** Membro da exceção (só `member_exception`). */
+  memberName?: string | undefined;
+  start?: string | undefined;
+  end?: string | undefined;
+  /** Datas (AAAA-MM-DD) com plantão publicado afetado. */
+  dates: string[];
+  shifts: number;
+  appUrl?: string | undefined;
+}
+
+const MAX_IMPACT_DATES = 15;
+
+function impactCause(i: ScheduleImpactEmailInput): string {
+  const period = i.start && i.end ? ` (${formatDateRange(i.start, i.end)})` : '';
+  switch (i.source) {
+    case 'member_exception':
+      return `${i.memberName ?? 'Um membro'} teve uma exceção de disponibilidade registrada${period} por ${i.actorName}.`;
+    case 'collective_vacation':
+      return `${i.actorName} cadastrou ou alterou férias coletivas${period}.`;
+    case 'holiday':
+      return `${i.actorName} cadastrou, alterou ou removeu um feriado.`;
+    case 'shift_times':
+      return `${i.actorName} alterou os horários dos plantões da equipe.`;
+    case 'shift_exception':
+      return `${i.actorName} alterou ou removeu uma exceção de horário de plantão.`;
+  }
+}
+
+/**
+ * Aviso ao gestor: uma alteração de cadastro (férias, exceção, feriado, horário) atinge plantões
+ * de escala já publicada e a escala precisa ser recalculada ou ajustada.
+ */
+export function renderScheduleImpactEmail(input: ScheduleImpactEmailInput): RenderedEmail {
+  const dates = [...new Set(input.dates)].sort();
+  const shown = dates.slice(0, MAX_IMPACT_DATES).map(formatDate);
+  if (dates.length > shown.length) shown.push(`e mais ${dates.length - shown.length} data(s)`);
+  const count = input.shifts === 1 ? '1 plantão publicado' : `${input.shifts} plantões publicados`;
+  return renderEmail({
+    subject: `Escala publicada precisa de revisão: ${input.teamName}`,
+    badge: { label: 'Atenção', tone: 'warning' },
+    paragraphs: [
+      impactCause(input),
+      `A alteração atinge ${count} da equipe ${input.teamName}. Recalcule ou ajuste a escala.`,
+      'Datas afetadas:',
+    ],
+    lines: shown,
+    ...(input.appUrl ? { action: { label: 'Revisar a escala', url: input.appUrl } } : {}),
+  });
+}

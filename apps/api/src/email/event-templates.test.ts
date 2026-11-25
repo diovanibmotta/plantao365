@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   renderBalanceAdjustedEmail,
+  renderScheduleImpactEmail,
   renderScheduleGeneratedEmail,
   renderTeamMemberEmail,
   renderUserStatusEmail,
@@ -105,5 +106,47 @@ describe('templates de eventos novos', () => {
     const off = renderUserStatusEmail({ name: 'Ana', active: false, appUrl: URL_BASE });
     expect(off.subject).toBe('Seu acesso ao Plantão365 foi desativado');
     expect(off.html).not.toContain('<a ');
+  });
+});
+
+describe('aviso de impacto em escala publicada', () => {
+  const base = {
+    teamName: 'Infra',
+    actorName: 'Ana',
+    dates: ['2026-12-03', '2026-12-02'],
+    shifts: 2,
+    appUrl: `${URL_BASE}/schedule-admin`,
+  };
+
+  it('pede recálculo, lista datas ordenadas e leva à administração da escala', () => {
+    const out = renderScheduleImpactEmail({
+      ...base,
+      source: 'member_exception',
+      memberName: 'Bia',
+      start: '2026-12-01',
+      end: '2026-12-05',
+    });
+    expect(out.subject).toBe('Escala publicada precisa de revisão: Infra');
+    expect(out.text).toContain('Bia');
+    expect(out.text).toContain('2 plantões publicados');
+    expect(out.text).toContain('Recalcule ou ajuste a escala');
+    expect(out.text.indexOf('2 de dezembro')).toBeLessThan(out.text.indexOf('3 de dezembro'));
+    expect(out.html).toContain(`href="${URL_BASE}/schedule-admin"`);
+  });
+
+  it('cada origem tem causa própria e datas em excesso são resumidas', () => {
+    const dates = Array.from({ length: 20 }, (_, i) => `2026-12-${String(i + 1).padStart(2, '0')}`);
+    const out = renderScheduleImpactEmail({ ...base, source: 'holiday', dates, shifts: 20 });
+    expect(out.text).toContain('feriado');
+    expect(out.text).toContain('e mais 5 data(s)');
+    expect(renderScheduleImpactEmail({ ...base, source: 'shift_times' }).text).toContain(
+      'horários dos plantões',
+    );
+    expect(renderScheduleImpactEmail({ ...base, source: 'shift_exception' }).text).toContain(
+      'exceção de horário',
+    );
+    expect(renderScheduleImpactEmail({ ...base, source: 'collective_vacation' }).text).toContain(
+      'férias coletivas',
+    );
   });
 });

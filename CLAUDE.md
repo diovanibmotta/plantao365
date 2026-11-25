@@ -31,6 +31,7 @@ Convenções do Plantão365 para agentes e pessoas. Visão geral e setup no [REA
 - SQL com `postgres.js` (template tag), sem ORM. Ações do gestor que alteram dados gravam `recordAudit` na mesma transação.
 - Efeitos colaterais (e-mail) via hooks `createOn...` e fila `email_outbox`; nunca envie e-mail direto no request.
 - Migrações: novo par numerado `NNNN_nome.up.sql` / `.down.sql` em `apps/api/migrations`. Nunca edite migração aplicada.
+- **Regra core, impacto em escala publicada**: toda mutação que pode invalidar plantões já publicados (exceção/férias de membro, férias coletivas, feriado, horários e exceções de horário) chama `runScheduleImpact` (`schedule-impact/`) dentro da transação, via dependência `scheduleImpactNotifier`. Ela devolve `scheduleImpact` na resposta (o interceptor do web exibe o toast) e publica `schedule.impact` (e-mail aos gestores da equipe). Ponto de entrada novo que afete a escala deve usar o mesmo caminho (novo `source` em `schedule-impact/types.ts`).
 - Logs com pino (`logger`); não logue e-mail completo (use `maskEmail`).
 
 ## Web (`apps/web/src`)

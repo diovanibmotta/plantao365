@@ -3,6 +3,8 @@ import type { ZodError } from 'zod';
 import { requireAuth } from '../auth/authz.js';
 import type { AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
+import type { Logger } from '../logger.js';
+import type { ScheduleImpactNotifier } from '../schedule-impact/index.js';
 import { requireTeam } from '../teams/middleware.js';
 import { registerEditRoutes, type ShiftChangedHook } from './edit.js';
 import { registerGenerateRoute } from './generate.js';
@@ -24,6 +26,9 @@ export interface SchedulesRouterDeps {
   onShiftChanged?: ShiftChangedHook;
   /** Task 9.2: notifica após a publicação de uma escala. */
   onPublished?: PublishedHook;
+  /** Regra core: avisa tela e gestores quando horários configurados atingem escala publicada. */
+  scheduleImpactNotifier?: ScheduleImpactNotifier;
+  logger?: Logger;
 }
 
 const invalid = (error: ZodError) => ({
@@ -37,6 +42,8 @@ export function createSchedulesRouter({
   now,
   onShiftChanged,
   onPublished,
+  scheduleImpactNotifier,
+  logger,
 }: SchedulesRouterDeps): Hono<AuthEnv> {
   const router = new Hono<AuthEnv>();
   router.use('*', requireAuth(), requireTeam());
@@ -44,7 +51,7 @@ export function createSchedulesRouter({
   registerGenerateRoute(router, { db, now });
   registerPublishRoutes(router, { db, now, onPublished });
   registerEditRoutes(router, { db, onShiftChanged });
-  registerSettingsRoutes(router, { db });
+  registerSettingsRoutes(router, { db, scheduleImpactNotifier, logger });
 
   router.get('/schedules', async (c) => {
     const isManager = c.get('user')!.role === 'manager';

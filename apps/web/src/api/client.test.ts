@@ -88,6 +88,18 @@ describe('api client', () => {
       expect(kinds()).toEqual(['success:Avisado.', 'warning:Conflito']);
     });
 
+    it('emite o aviso de impacto em escala publicada (scheduleImpact.message)', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(json({ scheduleImpact: { message: '2 plantões afetados.' } })),
+      );
+      await api.put('/api/x', {});
+      expect(kinds()).toEqual([
+        'success:Alterações salvas com sucesso.',
+        'warning:2 plantões afetados.',
+      ]);
+    });
+
     it('exibe erro com message do corpo ou texto por status', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(json({ message: 'Falhou' }, 422)));
       await expect(api.post('/api/x', {})).rejects.toThrow('Falhou');
