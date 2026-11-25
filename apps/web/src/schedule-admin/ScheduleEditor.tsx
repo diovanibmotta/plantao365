@@ -1,17 +1,9 @@
-import { useState } from 'react';
-import { isWeekend } from '@diovanibmotta/plantao365-shared';
+import { Fragment, useState } from 'react';
+import { dayOfWeek } from '@diovanibmotta/plantao365-shared';
 import { api, describeApiError } from '../api/client';
 import type { ApiError } from '../api/client';
 import { toast } from '../toast/toast-store';
-import {
-  WEEK_HEADERS,
-  addMonths,
-  buildMonthGrid,
-  monthKeyOf,
-  monthLabel,
-} from '../schedule/calendar';
-import type { MonthKey } from '../schedule/calendar';
-import { formatDayShort, formatHours } from '../schedule/format';
+import { DAY_TYPE_LABEL, formatHours, formatPeriod } from '../schedule/format';
 import type { ShiftDto } from '../schedule/types';
 import { StatusPill } from './StatusPill';
 import { errorCode, errorDates, formatDate } from './types';
@@ -24,6 +16,8 @@ interface ScheduleEditorProps {
   onDiscarded: () => void;
 }
 
+const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
 const publishError = (err: ApiError): string =>
   errorCode(err) === 'schedule_overlap_published'
     ? 'O período se sobrepõe a uma escala já publicada.'
@@ -31,40 +25,25 @@ const publishError = (err: ApiError): string =>
 
 export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: ScheduleEditorProps) {
   const published = schedule.status === 'published';
-  const [month, setMonth] = useState<MonthKey>(() => monthKeyOf(schedule.startDate));
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [userId, setUserId] = useState('');
+  const [pending, setPending] = useState<{ shiftId: string; userId: string } | null>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmDates, setConfirmDates] = useState<string[] | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const shifts = new Map<string, ShiftDto>(schedule.shifts.map((s) => [s.date, s]));
-  const selected = schedule.shifts.find((s) => s.id === selectedId) ?? null;
-
-  const select = (s: ShiftDto) => {
-    setSelectedId(s.id);
-    setUserId(s.userId ?? '');
-    setReason('');
-  };
-
-  const save = async () => {
-    if (!selected) return;
-    if (published && !reason.trim()) {
-      toast.warning('Informe o motivo da alteração.');
-      return;
-    }
+  const persist = async (shift: ShiftDto, userId: string, why?: string) => {
     setBusy(true);
     try {
       const body: { userId: string | null; reason?: string } = { userId: userId || null };
-      if (reason.trim()) body.reason = reason.trim();
+      if (why) body.reason = why;
       const res = await api.patch<EditResult>(
-        `/api/schedules/${schedule.id}/shifts/${selected.id}`,
+        `/api/schedules/${schedule.id}/shifts/${shift.id}`,
         body,
         { successMessage: 'Plantão atualizado.' },
       );
       if (res.notice) toast.success(res.notice);
+      setPending(null);
       setReason('');
       onChanged();
     } catch {
@@ -72,6 +51,29 @@ export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: Sc
     } finally {
       setBusy(false);
     }
+  };
+
+  // Rascunho grava na hora; escala publicada pede motivo antes de gravar.
+  const change = (shift: ShiftDto, userId: string) => {
+    if (userId === (shift.userId ?? '')) {
+      setPending(null);
+      return;
+    }
+    if (published) {
+      setPending({ shiftId: shift.id, userId });
+      setReason('');
+      return;
+    }
+    void persist(shift, userId);
+  };
+
+  const confirmPending = (shift: ShiftDto) => {
+    if (!pending) return;
+    if (!reason.trim()) {
+      toast.warning('Informe o motivo da alteração.');
+      return;
+    }
+    void persist(shift, pending.userId, reason.trim());
   };
 
   const publish = async (confirmUnassigned: boolean) => {
@@ -169,102 +171,105 @@ export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: Sc
         </p>
       )}
 
-      <div className="sad-row">
-        <button
-          type="button"
-          className="btn"
-          aria-label="Mês anterior"
-          onClick={() => setMonth(addMonths(month, -1))}
-        >
-          ‹
-        </button>
-        <strong className="sad-month" aria-live="polite">
-          {monthLabel(month)}
-        </strong>
-        <button
-          type="button"
-          className="btn"
-          aria-label="Próximo mês"
-          onClick={() => setMonth(addMonths(month, 1))}
-        >
-          ›
-        </button>
+      <div className="sad-table-wrap">
+        <table className="sad-table sad-shifts" aria-label="Plantões da escala">
+          <thead>
+            <tr>
+              <th scope="col">Data</th>
+              <th scope="col">Dia</th>
+              <th scope="col">Responsável</th>
+              <th scope="col">Horário</th>
+              <th scope="col">Horas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {schedule.shifts.map((shift) => {
+              const vacation = shift.dayType === 'collective_vacation';
+              const editing = pending?.shiftId === shift.id;
+              const value = editing ? pending.userId : (shift.userId ?? '');
+              return (
+                <Fragment key={shift.id}>
+                  <tr
+                    className={`sad-shift-row${
+                      shift.dayType === 'holiday'
+                        ? ' sad-shift-row--holiday'
+                        : shift.dayType === 'weekend'
+                          ? ' sad-shift-row--weekend'
+                          : ''
+                    }${!vacation && !shift.userId ? ' sad-shift-row--empty' : ''}`}
+                  >
+                    <td>{formatDate(shift.date)}</td>
+                    <td>
+                      {WEEKDAYS[dayOfWeek(shift.date)]}
+                      {shift.dayType !== 'weekday' && (
+                        <span className="muted"> · {DAY_TYPE_LABEL[shift.dayType]}</span>
+                      )}
+                    </td>
+                    <td>
+                      {vacation ? (
+                        <span className="muted">Férias coletivas</span>
+                      ) : (
+                        <select
+                          aria-label={`Responsável em ${formatDate(shift.date)}`}
+                          value={value}
+                          disabled={busy}
+                          onChange={(e) => change(shift, e.target.value)}
+                        >
+                          <option value="">Sem responsável</option>
+                          {members
+                            .filter((m) => m.active || m.id === shift.userId)
+                            .map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name}
+                                {m.active ? '' : ' (inativo)'}
+                              </option>
+                            ))}
+                        </select>
+                      )}
+                    </td>
+                    <td>{vacation ? '—' : formatPeriod(shift)}</td>
+                    <td className="sad-num">{vacation ? '—' : formatHours(shift.hours)}</td>
+                  </tr>
+                  {editing && (
+                    <tr className="sad-shift-reason">
+                      <td colSpan={5}>
+                        <div className="sad-row">
+                          <label>
+                            Motivo (obrigatório)
+                            <input
+                              type="text"
+                              value={reason}
+                              onChange={(e) => setReason(e.target.value)}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            className="btn primary"
+                            disabled={busy}
+                            onClick={() => confirmPending(shift)}
+                          >
+                            Salvar plantão
+                          </button>
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => {
+                              setPending(null);
+                              setReason('');
+                            }}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-
-      <ul className="sad-weekdays" aria-hidden="true">
-        {WEEK_HEADERS.map((w) => (
-          <li key={w}>{w}</li>
-        ))}
-      </ul>
-      <ol className="sad-grid" aria-label={`Escala de ${monthLabel(month)}`}>
-        {buildMonthGrid(month).map((date, i) => {
-          if (!date) return <li key={`pad-${i}`} className="sad-day sad-day--outside" />;
-          const shift = shifts.get(date);
-          const vacation = shift?.dayType === 'collective_vacation';
-          return (
-            <li
-              key={date}
-              className={`sad-day${
-                shift?.dayType === 'holiday'
-                  ? ' sad-day--holiday'
-                  : isWeekend(date)
-                    ? ' sad-day--weekend'
-                    : ''
-              }`}
-              data-testid={`sad-day-${date}`}
-            >
-              <span className="sad-day-number">{Number(date.slice(8, 10))}</span>
-              {vacation && <span className="muted">Férias coletivas</span>}
-              {shift && !vacation && (
-                <button
-                  type="button"
-                  className={`sad-shift${shift.userId ? '' : ' sad-shift--empty'}${
-                    shift.id === selectedId ? ' sad-shift--selected' : ''
-                  }`}
-                  aria-pressed={shift.id === selectedId}
-                  aria-label={`${formatDayShort(date)}: ${shift.userName ?? 'sem responsável'}`}
-                  onClick={() => select(shift)}
-                >
-                  {shift.userName ?? 'Sem responsável'}
-                  <span className="muted"> {formatHours(shift.hours)}</span>
-                </button>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-
-      {selected && (
-        <form
-          className="sad-edit"
-          aria-label={`Editar plantão de ${formatDate(selected.date)}`}
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save();
-          }}
-        >
-          <h3>Plantão de {formatDate(selected.date)}</h3>
-          <label>
-            Responsável
-            <select value={userId} onChange={(e) => setUserId(e.target.value)}>
-              <option value="">Sem responsável</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                  {m.active ? '' : ' (inativo)'}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            {published ? 'Motivo (obrigatório)' : 'Motivo (opcional)'}
-            <input type="text" value={reason} onChange={(e) => setReason(e.target.value)} />
-          </label>
-          <button type="submit" className="btn primary" disabled={busy}>
-            Salvar plantão
-          </button>
-        </form>
-      )}
 
       {confirmDates && (
         <div className="sad-confirm" role="alertdialog" aria-label="Confirmar publicação">

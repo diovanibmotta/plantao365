@@ -501,7 +501,6 @@ input[type='radio'] {
 .holidays-form label,
 .members-field,
 .sad-row label,
-.sad-edit label,
 .swp-field,
 .profile-field,
 .sched-year {
@@ -517,7 +516,6 @@ input[type='radio'] {
 .holidays-form label,
 .members-field,
 .sad-row label,
-.sad-edit label,
 .swp-field,
 .profile-field {
   display: flex;

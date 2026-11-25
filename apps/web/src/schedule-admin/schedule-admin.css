@@ -46,92 +46,44 @@
   gap: 8px;
 }
 
-.sad-month::first-letter {
-  text-transform: uppercase;
+.sad-table-wrap {
+  overflow-x: auto;
+  margin: 8px 0;
 }
 
-.sad-weekdays,
-.sad-grid {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.sad-shifts {
+  width: 100%;
 }
 
-.sad-weekdays {
-  color: var(--muted);
-  font-size: 12px;
-  text-align: center;
+.sad-shifts th,
+.sad-shifts td {
+  padding: 6px 12px 6px 8px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
 }
 
-.sad-day {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-height: 64px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  font-size: 12px;
+.sad-shifts select {
+  min-width: 200px;
 }
 
-.sad-day--weekend {
+.sad-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.sad-shift-row--weekend {
   background: var(--day-weekend);
 }
 
-.sad-day--holiday {
+.sad-shift-row--holiday {
   background: var(--day-holiday);
 }
 
-.sad-day--outside {
-  border-color: transparent;
-  background: transparent;
+.sad-shift-row--empty {
+  box-shadow: inset 3px 0 0 var(--danger);
 }
 
-.sad-day-number {
-  color: var(--muted);
-}
-
-.sad-shift {
-  padding: 2px 4px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+.sad-shift-reason td {
   background: var(--surface-2);
-  color: var(--text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 150ms var(--ease);
-}
-
-.sad-shift:hover {
-  border-color: var(--border-strong);
-}
-
-.sad-shift--empty {
-  border-color: color-mix(in oklch, var(--danger) 55%, var(--border));
-}
-
-.sad-shift--selected {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-}
-
-.sad-edit {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 8px var(--space);
-  margin: var(--space) 0;
-}
-
-.sad-edit h3 {
-  flex-basis: 100%;
-  margin: 0;
-  font-size: 1rem;
 }
 
 .sad-confirm {

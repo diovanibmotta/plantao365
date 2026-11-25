@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ToastViewport } from '../toast/ToastViewport';
 import { toast } from '../toast/toast-store';
@@ -99,7 +99,7 @@ async function openSchedule() {
   await user.click(
     await screen.findByRole('button', { name: /Abrir escala de 02\/03\/2026 a 03\/03\/2026/ }),
   );
-  await screen.findByRole('list', { name: 'Escala de março de 2026' });
+  await screen.findByRole('table', { name: 'Plantões da escala' });
   return user;
 }
 
@@ -251,6 +251,25 @@ describe('ScheduleAdminPage', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('lista data, dia, responsável, horário e horas de cada plantão', async () => {
+    mockApi('draft');
+    await openSchedule();
+    const rows = within(screen.getByRole('table', { name: 'Plantões da escala' }))
+      .getAllByRole('row')
+      .slice(1);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.textContent).toContain('02/03/2026');
+    expect(rows[0]?.textContent).toContain('Segunda');
+    expect(rows[0]?.textContent).toContain('18:00–08:00');
+    expect(rows[0]?.textContent).toContain('14h');
+    expect((screen.getByLabelText('Responsável em 02/03/2026') as HTMLSelectElement).value).toBe(
+      'u1',
+    );
+    expect((screen.getByLabelText('Responsável em 03/03/2026') as HTMLSelectElement).value).toBe(
+      '',
+    );
+  });
+
   it('edita plantão do rascunho e exibe avisos de conflito', async () => {
     const fetchMock = mockApi('draft', (url, init) => {
       if (url === '/api/schedules/s1/shifts/sh-2026-03-03' && init.method === 'PATCH') {
@@ -262,9 +281,7 @@ describe('ScheduleAdminPage', () => {
       return undefined;
     });
     const user = await openSchedule();
-    await user.click(screen.getByRole('button', { name: /03 mar 2026: sem responsável/ }));
-    await user.selectOptions(screen.getByLabelText('Responsável'), 'u2');
-    await user.click(screen.getByRole('button', { name: 'Salvar plantão' }));
+    await user.selectOptions(screen.getByLabelText('Responsável em 03/03/2026'), 'u2');
     expect(await screen.findByText('Usuário tem exceção nesta data')).toBeTruthy();
     expect(bodyOf(fetchMock, '/api/schedules/s1/shifts/sh-2026-03-03', 'PATCH')).toEqual({
       userId: 'u2',
@@ -339,8 +356,7 @@ describe('ScheduleAdminPage', () => {
     const user = await openSchedule();
     expect(screen.getByText(/o membro será notificado/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Publicar escala' })).toBeNull();
-    await user.click(screen.getByRole('button', { name: /02 mar 2026: Ana Souza/ }));
-    await user.selectOptions(screen.getByLabelText('Responsável'), 'u2');
+    await user.selectOptions(screen.getByLabelText('Responsável em 02/03/2026'), 'u2');
     await user.click(screen.getByRole('button', { name: 'Salvar plantão' }));
     expect((await screen.findByRole('alert')).textContent).toContain('motivo');
     expect(bodyOf(fetchMock, '/api/schedules/s1/shifts/sh-2026-03-02', 'PATCH')).toBeUndefined();
