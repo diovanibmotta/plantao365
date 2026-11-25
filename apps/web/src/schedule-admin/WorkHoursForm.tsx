@@ -1,142 +1,200 @@
 import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
+import { useNavigate, useParams } from 'react-router';
 import {
-  MAX_WORK_PERIODS,
+  findOverlap,
   formatMinute,
+  overlapMessage,
   parseMinute,
+  sortWorkPeriods,
   validateWorkPeriods,
-  workMinutes,
 } from '@diovanibmotta/plantao365-shared';
 import type { WorkPeriod } from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { FormActions, FormPage, FormSection } from '../ui/FormPage';
+import { SCHEDULE_ADMIN_PATH, tabPath } from './paths';
 import { describe } from './types';
+import { formatDuration } from './WorkHoursList';
 
-/** Jornada de trabalho do time (ex.: 08:00–12:00 | 13:30–18:00), exibida no calendário. */
+const NEW_PERIOD: WorkPeriod = { startMinute: 480, endMinute: 720 };
+/** O campo de hora não aceita 24:00; o fim às 24:00 aparece como 23:59. */
+const fieldValue = (minute: number) => formatMinute(minute === 1440 ? 1439 : minute);
+
+/** Cadastro, edição e exclusão de um período da jornada de trabalho. Sobreposição é bloqueada. */
 export function WorkHoursForm() {
-  const [periods, setPeriods] = useState<WorkPeriod[] | null>(null);
+  const { position } = useParams<{ position: string }>();
+  const isNew = position === undefined;
+  const index = isNew ? -1 : Number(position);
+  const invalidRoute = !isNew && !(Number.isInteger(index) && index >= 0);
+  const navigate = useNavigate();
+  const [others, setOthers] = useState<WorkPeriod[] | null>(null);
+  const [period, setPeriod] = useState<WorkPeriod>(NEW_PERIOD);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
+    if (invalidRoute) return;
     const controller = new AbortController();
     api
       .get<{ periods: WorkPeriod[] }>('/api/work-hours', controller.signal)
-      .then((r) => setPeriods(r.periods))
+      .then((r) => {
+        const sorted = sortWorkPeriods(r.periods);
+        if (isNew) {
+          setOthers(sorted);
+          // Sugere o intervalo seguinte ao último período, sem sobrepor.
+          const last = sorted.at(-1);
+          if (last) {
+            const start = Math.min(last.endMinute + 60, 1380);
+            setPeriod({ startMinute: start, endMinute: Math.min(start + 240, 1440) });
+          }
+          return;
+        }
+        const current = sorted[index];
+        if (!current) {
+          setLoadError('Período não encontrado.');
+          return;
+        }
+        setPeriod(current);
+        setOthers(sorted.filter((_, i) => i !== index));
+      })
       .catch((err: unknown) => {
         if (!controller.signal.aborted) {
-          setMessage({ ok: false, text: describe(err, 'Não foi possível carregar a jornada.') });
+          setLoadError(describe(err, 'Não foi possível carregar a jornada.'));
         }
       });
     return () => controller.abort();
-  }, []);
+  }, [isNew, index, invalidRoute]);
 
-  const update = (index: number, key: keyof WorkPeriod, text: string) => {
+  const back = () => void navigate(tabPath('work-hours'));
+  const crumbs = [
+    { label: 'Escala', to: SCHEDULE_ADMIN_PATH },
+    { label: 'Jornada de trabalho', to: tabPath('work-hours') },
+    { label: isNew ? 'Novo período' : `Editar período ${index + 1}` },
+  ];
+
+  const update = (key: keyof WorkPeriod, text: string) => {
     const value = parseMinute(text);
-    if (value === null) return;
-    setMessage(null);
-    setPeriods((list) => list && list.map((p, i) => (i === index ? { ...p, [key]: value } : p)));
+    if (value !== null) setPeriod((p) => ({ ...p, [key]: value }));
   };
 
-  const add = () => {
-    setMessage(null);
-    setPeriods((list) => {
-      const last = list?.at(-1)?.endMinute ?? 480;
-      const start = Math.min(last + 60, 1380);
-      return [...(list ?? []), { startMinute: start, endMinute: Math.min(start + 240, 1440) }];
-    });
-  };
+  // Alerta ao vivo: o período não pode sobrepor nenhum outro.
+  const clash = others ? findOverlap(others, period) : null;
+  const problem = clash ? overlapMessage(period, clash) : (validateWorkPeriods([period]) ?? null);
 
-  const remove = (index: number) => {
-    setMessage(null);
-    setPeriods((list) => list && list.filter((_, i) => i !== index));
-  };
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!periods) return;
-    const problem = validateWorkPeriods(periods);
-    if (problem) {
-      setMessage({ ok: false, text: problem });
-      return;
-    }
+  const persist = async (next: WorkPeriod[], successMessage: string) => {
     setBusy(true);
     try {
-      const saved = await api.put<{ periods: WorkPeriod[] }>('/api/work-hours', { periods });
-      setPeriods(saved.periods);
-      setMessage({ ok: true, text: 'Jornada salva.' });
-    } catch (err) {
-      setMessage({ ok: false, text: describe(err, 'Não foi possível salvar a jornada.') });
+      await api.put<{ periods: WorkPeriod[] }>(
+        '/api/work-hours',
+        { periods: sortWorkPeriods(next) },
+        { successMessage },
+      );
+      back();
+    } catch {
+      // O interceptor já exibe o toast de erro.
+      setConfirming(false);
     } finally {
       setBusy(false);
     }
   };
 
-  const total = periods ? workMinutes(periods) : 0;
+  const save = () => {
+    if (!others || problem) return;
+    void persist([...others, period], isNew ? 'Período criado.' : 'Período atualizado.');
+  };
+
+  const remove = () => {
+    if (!others) return;
+    void persist(others, 'Período excluído.');
+  };
+
+  const error = invalidRoute ? 'Período inválido.' : loadError;
+  if (error) {
+    return (
+      <FormPage crumbs={crumbs} title="Período da jornada" onSubmit={back}>
+        <p className="alert" role="alert">
+          {error}
+        </p>
+      </FormPage>
+    );
+  }
+  if (!others) {
+    return (
+      <p className="status" role="status">
+        Carregando…
+      </p>
+    );
+  }
 
   return (
-    <section aria-labelledby="sad-work-title" className="sad-block">
-      <h2 id="sad-work-title">Jornada de trabalho</h2>
-      <p className="muted">
-        Períodos em que todo o time está trabalhando. Aparecem destacados nas visões de dia e semana
-        do calendário.
-      </p>
-      {periods === null && !message && (
-        <p className="status" role="status">
-          Carregando…
-        </p>
-      )}
-      {periods && (
-        <form onSubmit={(e) => void submit(e)}>
-          <ul className="sad-periods">
-            {periods.map((p, i) => (
-              <li key={i} className="sad-row">
-                <label>
-                  Início do período {i + 1}
-                  <input
-                    type="time"
-                    value={formatMinute(p.startMinute)}
-                    onChange={(e) => update(i, 'startMinute', e.target.value)}
-                  />
-                </label>
-                <label>
-                  Fim do período {i + 1}
-                  <input
-                    type="time"
-                    value={formatMinute(p.endMinute === 1440 ? 1439 : p.endMinute)}
-                    onChange={(e) => update(i, 'endMinute', e.target.value)}
-                  />
-                </label>
-                <button type="button" className="btn" onClick={() => remove(i)}>
-                  Remover período {i + 1}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="muted">
-            {periods.length === 0
-              ? 'Sem jornada definida.'
-              : `Total: ${Math.floor(total / 60)}h${total % 60 ? String(total % 60).padStart(2, '0') : ''} por dia útil.`}
-          </p>
-          <div className="sad-row">
-            <button
-              type="button"
-              className="btn"
-              onClick={add}
-              disabled={periods.length >= MAX_WORK_PERIODS}
-            >
-              Adicionar período
-            </button>
-            <button type="submit" className="btn primary" disabled={busy}>
-              {busy ? 'Salvando…' : 'Salvar jornada'}
-            </button>
+    <>
+      <FormPage
+        crumbs={crumbs}
+        title={isNew ? 'Novo período' : `Editar período ${index + 1}`}
+        description="Os períodos não podem se sobrepor; não há limite de períodos."
+        onSubmit={save}
+      >
+        <FormSection title="Período" description="Intervalo em que todo o time está trabalhando.">
+          <div className="ui-fields">
+            <label className="ui-field ui-field--wide">
+              Nome
+              <input
+                type="text"
+                maxLength={60}
+                value={period.name ?? ''}
+                placeholder="Manhã"
+                onChange={(e) => setPeriod((p) => ({ ...p, name: e.target.value }))}
+              />
+            </label>
+            <label className="ui-field">
+              Início
+              <input
+                type="time"
+                value={fieldValue(period.startMinute)}
+                onChange={(e) => update('startMinute', e.target.value)}
+              />
+            </label>
+            <label className="ui-field">
+              Fim
+              <input
+                type="time"
+                value={fieldValue(period.endMinute)}
+                onChange={(e) => update('endMinute', e.target.value)}
+              />
+            </label>
+            <div className="ui-field">
+              Duração
+              <output>
+                {period.endMinute > period.startMinute
+                  ? formatDuration(period.endMinute - period.startMinute)
+                  : '—'}
+              </output>
+            </div>
           </div>
-        </form>
+          {problem && (
+            <p className="alert" role="alert">
+              {problem}
+            </p>
+          )}
+        </FormSection>
+        <FormActions
+          busy={busy}
+          saveDisabled={problem !== null}
+          onCancel={back}
+          onDelete={isNew ? undefined : () => setConfirming(true)}
+        />
+      </FormPage>
+      {confirming && (
+        <ConfirmDialog
+          title={`Excluir período ${index + 1}?`}
+          message="O período deixa de ser destacado no calendário. Escalas e plantões não mudam."
+          confirmLabel="Excluir"
+          busy={busy}
+          onConfirm={remove}
+          onCancel={() => setConfirming(false)}
+        />
       )}
-      {message && (
-        <p className={message.ok ? 'status' : 'alert'} role={message.ok ? 'status' : 'alert'}>
-          {message.text}
-        </p>
-      )}
-    </section>
+    </>
   );
 }

@@ -37,6 +37,12 @@ Convenções do Plantão365 para agentes e pessoas. Visão geral e setup no [REA
 
 - Uma pasta por funcionalidade (`balance/`, `schedule/`, `holidays/`, ...) com componentes, `types.ts` e CSS próprio; páginas roteáveis em `pages/`.
 - Chamadas HTTP sempre por `api/client.ts` (trata CSRF, 401/403 e erros de rede).
+- Feedback de mutação (POST/PUT/PATCH/DELETE) é toast do interceptor de `api/client.ts`: texto de sucesso via `successMessage` (opções do `api.put/post/delete`), erro já tratado pelo interceptor. Não crie mensagem inline de sucesso/erro nem duplique o toast no `catch` (`catch { /* interceptor */ }`); use `silentError`/`errorMessage` só quando a tela precisar tratar o erro. Mensagem inline fica para erro de carregamento (GET) e validação de formulário no cliente.
+- **Padrão de telas** (componentes em `apps/web/src/ui/`; referência: exceções de horário em `schedule-admin/ShiftExceptions*.tsx`):
+  - Listagem e CUD nunca na mesma visão. A listagem mostra os registros (`PageHeader` + CTA único, `FilterBar` com busca textual e filtros relevantes, tabela, contagem "N de M registros", `EmptyState` com o CTA quando vazia). Não tem botão de excluir.
+  - Cadastrar, editar e excluir acontecem em rota própria de formulário (`/…/new` e `/…/:id`) com `FormPage` (breadcrumb, `FormSection`, barra fixa `FormActions`: Excluir à esquerda só na edição, Cancelar e Salvar à direita). Excluir pede `ConfirmDialog` que diz o efeito. Salvar/excluir voltam à listagem (toast, regra acima).
+  - Telas de configuração única também seguem o padrão: um registro por linha, com "Editar" e formulário em rota própria. Toda listagem tem a barra de busca (`FilterBar`), mesmo curta.
+  - Clicar na linha ou em "Editar" abre o formulário. Filtro e busca rodam no cliente até a tela justificar paginação na API.
 - Guardas de rota em `auth/guards.tsx` (`RequireAuth`, `RequireRole`).
 
 ## Domínio (`packages/shared`)

@@ -5,6 +5,9 @@ import type { ApiError } from '../api/client';
 import { toast } from '../toast/toast-store';
 import { DAY_TYPE_LABEL, formatHours, formatPeriod } from '../schedule/format';
 import type { ShiftDto } from '../schedule/types';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { Breadcrumb } from '../ui/FormPage';
+import { SCHEDULE_ADMIN_PATH, tabPath } from './paths';
 import { StatusPill } from './StatusPill';
 import { errorCode, errorDates, formatDate } from './types';
 import type { EditResult, MemberOption, ScheduleDetail } from './types';
@@ -14,6 +17,7 @@ interface ScheduleEditorProps {
   members: MemberOption[];
   onChanged: () => void;
   onDiscarded: () => void;
+  onBack: () => void;
 }
 
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -23,14 +27,19 @@ const publishError = (err: ApiError): string =>
     ? 'O período se sobrepõe a uma escala já publicada.'
     : describeApiError(err);
 
-export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: ScheduleEditorProps) {
+export function ScheduleEditor({
+  schedule,
+  members,
+  onChanged,
+  onDiscarded,
+  onBack,
+}: ScheduleEditorProps) {
   const published = schedule.status === 'published';
   const [pending, setPending] = useState<{ shiftId: string; userId: string } | null>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmDates, setConfirmDates] = useState<string[] | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   const persist = async (shift: ShiftDto, userId: string, why?: string) => {
     setBusy(true);
@@ -115,55 +124,20 @@ export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: Sc
   };
 
   return (
-    <section aria-labelledby="sad-editor-title" className="sad-block">
-      <div className="sad-editor-head">
-        <div className="sad-editor-title">
-          <h2 id="sad-editor-title">
-            {published ? 'Escala publicada' : 'Rascunho'}: {formatDate(schedule.startDate)} a{' '}
-            {formatDate(schedule.endDate)}
-          </h2>
-          <StatusPill status={schedule.status} />
-        </div>
-        {!published && (
-          <div className="sad-editor-actions">
-            <button
-              type="button"
-              className="btn primary"
-              disabled={busy}
-              onClick={() => void publish(false)}
-            >
-              Publicar escala
-            </button>
-            <div className="sad-menu">
-              <button
-                type="button"
-                className="btn"
-                aria-label="Mais ações"
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                onClick={() => setMenuOpen((v) => !v)}
-              >
-                ⋯
-              </button>
-              {menuOpen && (
-                <div className="sad-menu-list" role="menu">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="sad-menu-item sad-menu-item--danger"
-                    disabled={busy}
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setConfirmDiscard(true);
-                    }}
-                  >
-                    Descartar rascunho
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+    <section className="sad-block">
+      <Breadcrumb
+        crumbs={[
+          { label: 'Escala', to: SCHEDULE_ADMIN_PATH },
+          { label: 'Escalas', to: tabPath('schedules') },
+          { label: `${formatDate(schedule.startDate)} a ${formatDate(schedule.endDate)}` },
+        ]}
+      />
+      <div className="sad-editor-title ui-form-head">
+        <h2 id="sad-editor-title">
+          {published ? 'Escala publicada' : 'Rascunho'}: {formatDate(schedule.startDate)} a{' '}
+          {formatDate(schedule.endDate)}
+        </h2>
+        <StatusPill status={schedule.status} />
       </div>
       {published && (
         <p className="sad-note">
@@ -271,45 +245,55 @@ export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: Sc
         </table>
       </div>
 
+      <div className="ui-actions">
+        {!published && (
+          <button
+            type="button"
+            className="btn ui-danger"
+            disabled={busy}
+            onClick={() => setConfirmDiscard(true)}
+          >
+            Descartar rascunho
+          </button>
+        )}
+        <span className="ui-actions-spacer" />
+        <button type="button" className="btn" onClick={onBack}>
+          Voltar
+        </button>
+        {!published && (
+          <button
+            type="button"
+            className="btn primary"
+            disabled={busy}
+            onClick={() => void publish(false)}
+          >
+            Publicar escala
+          </button>
+        )}
+      </div>
+
       {confirmDates && (
-        <div className="sad-confirm" role="alertdialog" aria-label="Confirmar publicação">
-          <p>
-            Há dias sem responsável
-            {confirmDates.length > 0 ? `: ${confirmDates.map(formatDate).join(', ')}` : ''}.
-            Publicar mesmo assim?
-          </p>
-          <div className="sad-row">
-            <button
-              type="button"
-              className="btn primary"
-              disabled={busy}
-              onClick={() => void publish(true)}
-            >
-              Publicar mesmo assim
-            </button>
-            <button type="button" className="btn" onClick={() => setConfirmDates(null)}>
-              Cancelar
-            </button>
-          </div>
-        </div>
+        <ConfirmDialog
+          tone="primary"
+          title="Confirmar publicação"
+          message={`Há dias sem responsável${
+            confirmDates.length > 0 ? `: ${confirmDates.map(formatDate).join(', ')}` : ''
+          }. Publicar mesmo assim?`}
+          confirmLabel="Publicar mesmo assim"
+          busy={busy}
+          onConfirm={() => void publish(true)}
+          onCancel={() => setConfirmDates(null)}
+        />
       )}
       {confirmDiscard && (
-        <div className="sad-confirm" role="alertdialog" aria-label="Confirmar descarte">
-          <p>Descartar este rascunho? Esta ação não pode ser desfeita.</p>
-          <div className="sad-row">
-            <button
-              type="button"
-              className="btn primary"
-              disabled={busy}
-              onClick={() => void discard()}
-            >
-              Confirmar descarte
-            </button>
-            <button type="button" className="btn" onClick={() => setConfirmDiscard(false)}>
-              Cancelar
-            </button>
-          </div>
-        </div>
+        <ConfirmDialog
+          title="Descartar este rascunho?"
+          message="Esta ação não pode ser desfeita."
+          confirmLabel="Descartar"
+          busy={busy}
+          onConfirm={() => void discard()}
+          onCancel={() => setConfirmDiscard(false)}
+        />
       )}
     </section>
   );

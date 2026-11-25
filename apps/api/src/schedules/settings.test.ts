@@ -10,6 +10,8 @@ const CUSTOM = {
   holiday: { startHour: 8, endHour: 8 },
 };
 
+type CustomTimes = typeof CUSTOM;
+
 describe.skipIf(!process.env['TEST_DATABASE_URL'])('shift settings (PostgreSQL)', () => {
   let t: TestDb;
   let sql: Sql;
@@ -110,10 +112,126 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('shift settings (PostgreSQL)'
     };
     expect((await call('PUT', '/work-hours', manager, overlap)).status).toBe(400);
     expect((await call('PUT', '/work-hours', manager, { periods: 1 })).status).toBe(400);
+    // Sem limite de períodos, fora de ordem e encostados são aceitos; vêm ordenados.
+    const many = Array.from({ length: 10 }, (_, i) => ({
+      startMinute: i * 120,
+      endMinute: i * 120 + 120,
+    }));
+    expect(
+      (await call('PUT', '/work-hours', manager, { periods: [...many].reverse() })).status,
+    ).toBe(200);
+    expect(await (await call('GET', '/work-hours', member)).json()).toEqual({ periods: many });
+    // Nome opcional: aparado, vazio vira ausente, limite de 60 caracteres.
+    const named = {
+      periods: [
+        { startMinute: 480, endMinute: 720, name: '  Manhã ' },
+        { startMinute: 810, endMinute: 1080, name: '   ' },
+      ],
+    };
+    expect((await call('PUT', '/work-hours', manager, named)).status).toBe(200);
+    expect(await (await call('GET', '/work-hours', member)).json()).toEqual({
+      periods: [
+        { startMinute: 480, endMinute: 720, name: 'Manhã' },
+        { startMinute: 810, endMinute: 1080 },
+      ],
+    });
+    const longName = { periods: [{ startMinute: 0, endMinute: 60, name: 'x'.repeat(61) }] };
+    expect((await call('PUT', '/work-hours', manager, longName)).status).toBe(400);
     expect((await call('PUT', '/work-hours', manager, next)).status).toBe(200);
     expect(await (await call('GET', '/work-hours', member)).json()).toEqual(next);
     const [audit] = await sql<{ action: string }[]>`
       select action from audit_log where entity_type = 'work_hours'`;
     expect(audit?.action).toBe('work_hours.update');
+  });
+
+  it('horário por dia da semana: vários dias e feriado de uma vez, exclui e vale na geração', async () => {
+    const body = { weekdays: [1, 3, 6], holiday: true, startHour: 16, endHour: 8 };
+    expect((await call('PUT', '/shift-weekday-times', member, body)).status).toBe(403);
+    const empty = { weekdays: [], holiday: false, startHour: 16, endHour: 8 };
+    expect((await call('PUT', '/shift-weekday-times', manager, empty)).status).toBe(400);
+    expect(
+      (await call('PUT', '/shift-weekday-times', manager, { ...body, weekdays: [7] })).status,
+    ).toBe(400);
+    expect((await call('PUT', '/shift-weekday-times', manager, body)).status).toBe(200);
+    expect(await (await call('GET', '/shift-weekday-times', member)).json()).toEqual([
+      { weekday: 1, startHour: 16, endHour: 8 },
+      { weekday: 3, startHour: 16, endHour: 8 },
+      { weekday: 6, startHour: 16, endHour: 8 },
+    ]);
+    expect(
+      ((await (await call('GET', '/shift-settings', member)).json()) as CustomTimes).holiday,
+    ).toEqual({
+      startHour: 16,
+      endHour: 8,
+    });
+
+    // 2027-07-05 segunda, 06 terça (horário de dia útil), 07 quarta, 10 sábado.
+    const gen = await call('POST', '/schedules/generate', manager, {
+      from: '2027-07-05',
+      to: '2027-07-10',
+    });
+    expect(gen.status).toBe(201);
+    const { shifts } = (await gen.json()) as { shifts: Array<{ date: string; hours: number }> };
+    expect(shifts.map((s) => s.hours)).toEqual([16, 12, 16, 12, 12, 16]);
+
+    const edit = { weekdays: [1], holiday: false, startHour: 17, endHour: 8 };
+    expect((await call('PUT', '/shift-weekday-times', manager, edit)).status).toBe(200);
+    const audits = await sql<{ action: string }[]>`
+      select action from audit_log where entity_type = 'shift_weekday_times' order by id`;
+    expect(audits.map((a) => a.action)).toEqual([
+      'shift_weekday_times.update',
+      'shift_weekday_times.update',
+    ]);
+
+    expect((await call('DELETE', '/shift-weekday-times?weekdays=1,3,6', member)).status).toBe(403);
+    expect((await call('DELETE', '/shift-weekday-times?weekdays=', manager)).status).toBe(400);
+    expect((await call('DELETE', '/shift-weekday-times?weekdays=1,3,6', manager)).status).toBe(204);
+    expect((await call('DELETE', '/shift-weekday-times?weekdays=1,3,6', manager)).status).toBe(404);
+    expect(await (await call('GET', '/shift-weekday-times', member)).json()).toEqual([]);
+  });
+
+  it('exceções por data: só gestor altera, valida, audita e a geração usa o horário da exceção', async () => {
+    const body = { startHour: 15, endHour: 8, workPeriods: [{ startMinute: 480, endMinute: 900 }] };
+    expect((await call('PUT', '/shift-exceptions/2027-06-22', member, body)).status).toBe(403);
+    expect((await call('PUT', '/shift-exceptions/2027-13-40', manager, body)).status).toBe(400);
+    const bad = { ...body, startHour: 24 };
+    expect((await call('PUT', '/shift-exceptions/2027-06-22', manager, bad)).status).toBe(400);
+    const overlap = {
+      ...body,
+      workPeriods: [
+        { startMinute: 480, endMinute: 720 },
+        { startMinute: 700, endMinute: 900 },
+      ],
+    };
+    expect((await call('PUT', '/shift-exceptions/2027-06-22', manager, overlap)).status).toBe(400);
+
+    expect((await call('PUT', '/shift-exceptions/2027-06-22', manager, body)).status).toBe(200);
+    expect(await (await call('GET', '/shift-exceptions', member)).json()).toEqual([
+      { date: '2027-06-22', ...body, note: null },
+    ]);
+    const [audit] = await sql<{ action: string }[]>`
+      select action from audit_log where entity_type = 'shift_exception'`;
+    expect(audit?.action).toBe('shift_exception.create');
+
+    // 2027-06-21 segunda (horário do tipo de dia), 2027-06-22 terça (exceção 15h–08h = 17h).
+    const gen = await call('POST', '/schedules/generate', manager, {
+      from: '2027-06-21',
+      to: '2027-06-22',
+    });
+    expect(gen.status).toBe(201);
+    const { shifts } = (await gen.json()) as {
+      shifts: Array<{ date: string; hours: number; startsAt: string; endsAt: string }>;
+    };
+    expect(shifts.find((x) => x.date === '2027-06-21')).toMatchObject({ hours: 12 });
+    expect(shifts.find((x) => x.date === '2027-06-22')).toMatchObject({
+      hours: 17,
+      startsAt: '2027-06-22T18:00:00.000Z',
+      endsAt: '2027-06-23T11:00:00.000Z',
+    });
+
+    expect((await call('DELETE', '/shift-exceptions/2027-06-22', member)).status).toBe(403);
+    expect((await call('DELETE', '/shift-exceptions/2027-06-22', manager)).status).toBe(204);
+    expect((await call('DELETE', '/shift-exceptions/2027-06-22', manager)).status).toBe(404);
+    expect(await (await call('GET', '/shift-exceptions', member)).json()).toEqual([]);
   });
 });

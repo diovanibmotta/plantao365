@@ -55,6 +55,8 @@ export interface TimeGridProps {
   status?: ShiftStatusFilter;
   shiftTimes: ShiftTimes | null;
   workPeriods: readonly WorkPeriod[];
+  /** Jornada de datas com exceção, no lugar de workPeriods. */
+  workPeriodsByDate?: ReadonlyMap<LocalDate, readonly WorkPeriod[]> | undefined;
 }
 
 /** Grade de horas (00:00–24:00) por dia: plantões por pessoa e jornada de trabalho do time. */
@@ -69,6 +71,7 @@ export function TimeGrid({
   status = '',
   shiftTimes,
   workPeriods,
+  workPeriodsByDate,
 }: TimeGridProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const firstWork = workPeriods[0]?.startMinute ?? 7 * 60;
@@ -90,9 +93,10 @@ export function TimeGrid({
       const seg = segmentOnDate(date, b.start, b.end);
       if (seg) segments.push({ shift, seg, b });
     }
+    const dayPeriods = workPeriodsByDate?.get(date) ?? workPeriods;
     const workday =
-      !isWeekend(date) && !holidays.has(date) && !vacationDates.has(date) && workPeriods.length > 0;
-    return { date, segments, workday };
+      !isWeekend(date) && !holidays.has(date) && !vacationDates.has(date) && dayPeriods.length > 0;
+    return { date, segments, workday, dayPeriods };
   });
 
   return (
@@ -118,14 +122,14 @@ export function TimeGrid({
                 </span>
               ))}
             </div>
-            {columns.map(({ date, segments, workday }) => (
+            {columns.map(({ date, segments, workday, dayPeriods }) => (
               <div
                 key={date}
                 className={`tg-col${date === today ? ' tg-col--today' : ''}`}
                 data-testid={`col-${date}`}
               >
                 {workday &&
-                  workPeriods.map((p) => (
+                  dayPeriods.map((p) => (
                     <div
                       key={p.startMinute}
                       className="tg-work"

@@ -8,6 +8,11 @@ import { VacationsPage } from './exceptions/VacationsPage';
 import { LoginPage } from './pages/LoginPage';
 import { HolidaysPage } from './pages/HolidaysPage';
 import { ScheduleAdminPage } from './pages/ScheduleAdminPage';
+import { ScheduleEditorPage } from './schedule-admin/ScheduleEditorPage';
+import { ScheduleGenerateForm } from './schedule-admin/ScheduleGenerateForm';
+import { ShiftExceptionForm } from './schedule-admin/ShiftExceptionForm';
+import { ShiftTimeForm } from './schedule-admin/ShiftTimeForm';
+import { WorkHoursForm } from './schedule-admin/WorkHoursForm';
 import { MembersPage } from './pages/MembersPage';
 import { MySchedulePage } from './pages/MySchedulePage';
 import { NotFoundPage } from './pages/pages';
@@ -55,6 +60,14 @@ export function App() {
             <Route path="members" element={<MembersPage />} />
             <Route path="vacations" element={<VacationsPage />} />
             <Route path="schedule-admin" element={<ScheduleAdminPage />} />
+            <Route path="schedule-admin/schedules/new" element={<ScheduleGenerateForm />} />
+            <Route path="schedule-admin/schedules/:id" element={<ScheduleEditorPage />} />
+            <Route path="schedule-admin/shift-times/new" element={<ShiftTimeForm />} />
+            <Route path="schedule-admin/shift-times/:key" element={<ShiftTimeForm />} />
+            <Route path="schedule-admin/work-hours/new" element={<WorkHoursForm />} />
+            <Route path="schedule-admin/work-hours/:position" element={<WorkHoursForm />} />
+            <Route path="schedule-admin/exceptions/new" element={<ShiftExceptionForm />} />
+            <Route path="schedule-admin/exceptions/:date" element={<ShiftExceptionForm />} />
             <Route path="holidays" element={<HolidaysPage />} />
             <Route path="audit" element={<AuditPage />} />
           </Route>

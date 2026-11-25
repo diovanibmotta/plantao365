@@ -135,7 +135,7 @@ export function generateRotation(input: RotationInput): RotationOutput {
   const preferenceViolations: PreferenceViolation[] = [];
 
   for (const { date, dayType } of days) {
-    const hours = shiftHoursFor(dayType, ctx);
+    const hours = shiftHoursFor(date, dayType, ctx);
     if (dayType === 'collective_vacation') {
       shifts.push({ date, userId: null, dayType, hours });
       continue;

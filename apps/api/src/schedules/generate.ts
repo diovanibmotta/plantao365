@@ -20,7 +20,7 @@ import { listHolidayDates } from '../holidays/service.js';
 import { listPreferences } from '../preferences/service.js';
 import { listUnavailableByDate } from '../unavailability/service.js';
 import { MAX_RANGE_DAYS, getSchedule, listShiftsOfSchedule } from './service.js';
-import { getShiftTimes } from './settings.js';
+import { getShiftExceptionTimes, getShiftTimes, getWeekdayTimes } from './settings.js';
 import type { ScheduleDto, ShiftDto } from './types.js';
 
 /** Início do histórico de horas realizadas (anterior a qualquer dado possível). */
@@ -133,6 +133,8 @@ export async function generateDraft(
     holidays,
     collectiveVacations: unavailable.collectiveVacations,
     shiftTimes: await getShiftTimes(tx, teamId),
+    weekdayTimes: await getWeekdayTimes(tx, teamId),
+    shiftExceptions: await getShiftExceptionTimes(tx, teamId, from, to),
   };
   const members: RotationMember[] = users.map((u) => {
     const prefs = preferences.get(u.id);
