@@ -94,7 +94,7 @@ export function TeamsPage() {
                     >
                       <th scope="row">
                         <span className="teams-name-cell">
-                          <TeamAvatar name={t.name} avatar={t.avatar} size="lg" />
+                          <TeamAvatar name={t.name} avatar={t.avatar} />
                           <span>{t.name}</span>
                           {t.id === activeTeam?.id && (
                             <span className="teams-badge">Em exibição</span>
