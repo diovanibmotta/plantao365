@@ -11,6 +11,7 @@ interface MemberProfile {
   name: string;
   email: string;
   phone: string | null;
+  badgeNumber: string | null;
   active: boolean;
   role: TeamRole;
   participatesInRotation: boolean;
@@ -75,6 +76,8 @@ export function MemberCard({ teamId, userId }: Props) {
         <dd>
           <a href={`mailto:${profile.email}`}>{profile.email}</a>
         </dd>
+        <dt>Crachá</dt>
+        <dd>{profile.badgeNumber ?? <span className="muted">Não informado</span>}</dd>
         <dt>Telefone</dt>
         <dd>
           {profile.phone ? (

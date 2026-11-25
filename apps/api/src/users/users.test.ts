@@ -448,6 +448,25 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
       expect((await call2('GET', '/users/colleagues', '')).status).toBe(401);
     });
 
+    it('serves a colleague contact card to any member, 404 when unknown or inactive', async () => {
+      const me = await loginAs(sql, { email: 'ct-me@x.com' });
+      const other = await loginAs(sql, { email: 'ct-a@x.com', name: 'Ana' });
+      await sql`update users set phone = '+5547999990000', badge_number = 'C-123' where id = ${other.id}`;
+      const res = await call2('GET', `/users/${other.id}/contact`, me.cookie);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({
+        id: other.id,
+        name: 'Ana',
+        email: 'ct-a@x.com',
+        phone: '+5547999990000',
+        badgeNumber: 'C-123',
+      });
+      const off = await loginAs(sql, { email: 'ct-off@x.com', active: false });
+      expect((await call2('GET', `/users/${off.id}/contact`, me.cookie)).status).toBe(404);
+      expect((await call2('GET', '/users/nope/contact', me.cookie)).status).toBe(404);
+      expect((await call2('GET', `/users/${other.id}/contact`, '')).status).toBe(401);
+    });
+
     it('serves a colleague photo to any member, 404 when absent', async () => {
       const me = await loginAs(sql, { email: 'foto-me@x.com' });
       const other = await loginAs(sql, { email: 'foto-a@x.com' });

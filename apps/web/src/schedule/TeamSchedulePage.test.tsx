@@ -59,6 +59,11 @@ function mockApi(data: Data = {}) {
       );
     }
     if (url === '/api/users/colleagues') return Promise.resolve(json(data.colleagues ?? []));
+    if (url === '/api/users/u2/contact') {
+      return Promise.resolve(
+        json({ id: 'u2', name: 'Jorge Kohn', email: 'jorge@x.com', phone: '(47) 99999-0000' }),
+      );
+    }
     if (url.startsWith('/api/shifts')) return Promise.resolve(json(data.shifts ?? []));
     if (url.startsWith('/api/holidays'))
       return Promise.resolve(json({ items: data.holidays ?? [] }));
@@ -94,6 +99,18 @@ afterEach(() => {
 });
 
 describe('TeamSchedulePage', () => {
+  it('abre o cartão de visita ao clicar no responsável do dia e fecha', async () => {
+    mockApi({ shifts: [shift('2028-02-10', 'u2', 'Jorge Kohn')] });
+    renderPage('2028-02-15');
+    const day = await screen.findByTestId('day-2028-02-10');
+    await userEvent.click(within(day).getByRole('button', { name: /Jorge Kohn/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Jorge Kohn' });
+    expect(await within(dialog).findByText('jorge@x.com')).toBeTruthy();
+    expect(within(dialog).getByText('(47) 99999-0000')).toBeTruthy();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('monta fevereiro bissexto de 2028 e carrega as três consultas do mês', async () => {
     const fetchMock = mockApi();
     renderPage('2028-02-15');

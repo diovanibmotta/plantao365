@@ -45,6 +45,16 @@ export function setActiveTeamId(id: string | null): void {
 
 export const TEAM_HEADER = 'X-Team-Id';
 
+let unauthorizedHandler: (() => void) | null = null;
+
+/** Registra o callback chamado em toda resposta 401 (sessão expirada); retorna o desregistro. */
+export function setUnauthorizedHandler(handler: (() => void) | null): () => void {
+  unauthorizedHandler = handler;
+  return () => {
+    if (unauthorizedHandler === handler) unauthorizedHandler = null;
+  };
+}
+
 /** Controle do interceptor de toasts (aplicado só a POST/PUT/PATCH/DELETE). */
 export interface ToastOptions {
   /** Texto do toast de sucesso; sobrepõe `message`/`notice` do corpo e o padrão do verbo. */
@@ -172,7 +182,10 @@ async function send<T>(path: string, { method = 'GET', body, signal }: RequestOp
 
   const data = await parseBody(res);
   if (res.ok) return data as T;
-  if (res.status === 401) throw new UnauthorizedError(data);
+  if (res.status === 401) {
+    unauthorizedHandler?.();
+    throw new UnauthorizedError(data);
+  }
   if (res.status === 403) throw new ForbiddenError(data);
   const message =
     typeof data === 'object' && data !== null && 'message' in data

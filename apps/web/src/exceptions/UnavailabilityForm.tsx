@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { KIND_OPTIONS, validatePeriod } from './types';
+import { KIND_OPTIONS, LEGACY_VACATION_OPTION, validatePeriod } from './types';
 import type { ExceptionKind, FormValues, MemberOption } from './types';
 
 interface Props {
@@ -27,7 +27,7 @@ export function UnavailabilityForm({
   onSubmit,
   onCancel,
 }: Props) {
-  const [kind, setKind] = useState<ExceptionKind>(initial?.kind ?? 'vacation');
+  const [kind, setKind] = useState<ExceptionKind>(initial?.kind ?? 'time_off');
   const [startDate, setStartDate] = useState(initial?.startDate ?? '');
   const [endDate, setEndDate] = useState(initial?.endDate ?? '');
   const [note, setNote] = useState(initial?.note ?? '');
@@ -39,6 +39,8 @@ export function UnavailabilityForm({
 
   const activeMembers = (members ?? []).filter((m) => m.active);
   const picking = withScope && collective && !allTeam;
+  const kindOptions =
+    initial?.kind === 'vacation' ? [LEGACY_VACATION_OPTION, ...KIND_OPTIONS] : KIND_OPTIONS;
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -115,7 +117,7 @@ export function UnavailabilityForm({
         <label>
           Tipo
           <select value={kind} onChange={(e) => setKind(e.target.value as ExceptionKind)}>
-            {KIND_OPTIONS.map((o) => (
+            {kindOptions.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>

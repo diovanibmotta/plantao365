@@ -24,6 +24,7 @@ export interface ShiftDto {
   endsAt: string | null;
   userId: string | null;
   userName: string | null;
+  userBadgeNumber: string | null;
   originalUserId: string | null;
   originalHours: number | null;
 }

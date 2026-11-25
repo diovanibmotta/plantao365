@@ -3,6 +3,7 @@ import type { Sql } from '../db.js';
 import { buildTestApp, csrfHeaders, loginAs, TEST_ORIGIN, type TestUser } from '../test-app.js';
 import { createTestDb, type TestDb } from '../test-utils.js';
 import { createUnavailabilityRouter, listUnavailableByDate } from './index.js';
+import { listUnavailabilities } from './service.js';
 import { createOnUnavailabilityConflict } from '../notifications/unavailability-events.js';
 import type { ConflictChecker, UnavailabilityConflictEvent } from './types.js';
 
@@ -444,6 +445,21 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('unavailability (PostgreSQL)'
     });
     expect(res.status).toBe(403);
     expect((await sql`select 1 from unavailabilities`).length).toBe(0);
+  });
+
+  it('com equipe ativa, lista as próprias exceções mesmo sem ser membro dela', async () => {
+    const [team] = await sql<{ id: string }[]>`
+      insert into teams (name) values ('Equipe teste') returning id`;
+    await sql`insert into team_members (team_id, user_id, role) values (${team!.id}, ${ana.id}, 'member')`;
+    const one = { kind: 'time_off', startDate: '2026-12-11', endDate: '2026-12-11' };
+    await call('POST', '/unavailabilities', manager, one);
+    await call('POST', '/unavailabilities', ana, one);
+    await call('POST', '/unavailabilities', bia, one);
+
+    const ids = (await listUnavailabilities(sql, { teamId: team!.id, selfId: manager.id })).map(
+      (i) => i.userId,
+    );
+    expect(ids.sort()).toEqual([ana.id, manager.id].sort());
   });
 
   it('listUnavailableByDate devolve bloqueios por data e férias coletivas recortados', async () => {

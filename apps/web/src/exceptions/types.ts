@@ -49,14 +49,19 @@ export interface FormValues {
   userIds: string[];
 }
 
-export const KIND_OPTIONS: {
+export interface KindOption {
   value: Exclude<ExceptionKind, 'collective_vacation'>;
   label: string;
-}[] = [
-  { value: 'vacation', label: 'Férias' },
+}
+
+/** Férias têm tela própria; não são oferecidas ao cadastrar uma exceção. */
+export const KIND_OPTIONS: KindOption[] = [
   { value: 'time_off', label: 'Folga' },
   { value: 'other', label: 'Outro' },
 ];
+
+/** Registros antigos de férias ainda podem ser editados sem trocar o tipo. */
+export const LEGACY_VACATION_OPTION: KindOption = { value: 'vacation', label: 'Férias' };
 
 export const KIND_LABELS: Record<ExceptionKind, string> = {
   vacation: 'Férias',

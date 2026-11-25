@@ -218,6 +218,7 @@ export async function listTeamMembers(
 
 export interface TeamMemberProfileDto extends TeamMemberDto {
   phone: string | null;
+  badgeNumber: string | null;
   preferences: PreferencesDto;
   /** Exceções individuais (férias, folga, outro) em andamento ou futuras. */
   unavailabilities: {
@@ -240,7 +241,7 @@ export async function getTeamMemberProfile(
     const tx = txRaw as unknown as Sql;
     await assertCanManage(tx, actor, teamId);
     const [member] = await tx<Omit<TeamMemberProfileDto, 'preferences' | 'unavailabilities'>[]>`
-      select u.id, u.name, u.email, u.phone, u.active, m.role,
+      select u.id, u.name, u.email, u.phone, u.badge_number as "badgeNumber", u.active, m.role,
         m.participates_in_rotation as "participatesInRotation"
       from users u
       join team_members m on m.user_id = u.id and m.team_id = ${teamId}

@@ -6,6 +6,7 @@ export interface ProfileDto {
   name: string;
   email: string;
   phone: string | null;
+  badgeNumber: string | null;
   role: Role;
   active: boolean;
   participatesInRotation: boolean;
@@ -25,6 +26,7 @@ export interface UserListItemDto {
 
 export interface UpdateProfileInput {
   phone?: string | null;
+  badgeNumber?: string | null;
   remindersEnabled?: boolean;
 }
 

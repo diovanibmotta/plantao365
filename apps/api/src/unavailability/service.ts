@@ -13,11 +13,13 @@ export interface ListFilters {
   visibleTo?: string | undefined;
   /** Férias coletivas desta equipe (ou legadas, sem equipe) e exceções de qualquer usuário. */
   teamId?: string | undefined;
+  /** Quem consulta: as próprias exceções aparecem mesmo sem ser membro da equipe (ex.: master). */
+  selfId?: string | undefined;
 }
 
 export async function listUnavailabilities(
   db: Sql,
-  { from, to, userId, visibleTo, teamId }: ListFilters,
+  { from, to, userId, visibleTo, teamId, selfId }: ListFilters,
 ): Promise<UnavailabilityDto[]> {
   return db<UnavailabilityDto[]>`
     select ${columns(db)} from unavailabilities
@@ -26,7 +28,8 @@ export async function listUnavailabilities(
       ${
         teamId
           ? db`and ((user_id is null and (team_id is null or team_id = ${teamId}))
-            or user_id in (select user_id from team_members where team_id = ${teamId}))`
+            or user_id in (select user_id from team_members where team_id = ${teamId})
+            ${selfId ? db`or user_id = ${selfId}` : db``})`
           : db``
       }
       ${userId ? db`and user_id = ${userId}` : db``}
