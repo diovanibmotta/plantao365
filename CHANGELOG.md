@@ -1,3 +1,8 @@
+# [v1.23.0](https://github.com/diovanibmotta/plantao365/compare/v1.22.0...v1.23.0) (2026-11-25)
+
+## ✨ New Features
+- [`67363f2`](https://github.com/diovanibmotta/plantao365/commit/67363f2) : feat(users): crachá do membro e cartão de contato no calendário
+
 # [v1.22.0](https://github.com/diovanibmotta/plantao365/compare/v1.21.0...v1.22.0) (2026-11-25)
 
 ## ✨ New Features
