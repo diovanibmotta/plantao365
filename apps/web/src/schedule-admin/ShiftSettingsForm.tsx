@@ -38,10 +38,13 @@ export function ShiftSettingsForm() {
     if (!times) return;
     setBusy(true);
     try {
-      setTimes(await api.put<ShiftTimes>('/api/shift-settings', times));
-      setMessage({ ok: true, text: 'Horários salvos. Valem para os próximos rascunhos gerados.' });
-    } catch (err) {
-      setMessage({ ok: false, text: describe(err, 'Não foi possível salvar os horários.') });
+      setTimes(
+        await api.put<ShiftTimes>('/api/shift-settings', times, {
+          successMessage: 'Horários salvos. Valem para os próximos rascunhos gerados.',
+        }),
+      );
+    } catch {
+      // O interceptor já exibe o toast de erro.
     } finally {
       setBusy(false);
     }

@@ -61,11 +61,14 @@ export function WorkHoursForm() {
     }
     setBusy(true);
     try {
-      const saved = await api.put<{ periods: WorkPeriod[] }>('/api/work-hours', { periods });
+      const saved = await api.put<{ periods: WorkPeriod[] }>(
+        '/api/work-hours',
+        { periods },
+        { successMessage: 'Jornada salva.' },
+      );
       setPeriods(saved.periods);
-      setMessage({ ok: true, text: 'Jornada salva.' });
-    } catch (err) {
-      setMessage({ ok: false, text: describe(err, 'Não foi possível salvar a jornada.') });
+    } catch {
+      // O interceptor já exibe o toast de erro.
     } finally {
       setBusy(false);
     }

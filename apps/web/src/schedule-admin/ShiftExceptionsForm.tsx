@@ -105,17 +105,20 @@ export function ShiftExceptionsForm() {
     }
     setBusy(true);
     try {
-      await api.put<ShiftException>(`/api/shift-exceptions/${draft.date}`, {
-        startHour: draft.startHour,
-        endHour: draft.endHour,
-        workPeriods: draft.customWork ? draft.workPeriods : null,
-        note: draft.note.trim() || null,
-      });
+      await api.put<ShiftException>(
+        `/api/shift-exceptions/${draft.date}`,
+        {
+          startHour: draft.startHour,
+          endHour: draft.endHour,
+          workPeriods: draft.customWork ? draft.workPeriods : null,
+          note: draft.note.trim() || null,
+        },
+        { successMessage: 'Exceção salva. Vale para as próximas escalas geradas.' },
+      );
       await load();
       setDraft(emptyDraft(teamWork));
-      setMessage({ ok: true, text: 'Exceção salva. Vale para as próximas escalas geradas.' });
-    } catch (err) {
-      setMessage({ ok: false, text: describe(err, 'Não foi possível salvar a exceção.') });
+    } catch {
+      // O interceptor já exibe o toast de erro.
     } finally {
       setBusy(false);
     }
@@ -124,11 +127,10 @@ export function ShiftExceptionsForm() {
   const remove = async (date: string) => {
     setBusy(true);
     try {
-      await api.delete(`/api/shift-exceptions/${date}`);
+      await api.delete(`/api/shift-exceptions/${date}`, { successMessage: 'Exceção removida.' });
       await load();
-      setMessage({ ok: true, text: 'Exceção removida.' });
-    } catch (err) {
-      setMessage({ ok: false, text: describe(err, 'Não foi possível remover a exceção.') });
+    } catch {
+      // O interceptor já exibe o toast de erro.
     } finally {
       setBusy(false);
     }
