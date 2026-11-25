@@ -9,6 +9,7 @@ import {
   type WeekdayShiftTime,
   type WorkPeriod,
   parseLocalDate,
+  sortWorkPeriods,
   validateWorkPeriods,
 } from '@diovanibmotta/plantao365-shared';
 import type { Hono } from 'hono';
@@ -171,7 +172,7 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
     if (!parsed.success || problem) {
       return c.json({ error: 'validation_error', message: problem ?? 'Dados inválidos' }, 400);
     }
-    const next = parsed.data.periods;
+    const next = sortWorkPeriods(parsed.data.periods);
     const teamId = c.get('teamId')!;
     await db.begin(async (txRaw) => {
       const tx = txRaw as unknown as Sql;
@@ -192,7 +193,7 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
         entityType: 'work_hours',
         entityId: null,
         before: { periods: before.map((p) => ({ ...p })) },
-        after: { periods: next },
+        after: { periods: next.map((p) => ({ ...p })) },
       });
     });
     return c.json({ periods: next });
@@ -311,7 +312,8 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
     if (!parsed.success || problem) {
       return c.json({ error: 'validation_error', message: problem ?? 'Dados inválidos' }, 400);
     }
-    const { startHour, endHour, workPeriods, note } = parsed.data;
+    const { startHour, endHour, note } = parsed.data;
+    const workPeriods = parsed.data.workPeriods ? sortWorkPeriods(parsed.data.workPeriods) : null;
     const teamId = c.get('teamId')!;
     const saved: ShiftException = { date, startHour, endHour, workPeriods, note: note || null };
     await db.begin(async (txRaw) => {

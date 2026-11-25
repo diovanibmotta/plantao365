@@ -116,7 +116,8 @@ function renderApp(path: string) {
         <Route path="/schedule-admin/schedules/:id" element={<ScheduleEditorPage />} />
         <Route path="/schedule-admin/shift-times/new" element={<ShiftTimeForm />} />
         <Route path="/schedule-admin/shift-times/:key" element={<ShiftTimeForm />} />
-        <Route path="/schedule-admin/work-hours/edit" element={<WorkHoursForm />} />
+        <Route path="/schedule-admin/work-hours/new" element={<WorkHoursForm />} />
+        <Route path="/schedule-admin/work-hours/:position" element={<WorkHoursForm />} />
       </Routes>
       <ToastViewport />
     </MemoryRouter>,
@@ -259,28 +260,16 @@ describe('horários dos plantões', () => {
 });
 
 describe('jornada de trabalho', () => {
-  it('lista os períodos e o total; edita e salva em rota própria', async () => {
-    const fetchMock = mockApi('draft');
-    const user = userEvent.setup();
+  it('lista um registro por período, com editar em cada linha e o total', async () => {
+    mockApi('draft');
     renderApp('/schedule-admin?tab=work-hours');
     const table = await screen.findByRole('table', { name: 'Jornada de trabalho' });
-    expect(table.textContent).toContain('13:30');
-    expect(screen.getByText(/Total: 8h30/)).toBeTruthy();
-    cleanup();
-
-    renderApp('/schedule-admin/work-hours/edit');
-    const end = await screen.findByLabelText('Fim do período 2');
-    fireEvent.change(end, { target: { value: '17:30' } });
-    await user.click(screen.getByRole('button', { name: 'Adicionar período' }));
-    await user.click(screen.getByRole('button', { name: 'Remover período 3' }));
-    await user.click(screen.getByRole('button', { name: 'Salvar' }));
-    await screen.findByText('Jornada salva.');
-    expect(bodyOf(fetchMock, '/api/work-hours', 'PUT')).toEqual({
-      periods: [
-        { startMinute: 480, endMinute: 720 },
-        { startMinute: 810, endMinute: 1050 },
-      ],
-    });
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(2);
+    expect(rows[1]?.textContent).toContain('13:30');
+    expect(screen.getByRole('link', { name: 'Editar período 2' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Novo período' })).toBeTruthy();
+    expect(screen.getByText(/2 períodos · Total: 8h30/)).toBeTruthy();
   });
 
   it('mostra estado vazio com CTA quando não há jornada', async () => {
@@ -291,7 +280,91 @@ describe('jornada de trabalho', () => {
     );
     renderApp('/schedule-admin?tab=work-hours');
     expect(await screen.findByText(/Sem jornada definida/)).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Definir jornada' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Novo período' })).toBeTruthy();
+  });
+
+  it('cria um período sem limite de quantidade, sugerindo o horário após o último', async () => {
+    const fetchMock = mockApi('draft', (url, init) =>
+      url === '/api/work-hours' && (init.method ?? 'GET') === 'GET'
+        ? json({
+            periods: Array.from({ length: 7 }, (_, i) => ({
+              startMinute: i * 120,
+              endMinute: i * 120 + 60,
+            })),
+          })
+        : undefined,
+    );
+    const user = userEvent.setup();
+    renderApp('/schedule-admin/work-hours/new');
+    await screen.findByRole('heading', { name: 'Novo período' });
+    expect((screen.getByLabelText('Início') as HTMLInputElement).value).toBe('14:00');
+    expect(screen.queryByRole('button', { name: 'Excluir' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    await screen.findByText('Período criado.');
+    const body = bodyOf(fetchMock, '/api/work-hours', 'PUT');
+    expect(body.periods).toHaveLength(8);
+    expect(body.periods.at(-1)).toEqual({ startMinute: 840, endMinute: 1080 });
+  });
+
+  it('alerta e bloqueia sobreposição com outro período', async () => {
+    const fetchMock = mockApi('draft');
+    renderApp('/schedule-admin/work-hours/new');
+    const start = await screen.findByLabelText('Início');
+    fireEvent.change(start, { target: { value: '11:00' } });
+    fireEvent.change(screen.getByLabelText('Fim'), { target: { value: '14:00' } });
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('se sobrepõe');
+    expect(alert.textContent).toContain('08:00–12:00');
+    expect((screen.getByRole('button', { name: 'Salvar' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    fireEvent.change(start, { target: { value: '12:00' } });
+    fireEvent.change(screen.getByLabelText('Fim'), { target: { value: '13:30' } });
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    expect((screen.getByRole('button', { name: 'Salvar' }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+    expect(called(fetchMock, '/api/work-hours', 'PUT')).toBe(false);
+  });
+
+  it('edita um período mantendo os demais; fim antes do início é recusado', async () => {
+    const fetchMock = mockApi('draft');
+    const user = userEvent.setup();
+    renderApp('/schedule-admin/work-hours/1');
+    await screen.findByRole('heading', { name: 'Editar período 2' });
+    expect((screen.getByLabelText('Início') as HTMLInputElement).value).toBe('13:30');
+    fireEvent.change(screen.getByLabelText('Fim'), { target: { value: '13:00' } });
+    expect((await screen.findByRole('alert')).textContent).toContain('depois do início');
+    fireEvent.change(screen.getByLabelText('Fim'), { target: { value: '17:30' } });
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    await screen.findByText('Período atualizado.');
+    expect(bodyOf(fetchMock, '/api/work-hours', 'PUT')).toEqual({
+      periods: [
+        { startMinute: 480, endMinute: 720 },
+        { startMinute: 810, endMinute: 1050 },
+      ],
+    });
+  });
+
+  it('exclui um período só depois da confirmação', async () => {
+    const fetchMock = mockApi('draft');
+    const user = userEvent.setup();
+    renderApp('/schedule-admin/work-hours/0');
+    await user.click(await screen.findByRole('button', { name: 'Excluir' }));
+    expect(called(fetchMock, '/api/work-hours', 'PUT')).toBe(false);
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Excluir' }),
+    );
+    await screen.findByText('Período excluído.');
+    expect(bodyOf(fetchMock, '/api/work-hours', 'PUT')).toEqual({
+      periods: [{ startMinute: 810, endMinute: 1080 }],
+    });
+  });
+
+  it('avisa quando o período não existe', async () => {
+    mockApi('draft');
+    renderApp('/schedule-admin/work-hours/9');
+    expect(await screen.findByText('Período não encontrado.')).toBeTruthy();
   });
 });
 

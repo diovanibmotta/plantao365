@@ -76,11 +76,14 @@ export function FormActions({
   onCancel,
   onDelete,
   busy,
+  saveDisabled = false,
   saveLabel = 'Salvar',
 }: {
   onCancel: () => void;
   onDelete?: (() => void) | undefined;
   busy: boolean;
+  /** Bloqueia o Salvar enquanto o formulário tem um problema visível (ex.: sobreposição). */
+  saveDisabled?: boolean;
   saveLabel?: string;
 }) {
   return (
@@ -94,7 +97,7 @@ export function FormActions({
       <button type="button" className="btn" onClick={onCancel}>
         Cancelar
       </button>
-      <button type="submit" className="btn primary" disabled={busy}>
+      <button type="submit" className="btn primary" disabled={busy || saveDisabled}>
         {busy ? 'Salvando…' : saveLabel}
       </button>
     </div>

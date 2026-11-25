@@ -64,7 +64,8 @@ export function App() {
             <Route path="schedule-admin/schedules/:id" element={<ScheduleEditorPage />} />
             <Route path="schedule-admin/shift-times/new" element={<ShiftTimeForm />} />
             <Route path="schedule-admin/shift-times/:key" element={<ShiftTimeForm />} />
-            <Route path="schedule-admin/work-hours/edit" element={<WorkHoursForm />} />
+            <Route path="schedule-admin/work-hours/new" element={<WorkHoursForm />} />
+            <Route path="schedule-admin/work-hours/:position" element={<WorkHoursForm />} />
             <Route path="schedule-admin/exceptions/new" element={<ShiftExceptionForm />} />
             <Route path="schedule-admin/exceptions/:date" element={<ShiftExceptionForm />} />
             <Route path="holidays" element={<HolidaysPage />} />

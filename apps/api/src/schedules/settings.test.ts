@@ -112,6 +112,15 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('shift settings (PostgreSQL)'
     };
     expect((await call('PUT', '/work-hours', manager, overlap)).status).toBe(400);
     expect((await call('PUT', '/work-hours', manager, { periods: 1 })).status).toBe(400);
+    // Sem limite de períodos, fora de ordem e encostados são aceitos; vêm ordenados.
+    const many = Array.from({ length: 10 }, (_, i) => ({
+      startMinute: i * 120,
+      endMinute: i * 120 + 120,
+    }));
+    expect(
+      (await call('PUT', '/work-hours', manager, { periods: [...many].reverse() })).status,
+    ).toBe(200);
+    expect(await (await call('GET', '/work-hours', member)).json()).toEqual({ periods: many });
     expect((await call('PUT', '/work-hours', manager, next)).status).toBe(200);
     expect(await (await call('GET', '/work-hours', member)).json()).toEqual(next);
     const [audit] = await sql<{ action: string }[]>`

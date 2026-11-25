@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import {
   DEFAULT_WORK_PERIODS,
-  MAX_WORK_PERIODS,
   formatMinute,
   parseMinute,
   shiftDuration,
@@ -350,12 +349,7 @@ export function ShiftExceptionForm() {
                 </li>
               ))}
               <li>
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={draft.workPeriods.length >= MAX_WORK_PERIODS}
-                  onClick={addPeriod}
-                >
+                <button type="button" className="btn" onClick={addPeriod}>
                   Adicionar período
                 </button>
               </li>
