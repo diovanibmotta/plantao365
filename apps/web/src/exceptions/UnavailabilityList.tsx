@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useRole } from '../team/TeamContext';
@@ -8,8 +8,8 @@ import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { PageHeader } from '../ui/PageHeader';
 import { SCOPES } from './paths';
 import type { UnavailabilityMode } from './paths';
-import { KIND_LABELS, errorMessage, formatDate, formatPeriod } from './types';
-import type { MemberOption, Unavailability, UnavailabilityWarning } from './types';
+import { KIND_LABELS, errorMessage, formatPeriod } from './types';
+import type { MemberOption, Unavailability } from './types';
 import './exceptions.css';
 
 type Status = '' | 'past' | 'current' | 'future';
@@ -39,6 +39,9 @@ function today(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+const kindLabel = (i: Unavailability, vacations: boolean) =>
+  vacations ? (i.kind === 'vacation' ? 'Individual' : 'Coletiva') : KIND_LABELS[i.kind];
+
 const statusOf = (i: Unavailability, now: string): Exclude<Status, ''> =>
   i.endDate < now ? 'past' : i.startDate > now ? 'future' : 'current';
 
@@ -47,7 +50,6 @@ export function UnavailabilityList({ mode }: { mode: UnavailabilityMode }) {
   const { user } = useAuth();
   const role = useRole();
   const navigate = useNavigate();
-  const location = useLocation();
   const vacations = mode === 'vacations';
   // No Perfil (mode 'member') a tela é só da própria conta, mesmo para o gestor.
   const showMembers = role === 'manager' && vacations;
@@ -56,16 +58,11 @@ export function UnavailabilityList({ mode }: { mode: UnavailabilityMode }) {
 
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [members, setMembers] = useState<MemberOption[]>([]);
-  const [dismissed, setDismissed] = useState(false);
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState('');
   const [year, setYear] = useState('');
   const [status, setStatus] = useState<Status>('');
   const [member, setMember] = useState('');
-
-  const warnings: UnavailabilityWarning[] = dismissed
-    ? []
-    : ((location.state as { warnings?: UnavailabilityWarning[] } | null)?.warnings ?? []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -99,7 +96,7 @@ export function UnavailabilityList({ mode }: { mode: UnavailabilityMode }) {
 
   const nameOf = (id: string | null) => members.find((m) => m.id === id)?.name ?? null;
   const memberLabel = (i: Unavailability) =>
-    i.userId ? (nameOf(i.userId) ?? 'Membro') : 'Todo o time';
+    i.userId ? (i.userName ?? nameOf(i.userId) ?? 'Membro') : 'Todo o time';
 
   const items = useMemo(
     () =>
@@ -120,7 +117,7 @@ export function UnavailabilityList({ mode }: { mode: UnavailabilityMode }) {
   const term = normalizeSearch(search);
   const now = today();
   const visible = (items ?? []).filter((i) => {
-    const haystack = `${KIND_LABELS[i.kind]} ${i.note ?? ''} ${formatPeriod(i.startDate, i.endDate)} ${
+    const haystack = `${kindLabel(i, vacations)} ${i.note ?? ''} ${formatPeriod(i.startDate, i.endDate)} ${
       showMembers ? memberLabel(i) : ''
     }`;
     return (
@@ -160,33 +157,6 @@ export function UnavailabilityList({ mode }: { mode: UnavailabilityMode }) {
         description={text.description}
         action={items && items.length > 0 ? cta : undefined}
       />
-
-      {warnings.length > 0 && (
-        <div className="exc-warning" role="status" aria-label="Aviso de conflito">
-          <ul>
-            {warnings.map((w) =>
-              w.type === 'published_shifts_affected' ? (
-                <li key={`${w.date}:affected`}>
-                  {formatDate(w.date)}:{' '}
-                  {w.count === 1 ? '1 plantão publicado' : `${w.count} plantões publicados`} neste
-                  dia. Ajuste os plantões ou recalcule a escala.
-                </li>
-              ) : (
-                <li key={`${w.date}:${w.userId}`}>
-                  Conflito com plantão publicado em {formatDate(w.date)}
-                  {nameOf(w.userId) ? ` (${nameOf(w.userId)})` : ''}.{' '}
-                  {role === 'manager'
-                    ? 'Ajuste a escala, se necessário.'
-                    : 'O gestor foi avisado por e-mail.'}
-                </li>
-              ),
-            )}
-          </ul>
-          <button type="button" className="btn" onClick={() => setDismissed(true)}>
-            Dispensar
-          </button>
-        </div>
-      )}
 
       {loaded === null && (
         <p className="status" role="status">
@@ -273,7 +243,7 @@ export function UnavailabilityList({ mode }: { mode: UnavailabilityMode }) {
                       style={{ cursor: 'pointer' }}
                     >
                       {showMembers && <td>{memberLabel(i)}</td>}
-                      <td>{KIND_LABELS[i.kind]}</td>
+                      <td>{kindLabel(i, vacations)}</td>
                       <td>{formatPeriod(i.startDate, i.endDate)}</td>
                       <td>{i.note ?? ''}</td>
                       <td className="ui-col-actions">

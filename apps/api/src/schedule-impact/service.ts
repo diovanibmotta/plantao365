@@ -6,6 +6,7 @@ import { getShiftExceptionTimes, getShiftTimes, getWeekdayTimes } from '../sched
 import { listUnavailableByDate } from '../unavailability/service.js';
 import { impactMessage } from './message.js';
 import type {
+  ScheduleConflicts,
   ScheduleImpact,
   ScheduleImpactNotifier,
   ScheduleImpactPayload,
@@ -64,6 +65,7 @@ async function datesShifts(sql: Sql, dates: string[]) {
 }
 
 interface FutureShiftRow {
+  schedule_id: string;
   date: string;
   day_type: DayType;
   hours: number;
@@ -74,14 +76,20 @@ interface FutureShiftRow {
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
 /**
- * Plantões publicados de hoje em diante cujo tipo de dia, horas ou horário divergem do que as
- * configurações atuais da equipe produziriam (mesma comparação do recálculo por feriado).
+ * Plantões de hoje em diante cujo tipo de dia, horas ou horário divergem do que as configurações
+ * atuais da equipe produziriam (mesma comparação do recálculo por feriado). Sem `scheduleIds`,
+ * vale para todas as escalas publicadas da equipe.
  */
-async function settingsShifts(sql: Sql, teamId: string): Promise<TeamDateRow[]> {
+async function outdatedShifts(
+  sql: Sql,
+  teamId: string,
+  scheduleIds?: string[],
+): Promise<Array<{ schedule_id: string; date: string }>> {
   const rows = await sql<FutureShiftRow[]>`
-    select s.date::text as date, s.day_type, s.hours, s.starts_at, s.ends_at
+    select s.schedule_id, s.date::text as date, s.day_type, s.hours, s.starts_at, s.ends_at
     from shifts s join schedules sc on sc.id = s.schedule_id
-    where sc.status = 'published' and sc.team_id = ${teamId}
+    where sc.team_id = ${teamId}
+      ${scheduleIds ? sql`and sc.id = any(${scheduleIds}::uuid[])` : sql`and sc.status = 'published'`}
       and s.date >= (now() at time zone 'America/Sao_Paulo')::date
     order by s.date`;
   if (rows.length === 0) return [];
@@ -104,7 +112,41 @@ async function settingsShifts(sql: Sql, teamId: string): Promise<TeamDateRow[]> 
         iso(r.ends_at) === iso(next.end)
       );
     })
-    .map((r) => ({ team_id: teamId, date: r.date }));
+    .map((r) => ({ schedule_id: r.schedule_id, date: r.date }));
+}
+
+const settingsShifts = async (sql: Sql, teamId: string): Promise<TeamDateRow[]> =>
+  (await outdatedShifts(sql, teamId)).map((r) => ({ team_id: teamId, date: r.date }));
+
+/**
+ * Conflitos de cada escala (de hoje em diante): plantões em dia de exceção/férias do responsável
+ * ou de férias coletivas, e plantões desatualizados em relação a feriados e horários atuais.
+ */
+export async function assessScheduleConflicts(
+  sql: Sql,
+  teamId: string,
+  scheduleIds: string[],
+): Promise<Map<string, ScheduleConflicts>> {
+  const result = new Map<string, ScheduleConflicts>(
+    scheduleIds.map((id) => [id, { unavailable: 0, outdated: 0 }]),
+  );
+  if (scheduleIds.length === 0) return result;
+  const unavailable = await sql<{ schedule_id: string; n: number }[]>`
+    select s.schedule_id, count(*)::int as n
+    from shifts s join schedules sc on sc.id = s.schedule_id
+    where sc.id = any(${scheduleIds}::uuid[]) and sc.team_id = ${teamId} and s.hours > 0
+      and s.date >= (now() at time zone 'America/Sao_Paulo')::date
+      and exists (
+        select 1 from unavailabilities u
+        where s.date between u.start_date and u.end_date
+          and ((u.user_id is not null and u.user_id = s.user_id)
+            or (u.user_id is null and (u.team_id is null or u.team_id = sc.team_id))))
+    group by s.schedule_id`;
+  for (const r of unavailable) result.get(r.schedule_id)!.unavailable = r.n;
+  for (const r of await outdatedShifts(sql, teamId, scheduleIds)) {
+    result.get(r.schedule_id)!.outdated += 1;
+  }
+  return result;
 }
 
 /** Plantões publicados que a alteração invalida, agrupados por equipe. */
@@ -126,7 +168,12 @@ export async function assessScheduleImpact(
 }
 
 function payloadFor(trigger: ScheduleImpactTrigger, teams: TeamImpact[]): ScheduleImpactPayload {
-  const base = { source: trigger.source, actorId: trigger.actorId, teams };
+  const base = {
+    source: trigger.source,
+    actorId: trigger.actorId,
+    teams,
+    ...(trigger.removed && { removed: true }),
+  };
   if (trigger.source === 'member_exception') {
     return { ...base, userId: trigger.userId, start: trigger.start, end: trigger.end };
   }
@@ -148,10 +195,11 @@ export function createScheduleImpactNotifier(): ScheduleImpactNotifier {
     const shifts = teams.reduce((sum, t) => sum + t.shifts, 0);
     const impact: ScheduleImpact = {
       source: trigger.source,
+      removed: trigger.removed === true,
       shifts,
       dates: [...new Set(teams.flatMap((t) => t.dates))].sort(),
       teams,
-      message: impactMessage(trigger.source, shifts),
+      message: impactMessage(trigger.source, shifts, trigger.removed === true),
     };
     return impact;
   };

@@ -5,6 +5,7 @@ import { EmptyState } from '../ui/EmptyState';
 import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { PageHeader } from '../ui/PageHeader';
 import { SCHEDULE_NEW_PATH, schedulePath } from './paths';
+import { ConflictBadge } from './ConflictBadge';
 import { StatusPill } from './StatusPill';
 import { describe, formatDate } from './types';
 import type { ScheduleDto } from './types';
@@ -120,6 +121,7 @@ export function SchedulesList() {
                   <tr>
                     <th scope="col">Período</th>
                     <th scope="col">Situação</th>
+                    <th scope="col">Status</th>
                     <th scope="col">
                       <span className="sr-only">Ações</span>
                     </th>
@@ -137,6 +139,9 @@ export function SchedulesList() {
                         <td>{period}</td>
                         <td>
                           <StatusPill status={s.status} />
+                        </td>
+                        <td>
+                          <ConflictBadge conflicts={s.conflicts} />
                         </td>
                         <td className="ui-col-actions">
                           <Link

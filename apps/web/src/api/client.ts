@@ -1,5 +1,6 @@
 import { toast } from '../toast/toast-store';
 import { apiCredentials, apiUrl } from './base-url';
+import { requestImpactConfirmation } from './impact-confirm-store';
 
 export class ApiError extends Error {
   constructor(
@@ -25,6 +26,17 @@ export class ForbiddenError extends ApiError {
     this.name = 'ForbiddenError';
   }
 }
+
+/** O usuário respondeu "Não" ao aviso de impacto em escala publicada; nada foi salvo. */
+export class ImpactCancelledError extends Error {
+  constructor() {
+    super('Operação cancelada.');
+    this.name = 'ImpactCancelledError';
+  }
+}
+
+export const IMPACT_CONFIRMATION_ERROR = 'schedule_impact_confirmation_required';
+const IMPACT_CONFIRM_PARAM = 'confirmImpact=true';
 
 export class NetworkError extends Error {
   constructor() {
@@ -154,12 +166,35 @@ async function parseBody(res: Response): Promise<unknown> {
   }
 }
 
+/**
+ * Mutação que atinge escala publicada volta 409: pergunta ao usuário (modal Sim/Não) e, se
+ * confirmar, repete a chamada com `confirmImpact=true`; se não, nada é salvo.
+ */
+async function sendConfirmed<T>(path: string, options: RequestOptions): Promise<T> {
+  try {
+    return await send<T>(path, options);
+  } catch (err) {
+    const body = err instanceof ApiError && err.status === 409 ? err.body : undefined;
+    if (typeof body !== 'object' || body === null) throw err;
+    const { error, message, scheduleImpact } = body as {
+      error?: unknown;
+      message?: unknown;
+      scheduleImpact?: { dates?: unknown };
+    };
+    if (error !== IMPACT_CONFIRMATION_ERROR) throw err;
+    const dates = Array.isArray(scheduleImpact?.dates) ? scheduleImpact.dates.map(String) : [];
+    const confirmed = await requestImpactConfirmation({ message: String(message ?? ''), dates });
+    if (!confirmed) throw new ImpactCancelledError();
+    return send<T>(`${path}${path.includes('?') ? '&' : '?'}${IMPACT_CONFIRM_PARAM}`, options);
+  }
+}
+
 /** Executa a chamada e, em mutações (CUD), notifica sucesso/aviso/erro via toast. */
 export async function request<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
   const verb = (options.method ?? 'GET').toUpperCase();
   if (verb === 'GET') return send<T>(path, options);
   try {
-    const data = await send<T>(path, options);
+    const data = await sendConfirmed<T>(path, options);
     notifySuccess(verb, data, options);
     return data;
   } catch (err) {

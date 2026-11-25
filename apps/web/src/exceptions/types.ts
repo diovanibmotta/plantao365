@@ -5,6 +5,7 @@ export type ExceptionKind = 'vacation' | 'time_off' | 'other' | 'collective_vaca
 export interface Unavailability {
   id: string;
   userId: string | null;
+  userName?: string | null;
   kind: ExceptionKind;
   startDate: string;
   endDate: string;

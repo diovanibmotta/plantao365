@@ -10,9 +10,34 @@ const BY_SOURCE: Record<ScheduleImpactSource, (n: number) => string> = {
   shift_exception: (n) => `${plural(n)} com horário diferente desta exceção de horário.`,
 };
 
-/** Texto do aviso em tela (toast) para o usuário que fez a alteração. */
-export function impactMessage(source: ScheduleImpactSource, shifts: number): string {
-  return `${BY_SOURCE[source](shifts)} Recalcule ou ajuste a escala; os gestores da equipe foram avisados por e-mail.`;
+const BY_SOURCE_REMOVED: Record<ScheduleImpactSource, (n: number) => string> = {
+  member_exception: (n) => `${plural(n)} no período desta exceção de disponibilidade.`,
+  collective_vacation: (n) => `${plural(n)} no período destas férias coletivas.`,
+  holiday: (n) => `${plural(n)} em datas afetadas por este feriado.`,
+  shift_times: (n) =>
+    `${plural(n)} com horário diferente do horário configurado depois da exclusão.`,
+  shift_exception: (n) => `${plural(n)} com horário diferente depois da exclusão desta exceção.`,
+};
+
+const summary = (source: ScheduleImpactSource, shifts: number, removed: boolean) =>
+  (removed ? BY_SOURCE_REMOVED : BY_SOURCE)[source](shifts);
+
+/** Texto do aviso em tela (toast) depois que a alteração foi salva. */
+export function impactMessage(
+  source: ScheduleImpactSource,
+  shifts: number,
+  removed = false,
+): string {
+  return `${summary(source, shifts, removed)} Recalcule ou ajuste a escala; os gestores da equipe foram avisados por e-mail.`;
+}
+
+/** Texto da confirmação exibida ANTES de salvar (o usuário escolhe continuar ou não). */
+export function impactConfirmMessage(
+  source: ScheduleImpactSource,
+  shifts: number,
+  removed = false,
+): string {
+  return `${summary(source, shifts, removed)} Ao continuar, os gestores da equipe serão avisados por e-mail para recalcular ou ajustar a escala.`;
 }
 
 /** Une os avisos de várias linhas criadas de uma vez (ex.: férias coletivas de vários membros). */
@@ -39,9 +64,10 @@ export function mergeScheduleImpacts(list: ScheduleImpact[]): ScheduleImpact | n
   const shifts = teams.reduce((sum, t) => sum + t.shifts, 0);
   return {
     source: first.source,
+    removed: first.removed,
     shifts,
     dates: [...new Set(teams.flatMap((t) => t.dates))].sort(),
     teams,
-    message: impactMessage(first.source, shifts),
+    message: impactMessage(first.source, shifts, first.removed),
   };
 }

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
+import { ImpactConfirmDialog } from '../api/ImpactConfirmDialog';
 import { ToastViewport } from '../toast/ToastViewport';
 import { toast } from '../toast/toast-store';
 import { VacationForm } from './VacationForm';
@@ -68,6 +69,7 @@ function renderApp(path: string) {
         <Route path="/vacations/:id" element={<VacationForm />} />
       </Routes>
       <ToastViewport />
+      <ImpactConfirmDialog />
     </MemoryRouter>,
   );
 }
@@ -195,27 +197,47 @@ describe('férias: listagem', () => {
 });
 
 describe('férias: formulário', () => {
-  it('cria coletiva para todo o time sem userIds e mostra os avisos na listagem', async () => {
-    const fetchMock = mockApi([], {
-      unavailability: collective,
-      warnings: [{ type: 'published_shifts_affected', date: '2026-12-25', count: 3 }],
+  it('cria coletiva para todo o time sem userIds, confirmando o impacto na escala publicada', async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return Promise.resolve(
+          url.includes('confirmImpact=true')
+            ? json({ unavailability: collective }, 201)
+            : json(
+                {
+                  error: 'schedule_impact_confirmation_required',
+                  message: '3 plantões publicados no período destas férias coletivas.',
+                  scheduleImpact: { dates: ['2026-12-25'], shifts: 3 },
+                },
+                409,
+              ),
+        );
+      }
+      if (url === '/api/users') return Promise.resolve(json(members));
+      return Promise.resolve(json({ items: [] }));
     });
+    vi.stubGlobal('fetch', fetchMock);
     const user = userEvent.setup();
     renderApp('/vacations/new');
     await user.selectOptions(await screen.findByLabelText('Tipo de férias'), 'collective');
     fillDates();
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
-    expect(
-      (await screen.findByRole('status', { name: 'Aviso de conflito' })).textContent,
-    ).toContain('25/12/2026: 3 plantões publicados neste dia');
-    expect(posted(fetchMock)).toEqual({
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('3 plantões publicados');
+    expect(dialog.textContent).toContain('25/12/2026');
+    await user.click(within(dialog).getByRole('button', { name: 'Sim' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const posts = fetchMock.mock.calls.filter((c) => c[1]?.method === 'POST');
+    expect(posts.map((c) => c[0])).toEqual([
+      '/api/unavailabilities',
+      '/api/unavailabilities?confirmImpact=true',
+    ]);
+    expect(JSON.parse(String(posts[0]![1]?.body))).toEqual({
       kind: 'collective_vacation',
       startDate: '2040-12-24',
       endDate: '2041-01-02',
       note: null,
     });
-    await user.click(screen.getByRole('button', { name: 'Dispensar' }));
-    expect(screen.queryByRole('status', { name: 'Aviso de conflito' })).toBeNull();
   });
 
   it('cria coletiva só para os membros escolhidos, exigindo ao menos um', async () => {

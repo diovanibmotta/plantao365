@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { App } from './App';
 import { AuthProvider } from './auth/AuthContext';
+import { ImpactConfirmDialog } from './api/ImpactConfirmDialog';
 import { ToastViewport } from './toast/ToastViewport';
 import { initTheme } from './theme';
 import './styles.css';
@@ -18,6 +19,7 @@ createRoot(root).render(
       <AuthProvider>
         <App />
         <ToastViewport />
+        <ImpactConfirmDialog />
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,
