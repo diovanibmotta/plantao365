@@ -1,7 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { createDb, type Sql } from './db.js';
+import { processDomainEvents } from './events/consumer.js';
 import { loadMigrations, migrateUp } from './migrator.js';
+import { createEventHandlers } from './notifications/handlers.js';
 
 export const TEST_DATABASE_URL = process.env['TEST_DATABASE_URL'];
 
@@ -40,4 +42,24 @@ export async function createTestDb(options: { migrate?: boolean } = {}): Promise
       await a.end();
     },
   };
+}
+
+/**
+ * Processa os eventos de domínio pendentes (o consumidor em produção roda em segundo plano).
+ * Falha se algum evento der erro, para o teste enxergar o problema do handler.
+ */
+export async function drainEvents(
+  sql: Sql,
+  opts: { appBaseUrl?: string | undefined; now?: Date } = {},
+): Promise<void> {
+  const result = await processDomainEvents(
+    sql,
+    createEventHandlers({ appBaseUrl: opts.appBaseUrl }),
+    { now: () => opts.now ?? new Date(), maxAttempts: 1 },
+  );
+  if (result.failed > 0 || result.retried > 0) {
+    const rows = await sql<{ type: string; last_error: string | null }[]>`
+      select type, last_error from domain_events where last_error is not null`;
+    throw new Error(`Falha ao processar eventos: ${JSON.stringify(rows)}`);
+  }
 }

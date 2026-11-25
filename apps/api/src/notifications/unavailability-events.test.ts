@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Sql } from '../db.js';
-import { createTestDb, type TestDb } from '../test-utils.js';
+import { createTestDb, drainEvents, type TestDb } from '../test-utils.js';
 import type { UnavailabilityConflictEvent } from '../unavailability/index.js';
 import { createOnUnavailabilityConflict } from './unavailability-events.js';
 
@@ -14,9 +14,14 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
     let sql: Sql;
     let ana: string;
 
-    const outbox = () =>
+    const readOutbox = () =>
       sql<{ to_address: string; subject: string; text: string; dedupe_key: string }[]>`
         select to_address, subject, text, dedupe_key from email_outbox order by to_address`;
+
+    const outbox = async () => {
+      await drainEvents(sql, { appBaseUrl: BASE, now: NOW });
+      return readOutbox();
+    };
 
     async function user(
       name: string,

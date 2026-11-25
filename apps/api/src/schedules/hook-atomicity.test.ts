@@ -40,6 +40,8 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
       });
     const outboxCount = async () =>
       (await sql<{ n: number }[]>`select count(*)::int as n from email_outbox`)[0]!.n;
+    const eventCount = async () =>
+      (await sql<{ n: number }[]>`select count(*)::int as n from domain_events`)[0]!.n;
 
     async function seed(status: 'draft' | 'published', date: string) {
       const [s] = await sql<{ id: string }[]>`
@@ -68,9 +70,10 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
     });
     beforeEach(async () => {
       await sql`delete from email_outbox`;
+      await sql`delete from domain_events`;
     });
 
-    it('publicação: e-mail e mudança na mesma transação (invisíveis fora antes do commit)', async () => {
+    it('publicação: evento e mudança na mesma transação (invisíveis fora antes do commit)', async () => {
       const d = await seed('draft', '2031-01-01');
       const seen: { inTx: string; outside: string; queued: number }[] = [];
       const real = createOnPublished({ db: sql });
@@ -82,17 +85,17 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
               await tx<{ s: string }[]>`select status as s from schedules where id = ${d.id}`
             )[0]!.s,
             outside: await status(d.id),
-            queued: (await tx<{ n: number }[]>`select count(*)::int as n from email_outbox`)[0]!.n,
+            queued: (await tx<{ n: number }[]>`select count(*)::int as n from domain_events`)[0]!.n,
           });
         },
       });
       expect((await call(app, 'POST', `/schedules/${d.id}/publish`, {})).status).toBe(200);
       expect(seen).toEqual([{ inTx: 'published', outside: 'draft', queued: 1 }]);
       expect(await status(d.id)).toBe('published');
-      expect(await outboxCount()).toBe(1);
+      expect(await eventCount()).toBe(1);
     });
 
-    it('publicação: rollback da mutação não deixa e-mail no outbox', async () => {
+    it('publicação: rollback da mutação não deixa evento publicado', async () => {
       const d = await seed('draft', '2031-02-01');
       const app = appWith({
         db: rollbackAfterCallback(sql),
@@ -101,7 +104,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
       const res = await call(app, 'POST', `/schedules/${d.id}/publish`, {});
       expect(res.status).toBe(500);
       expect(await status(d.id)).toBe('draft');
-      expect(await outboxCount()).toBe(0);
+      expect(await eventCount()).toBe(0);
     });
 
     it('publicação: falha do gancho (inclusive erro SQL) não desfaz a publicação', async () => {
@@ -118,7 +121,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
       expect(await outboxCount()).toBe(0);
     });
 
-    it('edição: e-mail na mesma transação; rollback e falha do gancho', async () => {
+    it('edição: evento na mesma transação; rollback e falha do gancho', async () => {
       const ok = await seed('published', '2031-04-01');
       const url = (d: { id: string; shiftId: string }) => `/schedules/${d.id}/shifts/${d.shiftId}`;
       const owner = async (d: { shiftId: string }) =>
@@ -128,9 +131,9 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
       const good = appWith({ onShiftChanged: createOnShiftChanged({ db: sql }) });
       expect((await call(good, 'PATCH', url(ok), patch)).status).toBe(200);
       expect(await owner(ok)).toBe(bia.id);
-      expect(await outboxCount()).toBe(2);
+      expect(await eventCount()).toBe(1);
 
-      await sql`delete from email_outbox`;
+      await sql`delete from domain_events`;
       const rb = await seed('published', '2031-05-01');
       const rolled = appWith({
         db: rollbackAfterCallback(sql),
@@ -138,7 +141,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
       });
       expect((await call(rolled, 'PATCH', url(rb), patch)).status).toBe(500);
       expect(await owner(rb)).toBe(ana.id);
-      expect(await outboxCount()).toBe(0);
+      expect(await eventCount()).toBe(0);
 
       const bad = await seed('published', '2031-06-01');
       const failing = appWith({

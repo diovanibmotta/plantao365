@@ -74,7 +74,7 @@ export async function processDomainEvents(
         select id, type, payload, attempts, created_at
         from domain_events
         where status = 'pending' and next_attempt_at <= ${now()}
-        order by created_at, id
+        order by seq
         limit ${batchSize}
         for update skip locked`;
       if (claimed.length > 0) {

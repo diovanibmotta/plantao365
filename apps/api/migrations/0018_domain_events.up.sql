@@ -1,5 +1,6 @@
 create table domain_events (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   type text not null,
   payload jsonb not null default '{}'::jsonb,
   status text not null default 'pending' check (status in ('pending', 'processed', 'failed')),

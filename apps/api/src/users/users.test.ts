@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Sql } from '../db.js';
 import { buildTestApp, csrfHeaders, loginAs, TEST_ORIGIN } from '../test-app.js';
-import { createTestDb, type TestDb } from '../test-utils.js';
+import { createTestDb, drainEvents, type TestDb } from '../test-utils.js';
 import { createUsersRouter } from './router.js';
 
 describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', () => {
@@ -242,10 +242,12 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('users module (PostgreSQL)', 
       }
     });
 
-    it('enqueues an invite e-mail when a user is created', async () => {
+    it('publishes user.invited and the consumer enqueues the invite e-mail', async () => {
       const g = await loginAs(sql, { email: 'g@x.com', role: 'manager' });
       await sql`delete from email_outbox`;
+      await sql`delete from domain_events`;
       await call('POST', '/users', g.cookie, { name: 'Bia', email: 'bia@x.com' });
+      await drainEvents(sql);
       const rows = await sql<{ to_address: string; subject: string }[]>`
         select to_address, subject from email_outbox`;
       expect(rows).toEqual([

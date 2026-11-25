@@ -9,7 +9,7 @@ import {
   type RenderedEmail,
 } from '../email/index.js';
 import type { EventHandlers } from '../events/consumer.js';
-import type { DomainEventMap, DomainEventType } from '../events/types.js';
+import type { DomainEventMap } from '../events/types.js';
 import {
   notifySchedulePublished,
   notifyShiftChange,
@@ -54,7 +54,7 @@ const send = (sql: Sql, to: string, email: RenderedEmail, dedupeKey: string, now
  * Handlers do consumidor: cada evento de domínio vira os e-mails dos seus destinatários. Os
  * `notify*` dos eventos antigos já cuidam de destinatários ativos e da chave de dedupe.
  */
-export function createEventHandlers(deps: HandlerDeps = {}): EventHandlers {
+export function createEventHandlers(deps: HandlerDeps = {}): Required<EventHandlers> {
   const { appBaseUrl } = deps;
 
   const swap = async (tx: Sql, e: Ev<DomainEventMap['swap.requested']>, ctx: { now: Date }) => {
@@ -161,7 +161,3 @@ function userStatus(active: boolean, deps: HandlerDeps) {
     await send(tx, user.email, email, `user-status:${e.id}`, ctx.now);
   };
 }
-
-/** Tipos com handler registrado (usado nos testes de cobertura do catálogo). */
-export const handledEventTypes = (deps: HandlerDeps = {}): DomainEventType[] =>
-  Object.keys(createEventHandlers(deps)) as DomainEventType[];

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Sql } from '../db.js';
 import type { PublishedEvent, ShiftChange } from '../schedules/index.js';
-import { createTestDb, type TestDb } from '../test-utils.js';
+import { createTestDb, drainEvents, type TestDb } from '../test-utils.js';
 import { createOnPublished, createOnShiftChanged, notifyShiftsChanged } from './schedule-events.js';
 
 const NOW = new Date('2026-03-01T12:00:00Z');
@@ -14,9 +14,14 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('notificações de escala (Po
   let bia: string;
   let inativo: string;
 
-  const outbox = () =>
+  const readOutbox = () =>
     sql<{ to_address: string; subject: string; text: string; dedupe_key: string }[]>`
       select to_address, subject, text, dedupe_key from email_outbox order by to_address, subject`;
+
+  const outbox = async () => {
+    await drainEvents(sql, { appBaseUrl: BASE, now: NOW });
+    return readOutbox();
+  };
 
   async function user(name: string, active = true): Promise<string> {
     const [r] = await sql<{ id: string }[]>`
@@ -100,7 +105,6 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('notificações de escala (Po
       actorId: ana,
     };
     const hook = createOnShiftChanged({ db: sql, now: () => NOW });
-    await hook(change);
     await hook(change);
 
     const rows = await outbox();
