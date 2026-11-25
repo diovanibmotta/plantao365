@@ -168,6 +168,19 @@ describe('login master', () => {
     expect(screen.queryByText('Acesso master')).toBeNull();
   });
 
+  it('mostra o acesso master quando /auth/config falha', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        url === '/auth/config'
+          ? Promise.reject(new TypeError('Failed to fetch'))
+          : Promise.resolve(json({}, 401)),
+      ),
+    );
+    renderAt('/login');
+    expect(await screen.findByText('Acesso master')).toBeTruthy();
+  });
+
   it('envia usuário e senha para /auth/master-login', async () => {
     const fetchMock = mockApi(null, true);
     renderAt('/login');
