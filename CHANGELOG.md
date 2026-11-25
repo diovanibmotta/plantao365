@@ -1,3 +1,15 @@
+# [v1.24.0](https://github.com/diovanibmotta/plantao365/compare/v1.23.0...v1.24.0) (2026-11-25)
+
+## ✨ New Features
+- [`b8fb4de`](https://github.com/diovanibmotta/plantao365/commit/b8fb4de) : feat(users): vincular equipes no pré-cadastro e link de acesso 
+- [`e248298`](https://github.com/diovanibmotta/plantao365/commit/e248298) : feat(schedules): exceções de horário de plantão por data 
+- [`c36c026`](https://github.com/diovanibmotta/plantao365/commit/c36c026) : feat(schedules): horário do plantão por dia da semana e feriado 
+- [`1c5dbe4`](https://github.com/diovanibmotta/plantao365/commit/1c5dbe4) : feat(schedules): nome opcional nos períodos da jornada de trabalho 
+- [`ca69017`](https://github.com/diovanibmotta/plantao365/commit/ca69017) : feat(web): busca e filtros em horários dos plantões e jornada de trabalho 
+
+## 🐛 Bug Fixes
+- [`3963f64`](https://github.com/diovanibmotta/plantao365/commit/3963f64) : fix(users): remove declaração duplicada de UUID_FORMAT
+
 # [v1.23.0](https://github.com/diovanibmotta/plantao365/compare/v1.22.0...v1.23.0) (2026-11-25)
 
 ## ✨ New Features
