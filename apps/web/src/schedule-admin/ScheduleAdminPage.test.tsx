@@ -7,6 +7,13 @@ import { toast } from '../toast/toast-store';
 import { DEFAULT_SHIFT_TIMES } from '@diovanibmotta/plantao365-shared';
 import { ScheduleAdminPage } from '../pages/ScheduleAdminPage';
 import type { ShiftDto } from '../schedule/types';
+import { MemoryRouter } from 'react-router';
+
+const Page = () => (
+  <MemoryRouter>
+    <ScheduleAdminPage />
+  </MemoryRouter>
+);
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -92,7 +99,7 @@ async function openSchedule() {
   const user = userEvent.setup();
   render(
     <>
-      <ScheduleAdminPage />
+      <Page />
       <ToastViewport />
     </>,
   );
@@ -115,7 +122,7 @@ describe('ScheduleAdminPage', () => {
     const user = userEvent.setup();
     render(
       <>
-        <ScheduleAdminPage />
+        <Page />
         <ToastViewport />
       </>,
     );
@@ -138,7 +145,7 @@ describe('ScheduleAdminPage', () => {
     const user = userEvent.setup();
     render(
       <>
-        <ScheduleAdminPage />
+        <Page />
         <ToastViewport />
       </>,
     );
@@ -162,7 +169,7 @@ describe('ScheduleAdminPage', () => {
     const user = userEvent.setup();
     render(
       <>
-        <ScheduleAdminPage />
+        <Page />
         <ToastViewport />
       </>,
     );
@@ -188,7 +195,7 @@ describe('ScheduleAdminPage', () => {
 
   it('mostra selo de situação na lista', async () => {
     mockApi('draft');
-    render(<ScheduleAdminPage />);
+    render(<Page />);
     await screen.findByRole('button', { name: /Abrir escala de 02\/03\/2026/ });
     expect(screen.getByRole('table', { name: 'Escalas' }).textContent).toContain('Rascunho');
   });
@@ -212,7 +219,7 @@ describe('ScheduleAdminPage', () => {
     const user = userEvent.setup();
     render(
       <>
-        <ScheduleAdminPage />
+        <Page />
         <ToastViewport />
       </>,
     );
@@ -241,7 +248,7 @@ describe('ScheduleAdminPage', () => {
     const user = userEvent.setup();
     render(
       <>
-        <ScheduleAdminPage />
+        <Page />
         <ToastViewport />
       </>,
     );

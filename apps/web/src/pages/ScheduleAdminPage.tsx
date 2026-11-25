@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { api } from '../api/client';
 import { GenerateForm, GenerateReport } from '../schedule-admin/GenerateForm';
 import { StatusPill } from '../schedule-admin/StatusPill';
 import { ScheduleEditor } from '../schedule-admin/ScheduleEditor';
-import { ShiftExceptionsForm } from '../schedule-admin/ShiftExceptionsForm';
+import { ShiftExceptionsList } from '../schedule-admin/ShiftExceptionsList';
 import { ShiftSettingsForm } from '../schedule-admin/ShiftSettingsForm';
 import { WorkHoursForm } from '../schedule-admin/WorkHoursForm';
 import { describe, formatDate } from '../schedule-admin/types';
@@ -34,7 +35,10 @@ export function ScheduleAdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusFilter>('');
   const [onDate, setOnDate] = useState('');
-  const [tab, setTab] = useState<Tab>('schedules');
+  const [params, setParams] = useSearchParams();
+  const tabParam = params.get('tab');
+  const tab: Tab = TABS.find((t) => t.id === tabParam)?.id ?? 'schedules';
+  const setTab = (next: Tab) => setParams(next === 'schedules' ? {} : { tab: next });
   const [generating, setGenerating] = useState(false);
 
   const reload = useCallback(async (): Promise<void> => {
@@ -109,7 +113,7 @@ export function ScheduleAdminPage() {
       </div>
       <div id="sad-panel" role="tabpanel" aria-labelledby={`sad-tab-${tab}`}>
         {tab === 'times' && <ShiftSettingsForm />}
-        {tab === 'exceptions' && <ShiftExceptionsForm />}
+        {tab === 'exceptions' && <ShiftExceptionsList />}
         {tab === 'work-hours' && <WorkHoursForm />}
         {tab === 'schedules' && (
           <>
