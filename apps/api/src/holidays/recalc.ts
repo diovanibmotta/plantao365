@@ -6,7 +6,7 @@ import type { Logger } from '../logger.js';
 import { publishEvent } from '../events/publisher.js';
 import { runHookInSavepoint } from '../schedules/hook.js';
 import { lockSchedulesThenShifts } from '../schedules/service.js';
-import { getShiftExceptionTimes, getShiftTimes } from '../schedules/settings.js';
+import { getShiftExceptionTimes, getShiftTimes, getWeekdayTimes } from '../schedules/settings.js';
 import { listUnavailableByDate } from '../unavailability/service.js';
 import { listHolidayDates, localDate } from './service.js';
 
@@ -90,6 +90,7 @@ export async function recalculateHolidayShifts(
           await listUnavailableByDate(tx, from, to, teamId)
         ).collectiveVacations.map((v) => ({ start: v.start, end: v.end })),
         shiftTimes: await getShiftTimes(tx, teamId),
+        weekdayTimes: await getWeekdayTimes(tx, teamId),
         shiftExceptions: await getShiftExceptionTimes(tx, teamId, from, to),
       });
     }

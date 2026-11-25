@@ -168,3 +168,24 @@ describe('shiftExceptions', () => {
     expect(shiftForDate('2026-12-23', ctx).hours).toBe(14);
   });
 });
+
+describe('weekdayTimes', () => {
+  it('vale em dia útil e fim de semana, nunca em feriado; a exceção da data vence', () => {
+    const ctx: ShiftContext = {
+      holidays: ['2026-12-25'],
+      collectiveVacations: [],
+      weekdayTimes: new Map([
+        [1, { startHour: 16, endHour: 8 }],
+        [6, { startHour: 9, endHour: 21 }],
+        [5, { startHour: 1, endHour: 2 }],
+      ]),
+      shiftExceptions: new Map([['2026-12-28', { startHour: 12, endHour: 8 }]]),
+    };
+    // 2026-12-07 segunda; 08 terça; 12 sábado; 25 sexta (feriado); 28 segunda com exceção.
+    expect(shiftForDate('2026-12-07', ctx).hours).toBe(16);
+    expect(shiftForDate('2026-12-08', ctx).hours).toBe(14);
+    expect(shiftForDate('2026-12-12', ctx).hours).toBe(12);
+    expect(shiftForDate('2026-12-25', ctx).hours).toBe(24);
+    expect(shiftForDate('2026-12-28', ctx).hours).toBe(20);
+  });
+});

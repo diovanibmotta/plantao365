@@ -2,6 +2,7 @@ import {
   type LocalDate,
   addDays,
   dateRange,
+  dayOfWeek,
   isWeekend,
   localToInstant,
   monthOf,
@@ -38,15 +39,29 @@ export function shiftDuration({ startHour, endHour }: ShiftTime): number {
 export function shiftTimeFor(
   date: LocalDate,
   dayType: ShiftDayType,
-  ctx: Pick<ShiftContext, 'shiftTimes' | 'shiftExceptions'>,
+  ctx: Pick<ShiftContext, 'shiftTimes' | 'shiftExceptions' | 'weekdayTimes'>,
 ): ShiftTime {
-  return ctx.shiftExceptions?.get(date) ?? (ctx.shiftTimes ?? DEFAULT_SHIFT_TIMES)[dayType];
+  const exception = ctx.shiftExceptions?.get(date);
+  if (exception) return exception;
+  if (dayType !== 'holiday') {
+    const byWeekday = ctx.weekdayTimes?.get(dayOfWeek(date));
+    if (byWeekday) return byWeekday;
+  }
+  return (ctx.shiftTimes ?? DEFAULT_SHIFT_TIMES)[dayType];
+}
+
+/** Dias da semana (0 = domingo) com horário próprio configurável, de segunda a domingo. */
+export const SHIFT_WEEKDAYS = [1, 2, 3, 4, 5, 6, 0] as const;
+
+/** Horário do plantão de um dia útil específico da semana (0 = domingo … 6 = sábado). */
+export interface WeekdayShiftTime extends ShiftTime {
+  weekday: number;
 }
 
 export function shiftHoursFor(
   date: LocalDate,
   dayType: DayType,
-  ctx: Pick<ShiftContext, 'shiftTimes' | 'shiftExceptions'>,
+  ctx: Pick<ShiftContext, 'shiftTimes' | 'shiftExceptions' | 'weekdayTimes'>,
 ): number {
   if (dayType === 'collective_vacation') return 0;
   return shiftDuration(shiftTimeFor(date, dayType, ctx));
@@ -64,6 +79,8 @@ export interface ShiftContext {
   collectiveVacations: readonly DateInterval[];
   /** Horário por tipo de dia; ausente usa DEFAULT_SHIFT_TIMES. */
   shiftTimes?: ShiftTimes | undefined;
+  /** Horário por dia da semana (0–6), no lugar do horário de dia útil. */
+  weekdayTimes?: ReadonlyMap<number, ShiftTime> | undefined;
   /** Exceções de horário por data (ex.: véspera de feriado com jornada reduzida). */
   shiftExceptions?: ReadonlyMap<LocalDate, ShiftTime> | undefined;
 }
