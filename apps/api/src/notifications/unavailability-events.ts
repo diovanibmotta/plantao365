@@ -1,6 +1,7 @@
 import { enqueueEmail, renderUnavailabilityConflictEmail } from '../email/index.js';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
+import { publishEvent } from '../events/publisher.js';
 import type { UnavailabilityConflictEvent } from '../unavailability/index.js';
 
 export interface UnavailabilityEventsDeps {
@@ -60,23 +61,22 @@ export async function notifyUnavailabilityConflict(
 }
 
 /**
- * Gancho `onConflict` do UnavailabilityRouter. Usa o `sql` da transação da mutação (default
- * `deps.db`), então o outbox é atômico com a exceção. Registra e RELANÇA o erro: o router o captura
- * num savepoint (capturar aqui deixaria a transação abortada).
+ * Gancho `onConflict` do UnavailabilityRouter: publica `unavailability.conflict` na transação da
+ * mutação (default `deps.db`), atomicamente com a exceção. Registra e RELANÇA o erro: o router o
+ * captura num savepoint (capturar aqui deixaria a transação abortada).
  */
 export function createOnUnavailabilityConflict(
   deps: UnavailabilityEventsDeps,
 ): (event: UnavailabilityConflictEvent, sql?: Sql) => Promise<void> {
   return async (event, sql = deps.db) => {
     try {
-      await notifyUnavailabilityConflict(sql, event, {
-        appBaseUrl: deps.appBaseUrl,
+      await publishEvent(sql, 'unavailability.conflict', event, {
         ...(deps.now ? { now: deps.now() } : {}),
       });
     } catch (err) {
       deps.logger?.error(
         { err, unavailabilityId: event.unavailabilityId },
-        'Falha ao enfileirar e-mail de conflito de exceção',
+        'Falha ao publicar evento de conflito de exceção',
       );
       throw err;
     }

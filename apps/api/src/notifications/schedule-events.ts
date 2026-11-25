@@ -6,6 +6,10 @@ import {
 import type { SqlOrTx } from '../email/index.js';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
+import { publishEvent } from '../events/publisher.js';
+import type { ShiftChangeNotice } from '../events/types.js';
+
+export type { ShiftChangeNotice };
 import type { PublishedEvent, ShiftChange } from '../schedules/index.js';
 
 export interface ScheduleEventsDeps {
@@ -14,23 +18,6 @@ export interface ScheduleEventsDeps {
   appBaseUrl?: string | undefined;
   now?: (() => Date) | undefined;
   logger?: Logger | undefined;
-}
-
-/** Alteração de um plantão de escala publicada (edição do gestor ou recálculo por feriado). */
-export interface ShiftChangeNotice {
-  shiftId: string;
-  /** Data local AAAA-MM-DD. */
-  date: string;
-  startsAt: Date | string | null;
-  endsAt: Date | string | null;
-  hours: number;
-  /** Horas antes; só relevante quando o responsável não mudou (recálculo). */
-  previousHours?: number | null | undefined;
-  previousUserId: string | null;
-  newUserId: string | null;
-  reason: string | null;
-  /** Identifica esta alteração na chave de dedupe; por padrão, o instante da chamada. */
-  changeKey?: string | undefined;
 }
 
 interface Recipient {
@@ -152,55 +139,66 @@ export async function notifyShiftsChanged(
   return queued;
 }
 
-/** Gancho `onPublished` do SchedulesRouter. Roda dentro da transação da mutação (sql); registra e relança a falha (o savepoint a isola). */
+/** Gancho `onPublished` do SchedulesRouter: publica `schedule.published` na transação da mutação. */
 export function createOnPublished(
   deps: ScheduleEventsDeps,
 ): (event: PublishedEvent, sql?: Sql) => Promise<void> {
   return async (event, sql = deps.db) => {
     try {
-      await notifySchedulePublished(sql, event, {
-        appBaseUrl: deps.appBaseUrl,
+      await publishEvent(sql, 'schedule.published', event, {
         ...(deps.now ? { now: deps.now() } : {}),
       });
     } catch (err) {
       deps.logger?.error(
         { err, scheduleId: event.schedule.id },
-        'Falha ao enfileirar e-mails de publicação',
+        'Falha ao publicar evento de publicação de escala',
       );
       throw err;
     }
   };
 }
 
-/** Gancho `onShiftChanged` do SchedulesRouter: só escalas publicadas notificam. */
+/** Gancho `onShiftChanged` do SchedulesRouter: só escalas publicadas geram evento. */
 export function createOnShiftChanged(
   deps: ScheduleEventsDeps,
 ): (change: ShiftChange, sql?: Sql) => Promise<void> {
   return async (change, sql = deps.db) => {
     if (change.schedule.status !== 'published') return;
     try {
-      await notifyShiftsChanged(
-        sql,
-        [
-          {
-            shiftId: change.shift.id,
-            date: change.shift.date,
-            startsAt: change.shift.startsAt,
-            endsAt: change.shift.endsAt,
-            hours: change.shift.hours,
-            previousUserId: change.previousUserId,
-            newUserId: change.newUserId,
-            reason: change.reason,
-          },
-        ],
-        { appBaseUrl: deps.appBaseUrl, ...(deps.now ? { now: deps.now() } : {}) },
-      );
+      await publishEvent(sql, 'shift.changed', change, {
+        ...(deps.now ? { now: deps.now() } : {}),
+      });
     } catch (err) {
       deps.logger?.error(
         { err, shiftId: change.shift.id },
-        'Falha ao enfileirar e-mails de alteração',
+        'Falha ao publicar evento de alteração de plantão',
       );
       throw err;
     }
   };
+}
+
+/** Handler de `shift.changed`: e-mails de quem perdeu e de quem recebeu o plantão. */
+export async function notifyShiftChange(
+  sql: SqlOrTx,
+  change: ShiftChange,
+  opts: { appBaseUrl?: string | undefined; now?: Date; eventId?: string } = {},
+): Promise<number> {
+  return notifyShiftsChanged(
+    sql,
+    [
+      {
+        shiftId: change.shift.id,
+        date: change.shift.date,
+        startsAt: change.shift.startsAt,
+        endsAt: change.shift.endsAt,
+        hours: change.shift.hours,
+        previousUserId: change.previousUserId,
+        newUserId: change.newUserId,
+        reason: change.reason,
+        ...(opts.eventId ? { changeKey: opts.eventId } : {}),
+      },
+    ],
+    opts,
+  );
 }

@@ -1,3 +1,4 @@
+export * from './event-templates.js';
 export * from './format.js';
 export * from './mailer.js';
 export * from './outbox.js';

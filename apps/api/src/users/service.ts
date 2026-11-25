@@ -2,7 +2,7 @@ import type postgres from 'postgres';
 import { addDays, TIME_ZONE } from '@diovanibmotta/plantao365-shared';
 import { z } from 'zod';
 import { recordAudit, type AuditJson } from '../audit/index.js';
-import { enqueueEmail, renderInviteEmail } from '../email/index.js';
+import { publishEvent } from '../events/publisher.js';
 import type { AuthUser, Role } from '../auth/index.js';
 import type { Sql } from '../db.js';
 import { setTeamMemberTx } from '../teams/index.js';
@@ -185,13 +185,12 @@ export async function listUsers(db: Sql): Promise<UserListItemDto[]> {
 /**
  * Pré-cadastro: nome, e-mail e, opcionalmente, as equipes (com papel e rodízio). O vínculo vale
  * antes do primeiro acesso, então ao entrar a pessoa já vê o papel da equipe, não o de convidado.
- * Recebe o e-mail de convite (outbox). Tudo na mesma transação: equipe inválida desfaz o cadastro.
+ * Publica `user.invited` (o e-mail de convite sai pelo consumidor). Tudo na mesma transação: equipe inválida desfaz o cadastro.
  */
 export async function createUser(
   db: Sql,
   actor: AuthUser,
   input: CreateUserInput,
-  opts: { appBaseUrl?: string | undefined } = {},
 ): Promise<UserListItemDto> {
   const actorId = actor.id;
   return db.begin(async (tx) => {
@@ -212,20 +211,16 @@ export async function createUser(
     });
     const teams = [...(input.teams ?? [])].sort((a, b) => a.teamId.localeCompare(b.teamId));
     for (const t of teams) {
-      await setTeamMemberTx(tx as unknown as Sql, actor, t.teamId, row!.id, {
-        role: t.role,
-        participatesInRotation: t.participatesInRotation,
-      });
+      await setTeamMemberTx(
+        tx as unknown as Sql,
+        actor,
+        t.teamId,
+        row!.id,
+        { role: t.role, participatesInRotation: t.participatesInRotation },
+        { notify: false },
+      );
     }
-    const invite = renderInviteEmail({
-      name: row!.name,
-      appUrl: opts.appBaseUrl ? new URL('/', opts.appBaseUrl).href : undefined,
-    });
-    await enqueueEmail(tx, {
-      to: row!.email,
-      ...invite,
-      dedupeKey: `invite:${row!.id}`,
-    });
+    await publishEvent(tx, 'user.invited', { userId: row!.id, actorId });
     return toListItem(row!, await teamIdsOf(tx, row!.id));
   });
 }
@@ -337,6 +332,12 @@ export async function updateUser(
         updated_at = now()
       where id = ${userId} returning *`;
     if (deactivating) await tx`delete from sessions where user_id = ${userId}`;
+    if (deactivating || (!before.active && active)) {
+      await publishEvent(tx, deactivating ? 'user.deactivated' : 'user.activated', {
+        userId,
+        actorId,
+      });
+    }
     await recordAudit(tx, {
       actorId,
       action: 'update',

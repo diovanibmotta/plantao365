@@ -2,6 +2,7 @@ import { yearOf } from '@diovanibmotta/plantao365-shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { recordAudit } from '../audit/index.js';
+import { publishEvent } from '../events/publisher.js';
 import { requireAuth } from '../auth/authz.js';
 import type { AuthEnv } from '../auth/types.js';
 import type { Sql } from '../db.js';
@@ -159,6 +160,14 @@ export function createBalanceRouter({
         entityId: created.id,
         after: { ...created },
         reason: created.reason,
+      });
+      await publishEvent(tx, 'balance.adjusted', {
+        adjustmentId: created.id,
+        userId: created.userId,
+        date: created.date,
+        hours: created.hours,
+        reason: created.reason,
+        actorId: user.id,
       });
       return created;
     });

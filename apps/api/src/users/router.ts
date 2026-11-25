@@ -23,7 +23,6 @@ export interface UsersRouterDeps {
   db: Sql;
   futureShiftsFinder?: FutureShiftsFinder;
   now?: () => Date;
-  /** URL base do web (APP_BASE_URL); habilita o link no e-mail de convite. */
   appBaseUrl?: string | undefined;
 }
 
@@ -56,12 +55,7 @@ function parseWith<T>(
   return { response: invalid(c, issues[0]?.message ?? 'Dados inválidos', issues) };
 }
 
-export function createUsersRouter({
-  db,
-  futureShiftsFinder,
-  now,
-  appBaseUrl,
-}: UsersRouterDeps): Hono<AuthEnv> {
+export function createUsersRouter({ db, futureShiftsFinder, now }: UsersRouterDeps): Hono<AuthEnv> {
   const router = new Hono<AuthEnv>();
 
   router.onError((err, c) => {
@@ -137,7 +131,7 @@ export function createUsersRouter({
     if ('response' in body) return body.response;
     const input = parseWith(c, createUserSchema, body.raw);
     if ('response' in input) return input.response;
-    return c.json(await createUser(db, c.get('user')!, input.data, { appBaseUrl }), 201);
+    return c.json(await createUser(db, c.get('user')!, input.data), 201);
   });
 
   router.patch('/users/:id', requireRole('manager'), async (c) => {
