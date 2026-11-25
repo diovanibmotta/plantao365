@@ -7,6 +7,7 @@ import {
   TeamsError,
   createTeam,
   deleteTeam,
+  getTeamMemberProfile,
   setTeamMember,
   listAccessibleTeams,
   listTeamMembers,
@@ -93,6 +94,12 @@ export function createTeamsRouter({ db }: { db: Sql }): Hono<AuthEnv> {
     const id = uuid.safeParse(c.req.param('id'));
     if (!id.success) return c.json({ error: 'invalid_request', message: 'Dados inválidos' }, 400);
     return c.json(await listTeamMembers(db, c.get('user')!, id.data));
+  });
+
+  router.get('/teams/:id/members/:userId', requireRole('manager'), async (c) => {
+    const ids = memberParams.safeParse({ id: c.req.param('id'), userId: c.req.param('userId') });
+    if (!ids.success) return c.json({ error: 'invalid_request', message: 'Dados inválidos' }, 400);
+    return c.json(await getTeamMemberProfile(db, c.get('user')!, ids.data.id, ids.data.userId));
   });
 
   router.put('/teams/:id/members/:userId', requireRole('manager'), async (c) => {

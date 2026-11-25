@@ -249,4 +249,37 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('equipes (PostgreSQL)', () =>
     expect(teams.find((x) => x.id === id)?.role).toBe('manager');
     expect(teams.find((x) => x.id === DEFAULT_TEAM_ID)?.role).toBe('member');
   });
+  it('gestor vê contatos, preferências e exceções futuras do membro da equipe', async () => {
+    const gestor = await loginAs(sql, { email: 'g9@x.com', role: 'manager' });
+    const { id } = (await (
+      await call('POST', '/teams', gestor.cookie, undefined, { name: 'Cartão' })
+    ).json()) as { id: string };
+    const ana = await loginAs(sql, { email: 'ana9@x.com', name: 'Ana' });
+    await sql`update users set phone = '+55 11 99999-0000' where id = ${ana.id}`;
+    await sql`insert into user_preferences (user_id, avoid_weekdays, max_consecutive_shifts)
+      values (${ana.id}, '{6,0}', 2)`;
+    await sql`insert into unavailabilities (user_id, kind, start_date, end_date, note) values
+      (${ana.id}, 'vacation', '2099-01-10', '2099-01-20', 'Viagem'),
+      (${ana.id}, 'time_off', '2000-01-01', '2000-01-01', null)`;
+
+    const path = `/teams/${id}/members/${ana.id}`;
+    expect((await call('GET', path, gestor.cookie)).status).toBe(404);
+    await call('PUT', path, gestor.cookie);
+    const res = await call('GET', path, gestor.cookie);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      name: 'Ana',
+      email: 'ana9@x.com',
+      phone: '+55 11 99999-0000',
+      role: 'member',
+      preferences: { avoidWeekdays: [0, 6], maxConsecutiveShifts: 2 },
+      unavailabilities: [
+        { kind: 'vacation', startDate: '2099-01-10', endDate: '2099-01-20', note: 'Viagem' },
+      ],
+    });
+
+    const outro = await loginAs(sql, { email: 'o9@x.com', role: 'manager' });
+    expect((await call('GET', path, outro.cookie)).status).toBe(404);
+    expect((await call('GET', path, ana.cookie)).status).toBe(403);
+  });
 });
