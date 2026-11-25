@@ -10,7 +10,14 @@ import type { LocalDate, ShiftTimes, WorkPeriod } from '@diovanibmotta/plantao36
 import { Avatar } from '../layout/Avatar';
 import { WEEK_HEADERS, segmentOnDate } from './calendar';
 import type { DaySegment } from './calendar';
-import { formatHours, formatPeriod, localDateMinute } from './format';
+import {
+  SHIFT_STATUS_LABEL,
+  formatHours,
+  formatPeriod,
+  localDateMinute,
+  shiftStatus,
+} from './format';
+import type { ShiftStatusFilter } from './format';
 import type { ShiftDto } from './types';
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
@@ -45,6 +52,7 @@ export interface TimeGridProps {
   today: LocalDate;
   userId: string | null;
   member: string;
+  status?: ShiftStatusFilter;
   shiftTimes: ShiftTimes | null;
   workPeriods: readonly WorkPeriod[];
 }
@@ -58,6 +66,7 @@ export function TimeGrid({
   today,
   userId,
   member,
+  status = '',
   shiftTimes,
   workPeriods,
 }: TimeGridProps) {
@@ -71,6 +80,7 @@ export function TimeGrid({
 
   const bounds = shifts
     .filter((s) => !member || s.userId === member)
+    .filter((s) => !status || shiftStatus(s, today) === status)
     .map((shift) => ({ shift, b: shiftBounds(shift, shiftTimes) }))
     .filter((x): x is { shift: ShiftDto; b: Bounds } => x.b !== null);
 
@@ -129,10 +139,11 @@ export function TimeGrid({
                   const continues = seg.startMinute === 0 && b.start.date !== date;
                   const goesOn = seg.endMinute === 1440 && b.end.date !== date;
                   const minutes = seg.endMinute - seg.startMinute;
+                  const state = shiftStatus(shift, today);
                   return (
                     <div
                       key={`${shift.id}-${date}`}
-                      className={`tg-shift${mine ? ' tg-shift--mine' : ''}`}
+                      className={`tg-shift${mine ? ' tg-shift--mine' : ''}${state === 'done' ? ' tg-shift--done' : ''}`}
                       data-testid={`seg-${shift.id}-${date}`}
                       style={{ top: pct(seg.startMinute), height: pct(minutes) }}
                       title={`${name} · ${formatPeriod(shift)} · ${formatHours(shift.hours)}`}
@@ -148,7 +159,8 @@ export function TimeGrid({
                         {formatMinute(seg.startMinute)}–{formatMinute(seg.endMinute)}
                       </span>
                       <span className="tg-shift-meta muted">
-                        Plantão {formatPeriod(shift)} · {formatHours(shift.hours)}
+                        Plantão {formatPeriod(shift)} · {formatHours(shift.hours)} ·{' '}
+                        {SHIFT_STATUS_LABEL[state]}
                         {continues && ' · continuação do dia anterior'}
                         {goesOn && ' · continua no dia seguinte'}
                       </span>

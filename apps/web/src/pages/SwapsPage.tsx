@@ -7,6 +7,7 @@ import { OPEN_STATUSES } from '../swaps/types';
 import type { SwapAction, SwapDto } from '../swaps/types';
 import '../schedule/schedule.css';
 import '../swaps/swaps.css';
+import { PageTitle } from '../team/PageTitle';
 
 type Tab = 'received' | 'sent' | 'approval' | 'history';
 
@@ -89,7 +90,7 @@ export function SwapsPage() {
 
   return (
     <section>
-      <h1>Trocas</h1>
+      <PageTitle>Trocas</PageTitle>
       <div className="sched-tabs" role="tablist" aria-label="Trocas">
         {tabs.map((t) => (
           <button

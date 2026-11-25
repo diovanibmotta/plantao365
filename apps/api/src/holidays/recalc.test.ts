@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Sql } from '../db.js';
 import { createOnShiftsRecalculated } from './recalc.js';
 import { buildTestApp, csrfHeaders, loginAs, TEST_ORIGIN, type TestUser } from '../test-app.js';
-import { createTestDb, type TestDb } from '../test-utils.js';
+import { createTestDb, drainEvents, type TestDb } from '../test-utils.js';
 import { createHolidaysRouter } from './router.js';
 
 const DATE = '2026-03-04';
@@ -80,6 +80,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('recálculo por feriado (Post
   });
   beforeEach(async () => {
     await sql`delete from email_outbox`;
+    await sql`delete from domain_events`;
     await sql`delete from schedules`;
     await sql`delete from holidays where date in (${DATE}::date, ${DRAFT_DATE}::date)`;
     published = await insertSchedule('published', DATE);
@@ -109,11 +110,13 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('recálculo por feriado (Post
     expect(audit).toHaveLength(1);
     expect(audit[0]).toMatchObject({ reason: 'Recálculo por feriado', before: { hours: 14 } });
 
+    await drainEvents(sql, { appBaseUrl: 'https://plantao.example' });
     const outbox = await sql<{ to_address: string }[]>`select to_address from email_outbox`;
     expect(outbox.map((o) => o.to_address)).toEqual(['membro@example.com']);
 
     const again = await recalc(manager, { dates: [DATE] });
     expect(((await again.json()) as { updated: number }).updated).toBe(0);
+    await drainEvents(sql);
     expect(await sql`select 1 from email_outbox`).toHaveLength(1);
     expect(await sql`select 1 from audit_log where action = 'shift.holiday_recalc'`).toHaveLength(
       1,
@@ -143,9 +146,11 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('recálculo por feriado (Post
     await recalc(manager, { dates: [DATE] });
     await holiday();
     await recalc(manager, { dates: [DATE] });
+    await drainEvents(sql);
     expect(await sql`select 1 from email_outbox`).toHaveLength(3);
     const again = await recalc(manager, { dates: [DATE] });
     expect(((await again.json()) as { updated: number }).updated).toBe(0);
+    await drainEvents(sql);
     expect(await sql`select 1 from email_outbox`).toHaveLength(3);
   });
 

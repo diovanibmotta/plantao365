@@ -1,4 +1,5 @@
 import { recordAudit } from '../audit/index.js';
+import { publishEvent } from '../events/publisher.js';
 import type { AuthUser, Role } from '../auth/types.js';
 import type { Sql } from '../db.js';
 
@@ -228,58 +229,88 @@ export async function setTeamMember(
   userId: string,
   input: TeamMemberInput = {},
 ): Promise<TeamMemberDto> {
-  return db.begin(async (txRaw) => {
-    const tx = txRaw as unknown as Sql;
-    await assertCanManage(tx, actor, teamId);
-    const [user] = await tx<{ name: string; email: string; active: boolean }[]>`
+  return db.begin(async (txRaw) =>
+    setTeamMemberTx(txRaw as unknown as Sql, actor, teamId, userId, input),
+  );
+}
+
+/** Versão de {@link setTeamMember} para uso dentro de uma transação já aberta. */
+export async function setTeamMemberTx(
+  tx: Sql,
+  actor: AuthUser,
+  teamId: string,
+  userId: string,
+  input: TeamMemberInput = {},
+  opts: { notify?: boolean } = {},
+): Promise<TeamMemberDto> {
+  const notify = opts.notify ?? true;
+  await assertCanManage(tx, actor, teamId);
+  const [user] = await tx<{ name: string; email: string; active: boolean }[]>`
       select name, email, active from users where id = ${userId} and not is_master for update`;
-    if (!user) throw new TeamsError(404, 'user_not_found', 'Usuário não encontrado');
-    const [before] = await tx<{ role: MemberRole; participatesInRotation: boolean }[]>`
+  if (!user) throw new TeamsError(404, 'user_not_found', 'Usuário não encontrado');
+  const [before] = await tx<{ role: MemberRole; participatesInRotation: boolean }[]>`
       select role, participates_in_rotation as "participatesInRotation"
       from team_members where team_id = ${teamId} and user_id = ${userId} for update`;
-    const role = input.role ?? before?.role ?? 'member';
-    const participates = input.participatesInRotation ?? before?.participatesInRotation ?? true;
-    if (before?.role === 'manager' && role !== 'manager') {
-      await assertNotLastManager(tx, teamId, userId);
-    }
-    if (!before) {
-      await tx`
+  const role = input.role ?? before?.role ?? 'member';
+  const participates = input.participatesInRotation ?? before?.participatesInRotation ?? true;
+  if (before?.role === 'manager' && role !== 'manager') {
+    await assertNotLastManager(tx, teamId, userId);
+  }
+  if (!before) {
+    await tx`
         insert into team_members (team_id, user_id, role, participates_in_rotation)
         values (${teamId}, ${userId}, ${role}, ${participates})`;
-      await recordAudit(tx, {
+    await recordAudit(tx, {
+      actorId: actor.id,
+      action: 'team.add_member',
+      entityType: 'team',
+      entityId: teamId,
+      after: { userId, email: user.email, role, participatesInRotation: participates },
+    });
+    if (notify) {
+      await publishEvent(tx, 'team.member_added', {
+        teamId,
+        userId,
+        role,
+        participatesInRotation: participates,
         actorId: actor.id,
-        action: 'team.add_member',
-        entityType: 'team',
-        entityId: teamId,
-        after: { userId, email: user.email, role, participatesInRotation: participates },
-      });
-    } else if (before.role !== role || before.participatesInRotation !== participates) {
-      await tx`
-        update team_members set role = ${role}, participates_in_rotation = ${participates}
-        where team_id = ${teamId} and user_id = ${userId}`;
-      await recordAudit(tx, {
-        actorId: actor.id,
-        action: 'team.update_member',
-        entityType: 'team',
-        entityId: teamId,
-        before: {
-          userId,
-          role: before.role,
-          participatesInRotation: before.participatesInRotation,
-        },
-        after: { userId, role, participatesInRotation: participates },
       });
     }
-    await syncGlobalRole(tx, userId);
-    return {
-      id: userId,
-      name: user.name,
-      email: user.email,
-      active: user.active,
-      role,
-      participatesInRotation: participates,
-    };
-  });
+  } else if (before.role !== role || before.participatesInRotation !== participates) {
+    await tx`
+        update team_members set role = ${role}, participates_in_rotation = ${participates}
+        where team_id = ${teamId} and user_id = ${userId}`;
+    await recordAudit(tx, {
+      actorId: actor.id,
+      action: 'team.update_member',
+      entityType: 'team',
+      entityId: teamId,
+      before: {
+        userId,
+        role: before.role,
+        participatesInRotation: before.participatesInRotation,
+      },
+      after: { userId, role, participatesInRotation: participates },
+    });
+    if (notify) {
+      await publishEvent(tx, 'team.member_updated', {
+        teamId,
+        userId,
+        role,
+        participatesInRotation: participates,
+        actorId: actor.id,
+      });
+    }
+  }
+  await syncGlobalRole(tx, userId);
+  return {
+    id: userId,
+    name: user.name,
+    email: user.email,
+    active: user.active,
+    role,
+    participatesInRotation: participates,
+  };
 }
 
 /** Desvincula o usuário da equipe; bloqueia se ele ainda tem plantões nas escalas dela. */
@@ -292,8 +323,8 @@ export async function unlinkTeamMember(
   await db.begin(async (txRaw) => {
     const tx = txRaw as unknown as Sql;
     await assertCanManage(tx, actor, teamId);
-    const [link] = await tx<{ role: MemberRole }[]>`
-      select role from team_members where team_id = ${teamId} and user_id = ${userId} for update`;
+    const [link] = await tx<{ role: MemberRole; participates: boolean }[]>`
+      select role, participates_in_rotation as participates from team_members where team_id = ${teamId} and user_id = ${userId} for update`;
     if (!link) throw new TeamsError(404, 'member_not_found', 'Membro não encontrado na equipe');
     if (link.role === 'manager') await assertNotLastManager(tx, teamId, userId);
     const [shift] = await tx`
@@ -314,6 +345,13 @@ export async function unlinkTeamMember(
       entityType: 'team',
       entityId: teamId,
       before: { userId },
+    });
+    await publishEvent(tx, 'team.member_removed', {
+      teamId,
+      userId,
+      role: link.role,
+      participatesInRotation: link.participates,
+      actorId: actor.id,
     });
   });
 }

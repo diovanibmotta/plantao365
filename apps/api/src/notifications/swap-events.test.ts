@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Sql } from '../db.js';
 import type { SwapDto, SwapEvent, SwapEventType } from '../swaps/index.js';
-import { createTestDb, type TestDb } from '../test-utils.js';
+import { createTestDb, drainEvents, type TestDb } from '../test-utils.js';
 import { createOnSwapEvent } from './swap-events.js';
 
 const NOW = new Date('2026-03-01T12:00:00Z');
@@ -14,9 +14,14 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('notificações de troca (Pos
   let bia: string;
   let gestor: string;
 
-  const outbox = () =>
+  const readOutbox = () =>
     sql<{ to_address: string; subject: string; text: string; dedupe_key: string }[]>`
       select to_address, subject, text, dedupe_key from email_outbox order by to_address, subject`;
+
+  const outbox = async () => {
+    await drainEvents(sql, { appBaseUrl: BASE, now: NOW });
+    return readOutbox();
+  };
 
   async function user(
     name: string,
@@ -82,6 +87,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('notificações de troca (Pos
   });
   beforeEach(async () => {
     await sql`delete from email_outbox`;
+    await sql`delete from domain_events`;
     await sql`delete from users`;
     ana = await user('Ana');
     bia = await user('Bia');
@@ -155,11 +161,11 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('notificações de troca (Pos
     expect(rows.map((r) => r.to_address)).toEqual(['ana@example.com']);
   });
 
-  it('usa o sql recebido: rollback da transação não deixa e-mail', async () => {
+  it('usa o sql recebido: rollback da transação não deixa evento', async () => {
     await expect(
       sql.begin(async (tx) => {
         await hook()(ev('requested'), tx as unknown as Sql);
-        expect(await tx`select 1 from email_outbox`).toHaveLength(1);
+        expect(await tx`select 1 from domain_events`).toHaveLength(1);
         throw new Error('rollback');
       }),
     ).rejects.toThrow('rollback');

@@ -3,7 +3,7 @@ import { shiftForDate, type DayType, type ShiftContext } from '@diovanibmotta/pl
 import { recordAudit } from '../audit/index.js';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
-import { notifyShiftsChanged } from '../notifications/schedule-events.js';
+import { publishEvent } from '../events/publisher.js';
 import { runHookInSavepoint } from '../schedules/hook.js';
 import { lockSchedulesThenShifts } from '../schedules/service.js';
 import { getShiftTimes } from '../schedules/settings.js';
@@ -172,7 +172,7 @@ export function createOnShiftsRecalculated(deps: {
       }));
     if (notices.length === 0) return;
     try {
-      await notifyShiftsChanged(sql, notices, { appBaseUrl: deps.appBaseUrl });
+      await publishEvent(sql, 'shifts.recalculated', { notices });
     } catch (err) {
       deps.logger?.error({ err }, 'Falha ao enfileirar e-mails de recálculo por feriado');
       throw err;

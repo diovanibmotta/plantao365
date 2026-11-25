@@ -11,6 +11,7 @@ import {
 import type { Hono } from 'hono';
 import { z } from 'zod';
 import { recordAudit } from '../audit/index.js';
+import { publishEvent } from '../events/publisher.js';
 import { requireRole } from '../auth/authz.js';
 import type { AuthEnv } from '../auth/index.js';
 import { listActualHoursByUser } from '../balance/index.js';
@@ -187,6 +188,16 @@ export async function generateDraft(
       unassignedDates: result.unassignedDates.length,
       preferenceViolations: result.preferenceViolations.length,
     },
+  });
+
+  await publishEvent(tx, 'schedule.generated', {
+    scheduleId,
+    teamId,
+    startDate: from,
+    endDate: to,
+    actorId: input.actorId,
+    shifts: rows.length,
+    unassignedDates: result.unassignedDates.length,
   });
 
   return {

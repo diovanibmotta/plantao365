@@ -30,6 +30,26 @@
   gap: 8px;
 }
 
+.members-teams {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+}
+
+.members-team-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.members-invite {
+  display: grid;
+  gap: 8px;
+  margin-bottom: var(--space);
+}
+
 .members-actions {
   display: flex;
   flex-wrap: wrap;

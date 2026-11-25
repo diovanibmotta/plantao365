@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { AuditTable } from '../audit/AuditTable';
 import { buildAuditQuery, EMPTY_FILTERS, ENTITY_TYPES, PAGE_SIZE } from '../audit/types';
 import type { AuditFilterValues, AuditPageData } from '../audit/types';
+import { PageTitle } from '../team/PageTitle';
 
 interface ActorOption {
   id: string;
@@ -68,7 +69,7 @@ export function AuditPage() {
 
   return (
     <section>
-      <h1>Auditoria</h1>
+      <PageTitle>Auditoria</PageTitle>
       <form className="filters" onSubmit={apply} aria-label="Filtros de auditoria">
         <label>
           De

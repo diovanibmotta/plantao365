@@ -336,23 +336,24 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('unavailability (PostgreSQL)'
         },
         body: JSON.stringify(mine),
       });
-    const count = async (table: 'unavailabilities' | 'email_outbox') =>
+    const count = async (table: 'unavailabilities' | 'domain_events') =>
       Number((await sql`select count(*)::int as n from ${sql(table)}`)[0]!['n']);
 
     beforeEach(async () => {
       await sql`delete from email_outbox`;
+      await sql`delete from domain_events`;
       conflicts = [{ date: '2026-12-02', userId: ana.id }];
     });
 
-    it('sucesso grava a exceção e o e-mail juntos', async () => {
+    it('sucesso grava a exceção e o evento juntos', async () => {
       const hook = createOnUnavailabilityConflict({ db: sql });
       const res = await post(withHook(hook), ana);
       expect(res.status).toBe(201);
       expect(await count('unavailabilities')).toBe(1);
-      expect(await count('email_outbox')).toBe(1);
+      expect(await count('domain_events')).toBe(1);
     });
 
-    it('falha do gancho não desfaz a criação nem deixa e-mail parcial', async () => {
+    it('falha do gancho não desfaz a criação nem deixa evento parcial', async () => {
       const hook = createOnUnavailabilityConflict({ db: sql });
       const res = await post(
         withHook(async (e, tx) => {
@@ -363,7 +364,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('unavailability (PostgreSQL)'
       );
       expect(res.status).toBe(201);
       expect(await count('unavailabilities')).toBe(1);
-      expect(await count('email_outbox')).toBe(0);
+      expect(await count('domain_events')).toBe(0);
     });
 
     it('falha SQL no gancho não aborta a transação (criação e edição)', async () => {
@@ -388,7 +389,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('unavailability (PostgreSQL)'
       expect(row!['e']).toBe('2026-12-08');
     });
 
-    it('rollback da mutação não deixa e-mail', async () => {
+    it('rollback da mutação não deixa evento', async () => {
       const hook = createOnUnavailabilityConflict({ db: sql });
       await expect(
         sql.begin(async (tx) => {
@@ -406,7 +407,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('unavailability (PostgreSQL)'
           throw new Error('rollback');
         }),
       ).rejects.toThrow('rollback');
-      expect(await count('email_outbox')).toBe(0);
+      expect(await count('domain_events')).toBe(0);
     });
   });
 

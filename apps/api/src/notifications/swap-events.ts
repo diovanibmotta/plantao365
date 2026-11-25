@@ -2,6 +2,7 @@ import { enqueueEmail, renderSwapEmail } from '../email/index.js';
 import type { SwapEmailAudience, SwapEmailInput } from '../email/index.js';
 import type { Sql } from '../db.js';
 import type { Logger } from '../logger.js';
+import { publishEvent } from '../events/publisher.js';
 import type { SwapEvent, SwapShiftInfo } from '../swaps/index.js';
 
 export interface SwapEventsDeps {
@@ -117,23 +118,22 @@ export async function notifySwapEvent(
 }
 
 /**
- * Gancho `onSwapEvent` do SwapsRouter: enfileira na transação recebida (`sql`, default
+ * Gancho `onSwapEvent` do SwapsRouter: publica `swap.<tipo>` na transação recebida (`sql`, default
  * `deps.db`), atomicamente com a mutação. Falhas são logadas e relançadas para que o savepoint
- * do chamador desfaça só o gancho (um erro SQL engolido aqui deixaria a transação abortada).
+ * do chamador desfaça só o gancho.
  */
 export function createOnSwapEvent(
   deps: SwapEventsDeps,
 ): (event: SwapEvent, sql?: Sql) => Promise<void> {
   return async (event, sql = deps.db) => {
     try {
-      await notifySwapEvent(sql, event, {
-        appBaseUrl: deps.appBaseUrl,
+      await publishEvent(sql, `swap.${event.type}`, event, {
         ...(deps.now ? { now: deps.now() } : {}),
       });
     } catch (err) {
       deps.logger?.error(
         { err, swapId: event.swap.id, type: event.type },
-        'Falha ao enfileirar e-mails de troca',
+        'Falha ao publicar evento de troca',
       );
       throw err;
     }

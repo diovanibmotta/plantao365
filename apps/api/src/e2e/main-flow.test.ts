@@ -17,6 +17,8 @@ import { createMailer, startOutboxWorker, type OutboxWorker } from '../email/ind
 import { startTestSmtp, type CapturedEmail, type TestSmtp } from '../email/test-smtp.js';
 import { createLogger } from '../logger.js';
 import { createTestIdp, csrfHeaders, TEST_ORIGIN } from '../test-app.js';
+import { createEventHandlers } from '../notifications/handlers.js';
+import { processDomainEvents } from '../events/index.js';
 import { createTestDb, TEST_DATABASE_URL, type TestDb } from '../test-utils.js';
 
 const logger = createLogger({ level: 'silent' });
@@ -127,6 +129,9 @@ describe.skipIf(!TEST_DATABASE_URL)('E2E de API: fluxo principal', () => {
   };
 
   async function drainEmails(count: number): Promise<CapturedEmail[]> {
+    await processDomainEvents(t.sql, createEventHandlers({ appBaseUrl: TEST_ORIGIN }), {
+      maxAttempts: 1,
+    });
     await worker.runOnce();
     return [...(await smtp.waitForMessages(count))];
   }
@@ -160,12 +165,13 @@ describe.skipIf(!TEST_DATABASE_URL)('E2E de API: fluxo principal', () => {
         200,
       );
     }
-    // cada cadastro enfileira um convite; confere e zera a caixa para as etapas seguintes
-    const invites = await drainEmails(MEMBERS.length);
-    expect(invites.map((m) => m.subject)).toEqual(
-      MEMBERS.map(() => 'Você foi convidado para o Plantão365'),
-    );
+    // cada cadastro gera um convite e cada vínculo um aviso de equipe; confere e zera a caixa
+    const welcome = await drainEmails(MEMBERS.length * 2);
+    const invites = welcome.filter((m) => m.subject === 'Você foi convidado para o Plantão365');
+    expect(invites).toHaveLength(MEMBERS.length);
     expect(invites.flatMap((m) => m.to).sort()).toEqual(MEMBERS.map((m) => m.email).sort());
+    const added = welcome.filter((m) => m.subject.startsWith('Você foi adicionado à equipe'));
+    expect(added.flatMap((m) => m.to).sort()).toEqual(MEMBERS.map((m) => m.email).sort());
     smtp.clear();
 
     const cookies = new Map<string, string>();

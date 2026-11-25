@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { TeamTag } from '../team/PageTitle';
 import { useRole } from '../team/TeamContext';
 import { UnavailabilityForm } from './UnavailabilityForm';
 import { KIND_LABELS, errorMessage, formatDate, formatPeriod } from './types';
@@ -149,7 +150,14 @@ export function UnavailabilityManager({
   return (
     <section className="exc-section">
       <div className="exc-header">
-        <Heading>{title}</Heading>
+        {Heading === 'h1' ? (
+          <div className="page-title">
+            <Heading>{title}</Heading>
+            <TeamTag />
+          </div>
+        ) : (
+          <Heading>{title}</Heading>
+        )}
         <button
           type="button"
           className="btn primary"

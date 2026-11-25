@@ -34,6 +34,24 @@ export function todayLocal(now: Date = new Date()): LocalDate {
   }).format(now);
 }
 
+export type ShiftStatus = 'done' | 'pending';
+export type ShiftStatusFilter = ShiftStatus | '';
+
+export const SHIFT_STATUS_LABEL: Record<ShiftStatus, string> = {
+  done: 'Realizado',
+  pending: 'Pendente',
+};
+
+/** Plantão já terminou (realizado) ou ainda não (pendente); sem instante de fim, vale a data. */
+export function shiftStatus(
+  shift: ShiftDto,
+  today: LocalDate,
+  now: number = Date.now(),
+): ShiftStatus {
+  if (shift.endsAt) return Date.parse(shift.endsAt) <= now ? 'done' : 'pending';
+  return shift.date < today ? 'done' : 'pending';
+}
+
 export function formatDayShort(date: LocalDate): string {
   const day = date.slice(8, 10);
   const month = MONTHS_SHORT[Number(date.slice(5, 7)) - 1] ?? '';

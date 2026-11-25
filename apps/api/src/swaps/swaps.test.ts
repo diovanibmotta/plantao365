@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Sql } from '../db.js';
 import { buildTestApp, csrfHeaders, loginAs, TEST_ORIGIN, type TestUser } from '../test-app.js';
-import { createTestDb, type TestDb } from '../test-utils.js';
+import { createTestDb, drainEvents, type TestDb } from '../test-utils.js';
 import { createOnSwapEvent } from '../notifications/swap-events.js';
 import { createSwapsRouter, type SwapEvent } from './index.js';
 
@@ -97,7 +97,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('swaps (PostgreSQL)', () => {
     await t.drop();
   });
   beforeEach(async () => {
-    await sql`truncate email_outbox, swaps, unavailabilities, shifts, schedules, sessions, users cascade`;
+    await sql`truncate email_outbox, domain_events, swaps, unavailabilities, shifts, schedules, sessions, users cascade`;
     manager = await loginAs(sql, { email: 'g@x.com', role: 'manager', name: 'Gestor' });
     ana = await loginAs(sql, { email: 'ana@x.com', name: 'Ana' });
     bia = await loginAs(sql, { email: 'bia@x.com', name: 'Bia' });
@@ -441,13 +441,15 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('swaps (PostgreSQL)', () => {
   });
 
   describe('notificação transacional (outbox)', () => {
-    const outbox = async () =>
-      sql<{ to_address: string; dedupe_key: string }[]>`
+    const outbox = async () => {
+      await drainEvents(sql, { now: NOW });
+      return sql<{ to_address: string; dedupe_key: string }[]>`
         select to_address, dedupe_key from email_outbox order by dedupe_key`;
+    };
     const statusOf = async (id: string) =>
       (await sql<{ status: string }[]>`select status from swaps where id = ${id}`)[0]!.status;
 
-    it('sucesso grava a transição e o e-mail juntos', async () => {
+    it('sucesso grava a transição e o evento; o consumidor gera os e-mails', async () => {
       realHook = true;
       const id = await create(cessionBody());
       expect((await act(id, 'accept', bia)).status).toBe(200);
@@ -465,10 +467,11 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('swaps (PostgreSQL)', () => {
       expect(await outbox()).toHaveLength(0);
     });
 
-    it('rollback da mutação não deixa e-mail na outbox', async () => {
+    it('rollback da mutação não deixa evento nem e-mail', async () => {
       realHook = true;
       const id = await create(cessionBody());
       await sql`delete from email_outbox`;
+      await sql`delete from domain_events`;
       await sql`update shifts set user_id = ${caio.id} where id = ${shift['ana1']}`;
       // aceite revalida a viabilidade e falha: nada de e-mail
       expect((await act(id, 'accept', bia)).status).toBeGreaterThanOrEqual(400);

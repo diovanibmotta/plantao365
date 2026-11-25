@@ -5,9 +5,10 @@ interface Props {
   members: Member[];
   busyId: string | null;
   onToggleActive: (member: Member) => void;
+  onShowLink: (member: Member) => void;
 }
 
-export function MembersTable({ members, busyId, onToggleActive }: Props) {
+export function MembersTable({ members, busyId, onToggleActive, onShowLink }: Props) {
   return (
     <div className="table-wrap">
       <table className="members-table">
@@ -41,6 +42,16 @@ export function MembersTable({ members, busyId, onToggleActive }: Props) {
                   >
                     {m.active ? 'Desativar' : 'Ativar'}
                   </button>
+                  {!m.linked && m.active && (
+                    <button
+                      type="button"
+                      className="btn"
+                      aria-label={`Link de acesso de ${m.name}`}
+                      onClick={() => onShowLink(m)}
+                    >
+                      Link de acesso
+                    </button>
+                  )}
                 </td>
               </tr>
             );

@@ -4,7 +4,9 @@ import { bootstrapManagers, syncMasterUser, type AuthOptions } from './auth/inde
 import { ConfigError, loadConfig } from './config.js';
 import { createDb } from './db.js';
 import { createMailer, startOutboxWorker, type SmtpOptions } from './email/index.js';
+import { startEventWorker } from './events/index.js';
 import { createLogger } from './logger.js';
+import { createEventHandlers } from './notifications/handlers.js';
 import { startReminderJob } from './reminders/index.js';
 import { computeConfigWarnings } from './system/index.js';
 
@@ -51,6 +53,11 @@ await bootstrapManagers(db, config.MANAGER_EMAILS);
 await syncMasterUser(db, authOptions.master);
 const mailer = createMailer(smtp, logger);
 const worker = startOutboxWorker({ sql: db, mailer, logger });
+const events = startEventWorker({
+  sql: db,
+  handlers: createEventHandlers({ appBaseUrl: config.APP_BASE_URL }),
+  logger,
+});
 const reminders = startReminderJob({ sql: db, logger, appBaseUrl: config.APP_BASE_URL });
 const app = createApp({
   logger,
@@ -68,7 +75,7 @@ const server = serve({ fetch: app.fetch, port: config.PORT }, (info) => {
 const shutdown = (signal: string) => {
   logger.info({ signal }, 'shutting down');
   server.close(() => {
-    void Promise.all([worker.stop(), reminders.stop()])
+    void Promise.all([events.stop(), worker.stop(), reminders.stop()])
       .then(() => mailer.close())
       .then(() => db.end())
       .finally(() => process.exit(0));

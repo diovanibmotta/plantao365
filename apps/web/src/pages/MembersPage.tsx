@@ -4,9 +4,17 @@ import type { ApiError } from '../api/client';
 import { toast } from '../toast/toast-store';
 import { MembersTable } from '../members/MembersTable';
 import { NewMemberForm } from '../members/NewMemberForm';
-import { blockingShifts, describeError, describeShift, sortMembers } from '../members/types';
+import {
+  blockingShifts,
+  copyInviteLink,
+  describeError,
+  describeShift,
+  inviteLink,
+  sortMembers,
+} from '../members/types';
 import type { FutureShift, Member, NewMemberInput } from '../members/types';
 import '../members/members.css';
+import { PageTitle } from '../team/PageTitle';
 
 const memberError = (err: ApiError) => describeError(err, 'Não foi possível concluir a operação.');
 
@@ -18,6 +26,12 @@ export function MembersPage() {
   const [blocking, setBlocking] = useState<FutureShift[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<Member | null>(null);
+  const [invited, setInvited] = useState<Member | null>(null);
+
+  const copyLink = async () => {
+    if (await copyInviteLink()) toast.success('Link de acesso copiado.');
+    else toast.error('Não foi possível copiar. Copie o link manualmente.');
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -46,7 +60,12 @@ export function MembersPage() {
       });
       upsert(created);
       setShowForm(false);
-      toast.success(`${created.name} foi pré-cadastrado. Vincule-o a uma equipe em Equipes.`);
+      toast.success(
+        created.teamIds.length > 0
+          ? `${created.name} foi pré-cadastrado e vinculado às equipes.`
+          : `${created.name} foi pré-cadastrado. Vincule-o a uma equipe em Equipes.`,
+      );
+      setInvited(created);
     } catch {
       // erro exibido pelo toast
     }
@@ -86,7 +105,7 @@ export function MembersPage() {
   return (
     <section>
       <div className="members-head">
-        <h1>Membros</h1>
+        <PageTitle>Membros</PageTitle>
         {!showForm && (
           <button type="button" className="btn primary" onClick={() => setShowForm(true)}>
             Pré-cadastrar membro
@@ -95,6 +114,24 @@ export function MembersPage() {
       </div>
 
       {showForm && <NewMemberForm onSubmit={create} onCancel={() => setShowForm(false)} />}
+
+      {invited && (
+        <div className="members-invite" role="status" aria-label="Link de acesso">
+          <p>
+            Link de acesso para <strong>{invited.name}</strong>. A pessoa entra com a conta
+            corporativa e o cadastro é associado pelo e-mail <strong>{invited.email}</strong>.
+          </p>
+          <input type="text" readOnly value={inviteLink()} aria-label="Link de acesso" />
+          <div className="members-actions">
+            <button type="button" className="btn primary" onClick={() => void copyLink()}>
+              Copiar link
+            </button>
+            <button type="button" className="btn" onClick={() => setInvited(null)}>
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
 
       {confirming && (
         <div className="members-confirm" role="alertdialog" aria-label="Confirmar desativação">
@@ -138,7 +175,12 @@ export function MembersPage() {
         <p className="status muted">Nenhum membro cadastrado.</p>
       )}
       {loaded !== null && 'members' in loaded && loaded.members.length > 0 && (
-        <MembersTable members={loaded.members} busyId={busyId} onToggleActive={toggleActive} />
+        <MembersTable
+          members={loaded.members}
+          busyId={busyId}
+          onToggleActive={toggleActive}
+          onShowLink={setInvited}
+        />
       )}
     </section>
   );

@@ -2,6 +2,7 @@ import { Hono, type Context } from 'hono';
 import type { ZodType } from 'zod';
 import { requireAuth, requireRole, type AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
+import { TeamsError } from '../teams/index.js';
 import { requireTeam } from '../teams/middleware.js';
 import type { FutureShiftsFinder } from './types.js';
 import {
@@ -22,7 +23,6 @@ export interface UsersRouterDeps {
   db: Sql;
   futureShiftsFinder?: FutureShiftsFinder;
   now?: () => Date;
-  /** URL base do web (APP_BASE_URL); habilita o link no e-mail de convite. */
   appBaseUrl?: string | undefined;
 }
 
@@ -55,17 +55,15 @@ function parseWith<T>(
   return { response: invalid(c, issues[0]?.message ?? 'Dados inválidos', issues) };
 }
 
-export function createUsersRouter({
-  db,
-  futureShiftsFinder,
-  now,
-  appBaseUrl,
-}: UsersRouterDeps): Hono<AuthEnv> {
+export function createUsersRouter({ db, futureShiftsFinder, now }: UsersRouterDeps): Hono<AuthEnv> {
   const router = new Hono<AuthEnv>();
 
   router.onError((err, c) => {
     if (err instanceof UsersError) {
       return c.json({ error: err.code, message: err.message, ...(err.details ?? {}) }, err.status);
+    }
+    if (err instanceof TeamsError) {
+      return c.json({ error: err.code, message: err.message }, err.status);
     }
     throw err;
   });
@@ -133,7 +131,7 @@ export function createUsersRouter({
     if ('response' in body) return body.response;
     const input = parseWith(c, createUserSchema, body.raw);
     if ('response' in input) return input.response;
-    return c.json(await createUser(db, c.get('user')!.id, input.data, { appBaseUrl }), 201);
+    return c.json(await createUser(db, c.get('user')!, input.data), 201);
   });
 
   router.patch('/users/:id', requireRole('manager'), async (c) => {

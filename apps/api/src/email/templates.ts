@@ -21,32 +21,94 @@ export function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;');
 }
 
+export type EmailTone = 'info' | 'success' | 'warning' | 'danger';
+
 export interface LayoutInput {
   title: string;
   /** Corpo já em HTML seguro (use escapeHtml nos textos dinâmicos). */
   bodyHtml: string;
   bodyText: string;
   footer?: string;
+  /** URL absoluta do logo (PNG). Sem ela, o cabeçalho usa só o nome do produto. */
+  logoUrl?: string | undefined;
+  /** Selo curto acima do título (ex.: "Aprovada"). */
+  badge?: { label: string; tone: EmailTone } | undefined;
 }
 
 export const DEFAULT_FOOTER = 'Plantão365 · mensagem automática, não responda este e-mail.';
 
-/** Layout base minimalista: fonte do sistema, poucos elementos. */
+/** Paleta do app (neutros frios + azul de destaque), em hex para compatibilidade com clientes de e-mail. */
+const THEME = {
+  bg: '#f6f7f9',
+  card: '#ffffff',
+  border: '#e5e7eb',
+  text: '#16181d',
+  muted: '#6b7280',
+  accent: '#2f5bd6',
+  panel: '#f3f4f6',
+  buttonBg: '#16181d',
+  buttonText: '#ffffff',
+  tones: {
+    info: { fg: '#2f5bd6', bg: '#eaf0ff' },
+    success: { fg: '#1d7a45', bg: '#e6f6ec' },
+    warning: { fg: '#9a6400', bg: '#fdf3dc' },
+    danger: { fg: '#b42318', bg: '#fdecea' },
+  },
+} as const;
+
+const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+/** Tema escuro para clientes que respeitam prefers-color-scheme (os demais ficam no claro). */
+const DARK_CSS = `
+:root{color-scheme:light dark;supported-color-schemes:light dark}
+@media (prefers-color-scheme: dark){
+  .p365-bg{background:#0f1115 !important}
+  .p365-card{background:#171a20 !important;border-color:#2a2f38 !important}
+  .p365-text{color:#f3f4f6 !important}
+  .p365-muted{color:#9aa3b2 !important}
+  .p365-panel{background:#1f232b !important}
+  .p365-btn{background:#f3f4f6 !important;color:#16181d !important}
+  .p365-link{color:#8fb0ff !important}
+}`;
+
+/** Layout base minimalista: cabeçalho com logo, cartão central, botão de ação e rodapé. */
 export function renderLayout(input: LayoutInput): { html: string; text: string } {
   const footer = input.footer ?? DEFAULT_FOOTER;
+  const logo = input.logoUrl
+    ? `<img src="${escapeHtml(input.logoUrl)}" width="28" height="28" alt="" style="display:block;border:0;border-radius:7px;">`
+    : '';
+  const badge = input.badge
+    ? `<p style="margin:0 0 12px;"><span style="display:inline-block;padding:3px 10px;border-radius:999px;background:${THEME.tones[input.badge.tone].bg};color:${THEME.tones[input.badge.tone].fg};font-size:12px;font-weight:600;letter-spacing:0.02em;">${escapeHtml(input.badge.label)}</span></p>`
+    : '';
   const html = `<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
 <title>${escapeHtml(input.title)}</title>
+<style>${DARK_CSS}</style>
 </head>
-<body style="margin:0;padding:24px;background:#f6f7f8;color:#1c1f23;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;">
-<div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e2e5e9;border-radius:8px;padding:24px;">
-<h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;color:#1c1f23;">${escapeHtml(input.title)}</h1>
+<body class="p365-bg" style="margin:0;padding:0;background:${THEME.bg};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="p365-bg" style="background:${THEME.bg};">
+<tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
+<tr><td style="padding:0 4px 16px;font-family:${FONT};">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+${logo ? `<td style="padding-right:10px;vertical-align:middle;">${logo}</td>` : ''}
+<td class="p365-text" style="vertical-align:middle;font-family:${FONT};font-size:16px;font-weight:600;letter-spacing:-0.01em;color:${THEME.text};">Plantão365</td>
+</tr></table>
+</td></tr>
+<tr><td class="p365-card" style="background:${THEME.card};border:1px solid ${THEME.border};border-radius:12px;padding:28px;font-family:${FONT};font-size:15px;line-height:1.6;color:${THEME.text};">
+${badge}
+<h1 class="p365-text" style="margin:0 0 16px;font-size:20px;line-height:1.3;font-weight:600;letter-spacing:-0.01em;color:${THEME.text};">${escapeHtml(input.title)}</h1>
 ${input.bodyHtml}
-</div>
-<p style="max-width:560px;margin:16px auto 0;font-size:12px;color:#6b7280;">${escapeHtml(footer)}</p>
+</td></tr>
+<tr><td class="p365-muted" style="padding:16px 4px 0;font-family:${FONT};font-size:12px;line-height:1.5;color:${THEME.muted};">${escapeHtml(footer)}</td></tr>
+</table>
+</td></tr>
+</table>
 </body>
 </html>`;
   const text = `${input.title}\n\n${input.bodyText}\n\n--\n${footer}\n`;
@@ -61,11 +123,29 @@ export interface EmailContent {
   /** Linhas de lista já formatadas, exibidas após os plantões. */
   lines?: string[];
   action?: { label: string; url: string };
+  badge?: { label: string; tone: EmailTone };
 }
+
+const listHtml = (items: string[]): string =>
+  `<div class="p365-panel" style="margin:0 0 20px;padding:12px 16px;background:${THEME.panel};border-radius:8px;">${items
+    .map(
+      (i, idx) =>
+        `<p class="p365-text" style="margin:0;padding:${idx === 0 ? '0' : '8px'} 0 0;font-size:14px;line-height:1.5;color:${THEME.text};">${escapeHtml(i)}</p>`,
+    )
+    .join('')}</div>`;
+
+const originOf = (url: string | undefined): string | undefined => {
+  if (!url) return undefined;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return undefined;
+  }
+};
 
 /**
  * Monta um e-mail em pt-BR no layout base. Plantões listados saem com data, período e horas.
- * Templates de evento (escala publicada, troca, lembrete) devem apenas montar um EmailContent.
+ * O logo vem do mesmo host do link de ação (`/icon-192.png`, servido pelo web).
  */
 export function renderEmail(content: EmailContent): RenderedEmail {
   const title = content.heading ?? content.subject;
@@ -73,41 +153,38 @@ export function renderEmail(content: EmailContent): RenderedEmail {
   const textParts: string[] = [];
 
   for (const p of content.paragraphs) {
-    htmlParts.push(`<p style="margin:0 0 16px;">${escapeHtml(p)}</p>`);
+    htmlParts.push(
+      `<p class="p365-text" style="margin:0 0 16px;color:${THEME.text};">${escapeHtml(p)}</p>`,
+    );
     textParts.push(p);
   }
 
   if (content.shifts && content.shifts.length > 0) {
     const items = content.shifts.map((s) => formatShift(s));
-    htmlParts.push(
-      `<ul style="margin:0 0 16px;padding-left:20px;">${items
-        .map((i) => `<li style="margin:0 0 8px;">${escapeHtml(i)}</li>`)
-        .join('')}</ul>`,
-    );
+    htmlParts.push(listHtml(items));
     textParts.push(items.map((i) => `- ${i}`).join('\n'));
   }
 
   if (content.lines && content.lines.length > 0) {
-    htmlParts.push(
-      `<ul style="margin:0 0 16px;padding-left:20px;">${content.lines
-        .map((i) => `<li style="margin:0 0 8px;">${escapeHtml(i)}</li>`)
-        .join('')}</ul>`,
-    );
+    htmlParts.push(listHtml(content.lines));
     textParts.push(content.lines.map((i) => `- ${i}`).join('\n'));
   }
 
   if (content.action) {
     const { label, url } = content.action;
     htmlParts.push(
-      `<p style="margin:0;"><a href="${escapeHtml(url)}" style="color:#2563eb;">${escapeHtml(label)}</a></p>`,
+      `<p style="margin:8px 0 0;"><a href="${escapeHtml(url)}" class="p365-btn" style="display:inline-block;padding:10px 20px;border-radius:8px;background:${THEME.buttonBg};color:${THEME.buttonText};font-size:14px;font-weight:600;text-decoration:none;">${escapeHtml(label)}</a></p>`,
     );
     textParts.push(`${label}: ${url}`);
   }
 
+  const origin = originOf(content.action?.url);
   const { html, text } = renderLayout({
     title,
     bodyHtml: htmlParts.join('\n'),
     bodyText: textParts.join('\n\n'),
+    logoUrl: origin ? `${origin}/icon-192.png` : undefined,
+    badge: content.badge,
   });
   return { subject: content.subject, html, text };
 }
@@ -139,6 +216,7 @@ export function renderSchedulePublishedEmail(input: SchedulePublishedEmailInput)
   const period = formatDateRange(input.startDate, input.endDate);
   return renderEmail({
     subject: `Escala publicada: ${period}`,
+    badge: { label: 'Escala publicada', tone: 'success' },
     paragraphs: [`A escala de ${period} foi publicada. Seus plantões no período:`],
     lines: input.shifts.map(formatEventShift),
     ...(input.appUrl ? { action: { label: 'Abrir minha escala', url: input.appUrl } } : {}),
@@ -176,8 +254,14 @@ export function renderShiftChangedEmail(input: ShiftChangedEmailInput): Rendered
   }[input.kind];
   const paragraphs = [intro];
   if (input.reason) paragraphs.push(`Motivo: ${input.reason}`);
+  const badge: EmailContent['badge'] = {
+    lost: { label: 'Plantão removido', tone: 'warning' as const },
+    received: { label: 'Novo plantão', tone: 'info' as const },
+    updated: { label: 'Plantão atualizado', tone: 'info' as const },
+  }[input.kind];
   return renderEmail({
     subject,
+    badge,
     paragraphs,
     lines: [formatEventShift(input.shift)],
     ...(input.appUrl ? { action: { label: 'Abrir minha escala', url: input.appUrl } } : {}),
@@ -273,8 +357,20 @@ export function renderSwapEmail(input: SwapEmailInput): RenderedEmail {
       break;
   }
 
+  const badge: EmailContent['badge'] = {
+    requested: { label: 'Ação necessária', tone: 'warning' as const },
+    accepted:
+      input.audience === 'manager'
+        ? { label: 'Aprovação pendente', tone: 'warning' as const }
+        : { label: 'Pedido aceito', tone: 'info' as const },
+    declined: { label: 'Pedido recusado', tone: 'danger' as const },
+    cancelled: { label: 'Pedido cancelado', tone: 'warning' as const },
+    approved: { label: 'Aprovada', tone: 'success' as const },
+    rejected: { label: 'Rejeitada', tone: 'danger' as const },
+  }[input.event];
   return renderEmail({
     subject,
+    badge,
     paragraphs,
     lines: swapLines(input),
     ...(input.appUrl
@@ -302,6 +398,7 @@ export function renderUnavailabilityConflictEmail(
   const period = formatDateRange(input.startDate, input.endDate);
   return renderEmail({
     subject: `Exceção conflita com plantão publicado: ${input.memberName}`,
+    badge: { label: 'Atenção', tone: 'warning' },
     paragraphs: [
       `${input.memberName} registrou uma exceção de disponibilidade (${period}) que conflita com plantões já publicados. Ajuste a escala, se necessário.`,
       'Datas em conflito:',
@@ -320,6 +417,7 @@ export interface InviteEmailInput {
 export function renderInviteEmail(input: InviteEmailInput): RenderedEmail {
   return renderEmail({
     subject: 'Você foi convidado para o Plantão365',
+    badge: { label: 'Convite', tone: 'info' },
     paragraphs: [
       `Olá, ${input.name}. Você foi convidado para o Plantão365.`,
       'Entre com sua conta corporativa (Microsoft) para acessar a escala de plantão.',
