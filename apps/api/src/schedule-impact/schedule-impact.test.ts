@@ -10,7 +10,6 @@ import {
 
 const TEAM = '00000000-0000-0000-0000-000000000001';
 const BASE = 'https://plantao.example';
-const NOW = new Date('2026-03-01T12:00:00Z');
 
 describe.skipIf(!process.env['TEST_DATABASE_URL'])(
   'impacto em escala publicada (PostgreSQL)',
@@ -29,6 +28,9 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
       return r!.id;
     }
 
+    const nextDay = (d: string) =>
+      new Date(Date.parse(`${d}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+
     /** Escala publicada com plantões de dia útil 18h–08h (14h) em cada data. */
     async function published(dates: string[], userId: string | null) {
       const [s] = await sql<{ id: string }[]>`
@@ -36,7 +38,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
         values (${dates[0]!}, ${dates.at(-1)!}, 'published', ${gestor}, ${TEAM}) returning id`;
       for (const d of dates) {
         await sql`insert into shifts (schedule_id, date, day_type, hours, starts_at, ends_at, user_id)
-          values (${s!.id}, ${d}::date, 'weekday', 14, ${`${d}T21:00:00Z`}, ${`${d}T11:00:00Z`},
+          values (${s!.id}, ${d}::date, 'weekday', 14, ${`${d}T21:00:00Z`}, ${`${nextDay(d)}T11:00:00Z`},
             ${userId})`;
       }
     }
@@ -112,7 +114,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])(
       expect(collective?.shifts).toBe(2);
       expect((await events()).map((e) => e.type)).toEqual(['schedule.impact', 'schedule.impact']);
 
-      await drainEvents(sql, { appBaseUrl: BASE, now: NOW });
+      await drainEvents(sql, { appBaseUrl: BASE });
       const mails = await sql<{ to_address: string; subject: string; text: string }[]>`
         select to_address, subject, text from email_outbox order by created_at`;
       expect(mails).toHaveLength(2);
