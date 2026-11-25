@@ -13,6 +13,7 @@ import {
 import type { MonthKey } from '../schedule/calendar';
 import { formatDayShort, formatHours } from '../schedule/format';
 import type { ShiftDto } from '../schedule/types';
+import { StatusPill } from './StatusPill';
 import { errorCode, errorDates, formatDate } from './types';
 import type { EditResult, MemberOption, ScheduleDetail } from './types';
 
@@ -37,6 +38,7 @@ export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: Sc
   const [busy, setBusy] = useState(false);
   const [confirmDates, setConfirmDates] = useState<string[] | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const shifts = new Map<string, ShiftDto>(schedule.shifts.map((s) => [s.date, s]));
   const selected = schedule.shifts.find((s) => s.id === selectedId) ?? null;
@@ -112,10 +114,55 @@ export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: Sc
 
   return (
     <section aria-labelledby="sad-editor-title" className="sad-block">
-      <h2 id="sad-editor-title">
-        {published ? 'Escala publicada' : 'Rascunho'}: {formatDate(schedule.startDate)} a{' '}
-        {formatDate(schedule.endDate)}
-      </h2>
+      <div className="sad-editor-head">
+        <div className="sad-editor-title">
+          <h2 id="sad-editor-title">
+            {published ? 'Escala publicada' : 'Rascunho'}: {formatDate(schedule.startDate)} a{' '}
+            {formatDate(schedule.endDate)}
+          </h2>
+          <StatusPill status={schedule.status} />
+        </div>
+        {!published && (
+          <div className="sad-editor-actions">
+            <button
+              type="button"
+              className="btn primary"
+              disabled={busy}
+              onClick={() => void publish(false)}
+            >
+              Publicar escala
+            </button>
+            <div className="sad-menu">
+              <button
+                type="button"
+                className="btn"
+                aria-label="Mais ações"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((v) => !v)}
+              >
+                ⋯
+              </button>
+              {menuOpen && (
+                <div className="sad-menu-list" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="sad-menu-item sad-menu-item--danger"
+                    disabled={busy}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setConfirmDiscard(true);
+                    }}
+                  >
+                    Descartar rascunho
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
       {published && (
         <p className="sad-note">
           Alterações em escala publicada exigem motivo e o membro será notificado.
@@ -217,27 +264,6 @@ export function ScheduleEditor({ schedule, members, onChanged, onDiscarded }: Sc
             Salvar plantão
           </button>
         </form>
-      )}
-
-      {!published && (
-        <div className="sad-row">
-          <button
-            type="button"
-            className="btn primary"
-            disabled={busy}
-            onClick={() => void publish(false)}
-          >
-            Publicar escala
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={busy}
-            onClick={() => setConfirmDiscard(true)}
-          >
-            Descartar rascunho
-          </button>
-        </div>
       )}
 
       {confirmDates && (

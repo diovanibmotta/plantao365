@@ -97,7 +97,7 @@ async function openSchedule() {
     </>,
   );
   await user.click(
-    await screen.findByRole('button', { name: /Alterar escala de 02\/03\/2026 a 03\/03\/2026/ }),
+    await screen.findByRole('button', { name: /Abrir escala de 02\/03\/2026 a 03\/03\/2026/ }),
   );
   await screen.findByRole('list', { name: 'Escala de março de 2026' });
   return user;
@@ -166,7 +166,7 @@ describe('ScheduleAdminPage', () => {
         <ToastViewport />
       </>,
     );
-    const row = /Alterar escala de 02\/03\/2026/;
+    const row = /Abrir escala de 02\/03\/2026/;
     await screen.findByRole('button', { name: row });
     await user.selectOptions(screen.getByLabelText('Situação'), 'published');
     expect(screen.queryByRole('button', { name: row })).toBeNull();
@@ -179,39 +179,18 @@ describe('ScheduleAdminPage', () => {
     expect(screen.queryByRole('button', { name: row })).toBeNull();
   });
 
-  it('exclui rascunho pela lista após confirmação', async () => {
-    let deleted = false;
-    mockApi('draft', (url, init) => {
-      if (url === '/api/schedules/s1' && init.method === 'DELETE') {
-        deleted = true;
-        return new Response(null, { status: 204 });
-      }
-      if (url === '/api/schedules' && deleted) return json([]);
-      return undefined;
-    });
-    const user = userEvent.setup();
-    render(
-      <>
-        <ScheduleAdminPage />
-        <ToastViewport />
-      </>,
-    );
-    await user.click(await screen.findByRole('button', { name: /Excluir escala de 02\/03\/2026/ }));
-    await user.click(screen.getByRole('button', { name: 'Confirmar exclusão' }));
-    await screen.findByText('Nenhuma escala criada.');
-    expect(deleted).toBe(true);
+  it('não oferece descarte em escala publicada', async () => {
+    mockApi('published');
+    await openSchedule();
+    expect(screen.queryByRole('button', { name: 'Mais ações' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Descartar rascunho' })).toBeNull();
   });
 
-  it('não oferece exclusão de escala publicada', async () => {
-    mockApi('published');
-    render(
-      <>
-        <ScheduleAdminPage />
-        <ToastViewport />
-      </>,
-    );
-    await screen.findByRole('button', { name: /Alterar escala de 02\/03\/2026/ });
-    expect(screen.queryByRole('button', { name: /Excluir escala/ })).toBeNull();
+  it('mostra selo de situação na lista', async () => {
+    mockApi('draft');
+    render(<ScheduleAdminPage />);
+    await screen.findByRole('button', { name: /Abrir escala de 02\/03\/2026/ });
+    expect(screen.getByRole('table', { name: 'Escalas' }).textContent).toContain('Rascunho');
   });
 
   it('gera rascunho e mostra dias sem responsável, violações e resumo', async () => {
@@ -247,6 +226,8 @@ describe('ScheduleAdminPage', () => {
       '02/03/2026: Ana Souza (dia da semana que prefere evitar)',
     );
     expect(screen.getByRole('table', { name: 'Resumo por membro' })).toBeTruthy();
+    expect(screen.getByText('Dias cobertos').nextSibling?.textContent).toBe('1/2');
+    expect(screen.getByText('Preferências não atendidas').nextSibling?.textContent).toBe('1');
     expect(bodyOf(fetchMock, '/api/schedules/generate', 'POST')).toEqual({
       from: '2026-03-02',
       to: '2026-03-03',
@@ -333,7 +314,8 @@ describe('ScheduleAdminPage', () => {
         : undefined,
     );
     const user = await openSchedule();
-    await user.click(screen.getByRole('button', { name: 'Descartar rascunho' }));
+    await user.click(screen.getByRole('button', { name: 'Mais ações' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Descartar rascunho' }));
     await user.click(screen.getByRole('button', { name: 'Confirmar descarte' }));
     await waitFor(() => expect(screen.queryByRole('region', { name: /Rascunho/ })).toBeNull());
     expect(
