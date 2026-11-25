@@ -122,6 +122,28 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('holidays (PostgreSQL)', () =
     expect(audit.every((a) => a.actor_id === manager.id)).toBe(true);
   });
 
+  it('gets one holiday by id, 404 when unknown or malformed, 401 anonymous', async () => {
+    const created = await call('POST', '/holidays', manager, {
+      date: '2026-06-24',
+      name: 'Teste São João',
+      scope: 'state',
+    });
+    const { id } = (await created.json()) as { id: string };
+    const ok = await call('GET', `/holidays/${id}`, member);
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({
+      id,
+      date: '2026-06-24',
+      name: 'Teste São João',
+      scope: 'state',
+    });
+    expect(
+      (await call('GET', '/holidays/00000000-0000-4000-8000-000000000000', member)).status,
+    ).toBe(404);
+    expect((await call('GET', '/holidays/abc', member)).status).toBe(404);
+    expect((await call('GET', `/holidays/${id}`, null)).status).toBe(401);
+  });
+
   it('rejects duplicate date+scope with 409 but allows other scope', async () => {
     const dup = await call('POST', '/holidays', manager, {
       date: '2026-12-25',
