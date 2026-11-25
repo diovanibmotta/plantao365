@@ -12,6 +12,7 @@ import { LoginPage } from './pages/LoginPage';
 import { HolidayForm } from './holidays/HolidayForm';
 import { HolidaysPage } from './pages/HolidaysPage';
 import { ScheduleAdminPage } from './pages/ScheduleAdminPage';
+import { ScheduleCsvExport } from './schedule-admin/ScheduleCsvExport';
 import { ScheduleEditorPage } from './schedule-admin/ScheduleEditorPage';
 import { ScheduleGenerateForm } from './schedule-admin/ScheduleGenerateForm';
 import { ShiftExceptionForm } from './schedule-admin/ShiftExceptionForm';
@@ -80,6 +81,7 @@ export function App() {
             <Route path="schedule-admin" element={<ScheduleAdminPage />} />
             <Route path="schedule-admin/schedules/new" element={<ScheduleGenerateForm />} />
             <Route path="schedule-admin/schedules/:id" element={<ScheduleEditorPage />} />
+            <Route path="schedule-admin/schedules/:id/export" element={<ScheduleCsvExport />} />
             <Route path="schedule-admin/shift-times/new" element={<ShiftTimeForm />} />
             <Route path="schedule-admin/shift-times/:key" element={<ShiftTimeForm />} />
             <Route path="schedule-admin/work-hours/new" element={<WorkHoursForm />} />

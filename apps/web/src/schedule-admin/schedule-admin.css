@@ -249,6 +249,10 @@
   gap: 8px;
 }
 
+.sad-editor-exports {
+  margin-left: auto;
+}
+
 .sad-menu {
   position: relative;
 }
@@ -319,4 +323,41 @@
 }
 .sad-conflict--warn {
   color: #d29922;
+}
+
+.sad-csv-fields {
+  display: grid;
+  gap: 4px;
+  max-width: 420px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sad-csv-fields li {
+  display: grid;
+  grid-template-columns: 20px 1fr auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.sad-csv-fields label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.sad-csv-field--off {
+  color: var(--muted);
+}
+
+.sad-csv-pos {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-align: right;
 }
