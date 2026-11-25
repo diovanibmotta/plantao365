@@ -1,3 +1,9 @@
+# [v1.21.0](https://github.com/diovanibmotta/plantao365/compare/v1.20.0...v1.21.0) (2026-11-25)
+
+## ✨ New Features
+- [`ef34eaa`](https://github.com/diovanibmotta/plantao365/commit/ef34eaa) : feat(web): lista editável de plantões e ações reorganizadas na tela de escala (#32) (Issues: [`#32`](https://github.com/diovanibmotta/plantao365/issues/32))
+- [`412d0af`](https://github.com/diovanibmotta/plantao365/commit/412d0af) : feat(api): eventos de domínio e e-mails de notificação (#33) (Issues: [`#33`](https://github.com/diovanibmotta/plantao365/issues/33))
+
 # [v1.20.0](https://github.com/diovanibmotta/plantao365/compare/v1.19.0...v1.20.0) (2026-11-25)
 
 ## ✨ New Features
