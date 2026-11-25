@@ -37,6 +37,7 @@ Convenções do Plantão365 para agentes e pessoas. Visão geral e setup no [REA
 
 - Uma pasta por funcionalidade (`balance/`, `schedule/`, `holidays/`, ...) com componentes, `types.ts` e CSS próprio; páginas roteáveis em `pages/`.
 - Chamadas HTTP sempre por `api/client.ts` (trata CSRF, 401/403 e erros de rede).
+- Feedback de mutação (POST/PUT/PATCH/DELETE) é toast do interceptor de `api/client.ts`: texto de sucesso via `successMessage` (opções do `api.put/post/delete`), erro já tratado pelo interceptor. Não crie mensagem inline de sucesso/erro nem duplique o toast no `catch` (`catch { /* interceptor */ }`); use `silentError`/`errorMessage` só quando a tela precisar tratar o erro. Mensagem inline fica para erro de carregamento (GET) e validação de formulário no cliente.
 - Guardas de rota em `auth/guards.tsx` (`RequireAuth`, `RequireRole`).
 
 ## Domínio (`packages/shared`)
