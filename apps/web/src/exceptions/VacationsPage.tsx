@@ -1,5 +1,6 @@
+import { PageTitle } from '../team/PageTitle';
 import { useRole } from '../team/TeamContext';
-import { UnavailabilityManager } from './UnavailabilityManager';
+import { UnavailabilityList } from './UnavailabilityList';
 
 export function VacationsPage() {
   const role = useRole();
@@ -11,12 +12,9 @@ export function VacationsPage() {
     );
   }
   return (
-    <UnavailabilityManager
-      mode="vacations"
-      heading="h1"
-      title="Férias"
-      newLabel="Novas férias"
-      emptyText="Nenhuma férias cadastrada."
-    />
+    <>
+      <PageTitle>Férias</PageTitle>
+      <UnavailabilityList mode="vacations" />
+    </>
   );
 }

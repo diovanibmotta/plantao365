@@ -1,13 +1,5 @@
-import { UnavailabilityManager } from './UnavailabilityManager';
+import { UnavailabilityList } from './UnavailabilityList';
 
 export function ExceptionsSection() {
-  return (
-    <UnavailabilityManager
-      mode="member"
-      heading="h2"
-      title="Exceções"
-      newLabel="Nova exceção"
-      emptyText="Nenhuma exceção cadastrada."
-    />
-  );
+  return <UnavailabilityList mode="member" />;
 }
