@@ -1,3 +1,8 @@
+# [v1.22.0](https://github.com/diovanibmotta/plantao365/compare/v1.21.0...v1.22.0) (2026-11-25)
+
+## ✨ New Features
+- [`542b361`](https://github.com/diovanibmotta/plantao365/commit/542b361) : feat(teams): cartão do membro para o gestor da equipe
+
 # [v1.21.0](https://github.com/diovanibmotta/plantao365/compare/v1.20.0...v1.21.0) (2026-11-25)
 
 ## ✨ New Features
