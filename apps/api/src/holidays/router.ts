@@ -59,6 +59,15 @@ export function createHolidaysRouter({
     return c.json({ items: await listHolidays(db, parsed.data) });
   });
 
+  router.get('/holidays/:id', requireAuth(), async (c) => {
+    const id = idSchema.safeParse(c.req.param('id'));
+    if (!id.success) return c.json({ error: 'not_found' }, 404);
+    const [row] = await db<HolidayRow[]>`
+      select id, date::text as date, name, scope from holidays where id = ${id.data}`;
+    if (!row) return c.json({ error: 'not_found' }, 404);
+    return c.json(toDto(row));
+  });
+
   router.post('/holidays', manager, async (c) => {
     const parsed = createHolidaySchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json(validationError(parsed.error), 400);

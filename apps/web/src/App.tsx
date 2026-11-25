@@ -6,6 +6,7 @@ import { AuditPage } from './pages/AuditPage';
 import { BalancePage } from './pages/BalancePage';
 import { VacationsPage } from './exceptions/VacationsPage';
 import { LoginPage } from './pages/LoginPage';
+import { HolidayForm } from './holidays/HolidayForm';
 import { HolidaysPage } from './pages/HolidaysPage';
 import { ScheduleAdminPage } from './pages/ScheduleAdminPage';
 import { ScheduleEditorPage } from './schedule-admin/ScheduleEditorPage';
@@ -69,6 +70,8 @@ export function App() {
             <Route path="schedule-admin/exceptions/new" element={<ShiftExceptionForm />} />
             <Route path="schedule-admin/exceptions/:date" element={<ShiftExceptionForm />} />
             <Route path="holidays" element={<HolidaysPage />} />
+            <Route path="holidays/new" element={<HolidayForm />} />
+            <Route path="holidays/:id" element={<HolidayForm />} />
             <Route path="audit" element={<AuditPage />} />
           </Route>
           {Object.entries(LEGACY_PATHS).map(([from, to]) => (

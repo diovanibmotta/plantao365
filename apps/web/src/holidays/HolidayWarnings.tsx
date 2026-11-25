@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { formatDay, warningMessage } from './types';
+import './holidays.css';
 import type { HolidayWarning } from './types';
 
 interface Props {
