@@ -4,7 +4,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import userEvent from '@testing-library/user-event';
 import { ToastViewport } from '../toast/ToastViewport';
 import { toast } from '../toast/toast-store';
-import { ProfilePage } from './ProfilePage';
+import { MemoryRouter } from 'react-router';
+import { ProfilePage as Page } from './ProfilePage';
 import type { Profile } from '../profile/types';
 
 vi.mock('../exceptions/PreferencesSection', () => ({
@@ -35,6 +36,12 @@ afterEach(() => {
   toast.clear();
   vi.unstubAllGlobals();
 });
+
+const ProfilePage = () => (
+  <MemoryRouter>
+    <Page />
+  </MemoryRouter>
+);
 
 describe('tela de perfil', () => {
   it('mostra dados protegidos somente leitura e campos editáveis', async () => {

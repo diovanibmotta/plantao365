@@ -4,6 +4,8 @@ import { RequireAuth, RequireRole } from './auth/guards';
 import { Layout } from './layout/Layout';
 import { AuditPage } from './pages/AuditPage';
 import { BalancePage } from './pages/BalancePage';
+import { MemberExceptionForm } from './exceptions/MemberExceptionForm';
+import { VacationForm } from './exceptions/VacationForm';
 import { VacationsPage } from './exceptions/VacationsPage';
 import { LoginPage } from './pages/LoginPage';
 import { HolidaysPage } from './pages/HolidaysPage';
@@ -54,11 +56,15 @@ export function App() {
             <Route path="swaps" element={<SwapsPage />} />
             <Route path="balance" element={<BalancePage />} />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="profile/exceptions/new" element={<MemberExceptionForm />} />
+            <Route path="profile/exceptions/:id" element={<MemberExceptionForm />} />
           </Route>
           <Route element={<RequireRole role="manager" />}>
             <Route path="teams" element={<TeamsPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="vacations" element={<VacationsPage />} />
+            <Route path="vacations/new" element={<VacationForm />} />
+            <Route path="vacations/:id" element={<VacationForm />} />
             <Route path="schedule-admin" element={<ScheduleAdminPage />} />
             <Route path="schedule-admin/schedules/new" element={<ScheduleGenerateForm />} />
             <Route path="schedule-admin/schedules/:id" element={<ScheduleEditorPage />} />

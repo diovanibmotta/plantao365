@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { api } from '../api/client';
 import { ExceptionsSection } from '../exceptions/ExceptionsSection';
 import { PreferencesSection } from '../exceptions/PreferencesSection';
@@ -18,7 +19,10 @@ const TABS: { id: Tab; label: string }[] = [
 
 export function ProfilePage() {
   const [loaded, setLoaded] = useState<Loaded>(null);
-  const [tab, setTab] = useState<Tab>('profile');
+  const [params, setParams] = useSearchParams();
+  const tabParam = params.get('tab');
+  const tab: Tab = TABS.find((t) => t.id === tabParam)?.id ?? 'profile';
+  const setTab = (next: Tab) => setParams(next === 'profile' ? {} : { tab: next });
 
   useEffect(() => {
     const controller = new AbortController();
