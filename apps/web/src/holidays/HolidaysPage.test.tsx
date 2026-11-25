@@ -73,13 +73,13 @@ describe('listagem de feriados', () => {
     const fetchMock = mockApi(() => json({ items: [NATAL, ANO_NOVO] }));
     renderApp('/holidays');
     expect(screen.getByRole('status').textContent).toContain('Carregando');
-    const table = await screen.findByRole('table', { name: 'Feriados de 2026' });
+    const table = await screen.findByRole('table', { name: 'Feriados' });
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows[0]!.textContent).toContain('quinta-feira, 1 de janeiro');
     expect(rows[0]!.textContent).toContain('Confraternização Universal');
     expect(rows[0]!.textContent).toContain('Nacional');
     expect(rows[1]!.textContent).toContain('sexta-feira, 25 de dezembro');
-    expect(String(fetchMock.mock.calls[0]![0])).toBe('/api/holidays?year=2026');
+    expect(String(fetchMock.mock.calls[0]![0])).toBe('/api/holidays');
     expect(formatHolidayDate('2026-12-25')).toBe('sexta-feira, 25 de dezembro');
     expect(screen.getByText('2 de 2 registros')).toBeTruthy();
     expect(screen.getByText(/plantão de 24h/)).toBeTruthy();
@@ -118,26 +118,27 @@ describe('listagem de feriados', () => {
     expect(screen.getByText('1 de 2 registros')).toBeTruthy();
   });
 
-  it('troca de ano refaz a consulta', async () => {
-    const fetchMock = mockApi((url) =>
-      json({ items: url.endsWith('2027') ? [holiday('h3', '2027-04-21', 'Tiradentes')] : [NATAL] }),
-    );
+  it('filtra por ano no cliente, com opção para todos', async () => {
+    const T = holiday('h3', '2027-04-21', 'Tiradentes');
+    const fetchMock = mockApi(() => json({ items: [NATAL, T] }));
     const ui = userEvent.setup();
     renderApp('/holidays');
     await screen.findByText('Natal');
+    expect(screen.getByText('Tiradentes')).toBeTruthy();
     await ui.selectOptions(screen.getByLabelText('Ano'), '2027');
-    expect(await screen.findByText('Tiradentes')).toBeTruthy();
-    expect(fetchMock.mock.calls.map((c) => String(c[0]))).toEqual([
-      '/api/holidays?year=2026',
-      '/api/holidays?year=2027',
-    ]);
+    expect(screen.getByText('Tiradentes')).toBeTruthy();
+    expect(screen.queryByText('Natal')).toBeNull();
+    expect(screen.getByText('1 de 2 registros')).toBeTruthy();
+    await ui.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    expect(screen.getByText('Natal')).toBeTruthy();
+    expect(fetchMock.mock.calls).toHaveLength(1);
   });
 
   it('mostra o estado vazio com CTA e o erro de carregamento', async () => {
     mockApi(() => json({ items: [] }));
     renderApp('/holidays');
-    expect(await screen.findByText('Nenhum feriado cadastrado em 2026.')).toBeTruthy();
-    expect(screen.getAllByRole('link', { name: 'Novo feriado' })).toHaveLength(2);
+    expect(await screen.findByText('Nenhum feriado cadastrado.')).toBeTruthy();
+    expect(screen.getAllByRole('link', { name: 'Novo feriado' })).toHaveLength(1);
     cleanup();
 
     mockApi(() => json({ error: 'boom', message: 'Falha no servidor' }, 500));

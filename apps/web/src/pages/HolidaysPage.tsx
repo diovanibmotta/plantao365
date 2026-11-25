@@ -2,49 +2,39 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { api } from '../api/client';
 import { HOLIDAYS_NEW_PATH, holidayPath } from '../holidays/paths';
-import {
-  errorMessage,
-  formatHolidayDate,
-  scopeLabel,
-  SCOPES,
-  yearOptions,
-} from '../holidays/types';
+import { errorMessage, formatHolidayDate, scopeLabel, SCOPES } from '../holidays/types';
 import type { Holiday, HolidayScope } from '../holidays/types';
 import { EmptyState } from '../ui/EmptyState';
 import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { PageHeader } from '../ui/PageHeader';
 
-interface Loaded {
-  year: number;
-  outcome: { error: string } | { items: Holiday[] };
-}
+type Outcome = { error: string } | { items: Holiday[] };
 
-/** Listagem de feriados por ano; cadastro, edição e exclusão ficam no formulário. */
+/** Listagem de feriados; cadastro, edição e exclusão ficam no formulário. */
 export function HolidaysPage() {
   const navigate = useNavigate();
-  const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState(currentYear);
-  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [search, setSearch] = useState('');
+  const [year, setYear] = useState('');
   const [scope, setScope] = useState<'' | HolidayScope>('');
 
   useEffect(() => {
     const controller = new AbortController();
     api
-      .get<{ items: Holiday[] }>(`/api/holidays?year=${year}`, controller.signal)
-      .then((data) => setLoaded({ year, outcome: { items: data.items } }))
+      .get<{ items: Holiday[] }>('/api/holidays', controller.signal)
+      .then((data) => setOutcome({ items: data.items }))
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
-        setLoaded({
-          year,
-          outcome: { error: errorMessage(err, 'Não foi possível carregar os feriados.') },
-        });
+        setOutcome({ error: errorMessage(err, 'Não foi possível carregar os feriados.') });
       });
     return () => controller.abort();
-  }, [year]);
+  }, []);
 
-  const outcome = loaded?.year === year ? loaded.outcome : null;
   const items = outcome && 'items' in outcome ? outcome.items : null;
+  const years = useMemo(
+    () => [...new Set((items ?? []).map((h) => h.date.slice(0, 4)))].sort(),
+    [items],
+  );
 
   const visible = useMemo(() => {
     const term = normalizeSearch(search);
@@ -54,12 +44,14 @@ export function HolidaysPage() {
         (h) =>
           (!term ||
             normalizeSearch(`${h.name} ${formatHolidayDate(h.date)} ${h.date}`).includes(term)) &&
+          (!year || h.date.startsWith(year)) &&
           (!scope || h.scope === scope),
       );
-  }, [items, search, scope]);
+  }, [items, search, year, scope]);
 
   const clear = () => {
     setSearch('');
+    setYear('');
     setScope('');
   };
 
@@ -74,7 +66,7 @@ export function HolidaysPage() {
       <PageHeader
         title="Feriados"
         description="Feriado conta como plantão de 24h (08:00 às 08:00)."
-        action={cta}
+        action={items && items.length > 0 ? cta : undefined}
       />
       {outcome === null && (
         <p className="status" role="status">
@@ -93,10 +85,11 @@ export function HolidaysPage() {
             onSearch={setSearch}
             placeholder="Buscar por nome ou data"
             onClear={clear}
-            clearable={Boolean(search || scope)}
+            clearable={Boolean(search || year || scope)}
           >
-            <select aria-label="Ano" value={year} onChange={(e) => setYear(Number(e.target.value))}>
-              {yearOptions(year, currentYear).map((y) => (
+            <select aria-label="Ano" value={year} onChange={(e) => setYear(e.target.value)}>
+              <option value="">Todos os anos</option>
+              {years.map((y) => (
                 <option key={y} value={y}>
                   {y}
                 </option>
@@ -116,12 +109,12 @@ export function HolidaysPage() {
             </select>
           </FilterBar>
           {items.length === 0 ? (
-            <EmptyState action={cta}>Nenhum feriado cadastrado em {year}.</EmptyState>
+            <EmptyState action={cta}>Nenhum feriado cadastrado.</EmptyState>
           ) : visible.length === 0 ? (
             <p className="muted">Nenhum registro encontrado para os filtros aplicados.</p>
           ) : (
             <div className="ui-table-wrap">
-              <table className="ui-table" aria-label={`Feriados de ${year}`}>
+              <table className="ui-table" aria-label="Feriados">
                 <thead>
                   <tr>
                     <th scope="col">Data</th>
