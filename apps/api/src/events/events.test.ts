@@ -196,6 +196,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('eventos de domínio (Postgre
       expect(Object.keys(handlers).sort()).toEqual([
         'balance.adjusted',
         'schedule.generated',
+        'schedule.impact',
         'schedule.published',
         'shift.changed',
         'shifts.recalculated',
