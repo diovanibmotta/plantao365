@@ -140,4 +140,64 @@ describe('página Equipes', () => {
       expect(screen.queryByRole('button', { name: 'Desvincular Ana Souza de Infra' })).toBeNull(),
     );
   });
+
+  it('abre o cartão do membro com contatos, preferências e exceções', async () => {
+    const teams = [{ id: 't1', name: 'Infra' }];
+    const bia = {
+      id: '2',
+      name: 'Bia Lima',
+      email: 'b@b.c',
+      active: true,
+      role: 'member',
+      participatesInRotation: true,
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/auth/me') return Promise.resolve(json(me));
+        if (url === '/api/teams/t1/members/2') {
+          return Promise.resolve(
+            json({
+              ...bia,
+              phone: '+55 11 99999-0000',
+              preferences: { avoidWeekdays: [0, 6], maxConsecutiveShifts: 2 },
+              unavailabilities: [
+                {
+                  id: 'u1',
+                  kind: 'vacation',
+                  startDate: '2099-01-10',
+                  endDate: '2099-01-20',
+                  note: 'Viagem',
+                },
+              ],
+            }),
+          );
+        }
+        if (url === '/api/teams/t1/members') return Promise.resolve(json([bia]));
+        if (url === '/api/teams') return Promise.resolve(json(teams));
+        return Promise.resolve(json([]));
+      }),
+    );
+    render(
+      <MemoryRouter initialEntries={['/teams']}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Gerenciar Infra' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Membros' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Perfil de Bia Lima' }));
+
+    const card = await screen.findByRole('article', { name: 'Perfil de Bia Lima' });
+    expect(card.textContent).toContain('Domingo, Sábado');
+    expect(card.textContent).toContain('Férias: 10/01/2099 a 20/01/2099');
+    expect(screen.getByRole('link', { name: '+55 11 99999-0000' }).getAttribute('href')).toBe(
+      'tel:+5511999990000',
+    );
+    expect(screen.getByRole('link', { name: 'b@b.c' }).getAttribute('href')).toBe('mailto:b@b.c');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Perfil de Bia Lima' }));
+    expect(screen.queryByRole('article', { name: 'Perfil de Bia Lima' })).toBeNull();
+  });
 });

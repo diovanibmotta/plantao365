@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { describeError, ROLE_OPTIONS } from '../members/types';
 import type { TeamRole } from '../members/types';
+import { MemberCard } from './MemberCard';
 
 interface TeamMember {
   id: string;
@@ -33,6 +34,7 @@ export function TeamMembersPanel({ teamId, teamName }: Props) {
   const [newParticipates, setNewParticipates] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -138,6 +140,15 @@ export function TeamMembersPanel({ teamId, teamName }: Props) {
                 <button
                   type="button"
                   className="btn"
+                  aria-expanded={openId === m.id}
+                  aria-label={`Perfil de ${m.name}`}
+                  onClick={() => setOpenId(openId === m.id ? null : m.id)}
+                >
+                  Perfil
+                </button>
+                <button
+                  type="button"
+                  className="btn"
                   disabled={busy}
                   aria-label={`Desvincular ${m.name} de ${teamName}`}
                   onClick={() => void unlink(m)}
@@ -145,6 +156,7 @@ export function TeamMembersPanel({ teamId, teamName }: Props) {
                   Desvincular
                 </button>
               </span>
+              {openId === m.id && <MemberCard teamId={teamId} userId={m.id} />}
             </li>
           ))}
         </ul>

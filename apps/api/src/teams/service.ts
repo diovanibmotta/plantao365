@@ -2,6 +2,9 @@ import { recordAudit } from '../audit/index.js';
 import { publishEvent } from '../events/publisher.js';
 import type { AuthUser, Role } from '../auth/types.js';
 import type { Sql } from '../db.js';
+import { localIsoDate } from '../email/format.js';
+import { getPreferences } from '../preferences/service.js';
+import type { PreferencesDto } from '../preferences/types.js';
 
 export interface TeamDto {
   id: string;
@@ -210,6 +213,45 @@ export async function listTeamMembers(
       join team_members m on m.user_id = u.id and m.team_id = ${teamId}
       where not u.is_master
       order by lower(u.name), u.id`;
+  });
+}
+
+export interface TeamMemberProfileDto extends TeamMemberDto {
+  phone: string | null;
+  preferences: PreferencesDto;
+  /** Exceções individuais (férias, folga, outro) em andamento ou futuras. */
+  unavailabilities: {
+    id: string;
+    kind: string;
+    startDate: string;
+    endDate: string;
+    note: string | null;
+  }[];
+}
+
+/** Cartão do membro para o gestor da equipe: contatos, preferências e exceções do perfil. */
+export async function getTeamMemberProfile(
+  db: Sql,
+  actor: AuthUser,
+  teamId: string,
+  userId: string,
+): Promise<TeamMemberProfileDto> {
+  return db.begin(async (txRaw) => {
+    const tx = txRaw as unknown as Sql;
+    await assertCanManage(tx, actor, teamId);
+    const [member] = await tx<Omit<TeamMemberProfileDto, 'preferences' | 'unavailabilities'>[]>`
+      select u.id, u.name, u.email, u.phone, u.active, m.role,
+        m.participates_in_rotation as "participatesInRotation"
+      from users u
+      join team_members m on m.user_id = u.id and m.team_id = ${teamId}
+      where u.id = ${userId} and not u.is_master`;
+    if (!member) throw new TeamsError(404, 'member_not_found', 'Membro não encontrado na equipe');
+    const unavailabilities = await tx<TeamMemberProfileDto['unavailabilities']>`
+      select id, kind, start_date::text as "startDate", end_date::text as "endDate", note
+      from unavailabilities
+      where user_id = ${userId} and end_date >= ${localIsoDate(new Date())}::date
+      order by start_date, end_date, id`;
+    return { ...member, preferences: await getPreferences(tx, userId), unavailabilities };
   });
 }
 
