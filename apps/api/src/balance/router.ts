@@ -141,6 +141,15 @@ export function createBalanceRouter({
     return c.json({ items });
   });
 
+  router.get('/balance/adjustments/:id', async (c) => {
+    if (c.get('user')!.role !== 'manager') return forbidden(c);
+    const id = z.uuid().safeParse(c.req.param('id'));
+    if (!id.success) return fail(c, 404, 'not_found', 'Ajuste não encontrado');
+    const adjustment = await getAdjustment(db, id.data);
+    if (!adjustment) return fail(c, 404, 'not_found', 'Ajuste não encontrado');
+    return c.json({ adjustment });
+  });
+
   router.post('/balance/adjustments', async (c) => {
     const user = c.get('user')!;
     if (user.role !== 'manager') return forbidden(c);

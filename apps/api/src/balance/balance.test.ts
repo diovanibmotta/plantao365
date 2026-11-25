@@ -251,6 +251,18 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('balance (PostgreSQL)', () =>
     expect(list.items).toEqual([created.adjustment]);
     expect(created.adjustment).toMatchObject({ hours: 3.5, createdBy: manager.id });
 
+    const one = await call('GET', `/balance/adjustments/${created.adjustment.id}`, manager);
+    expect(one.status).toBe(200);
+    expect((await one.json()).adjustment).toEqual(created.adjustment);
+    expect((await call('GET', `/balance/adjustments/${created.adjustment.id}`, ana)).status).toBe(
+      403,
+    );
+    expect(
+      (await call('GET', '/balance/adjustments/00000000-0000-4000-8000-000000000000', manager))
+        .status,
+    ).toBe(404);
+    expect((await call('GET', '/balance/adjustments/xx', manager)).status).toBe(404);
+
     expect(
       (await call('DELETE', `/balance/adjustments/${created.adjustment.id}`, ana)).status,
     ).toBe(403);

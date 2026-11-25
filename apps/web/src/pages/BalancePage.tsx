@@ -1,16 +1,15 @@
-import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { useRole } from '../team/TeamContext';
-import { Adjustments } from '../balance/Adjustments';
+import { AdjustmentsList } from '../balance/AdjustmentsList';
 import { BalanceView } from '../balance/BalanceView';
 import { TeamBalance } from '../balance/TeamBalance';
+import type { BalanceTab } from '../balance/paths';
 import { todayLocal } from '../schedule/format';
 import '../balance/balance.css';
 import { PageTitle } from '../team/PageTitle';
 
-type Tab = 'mine' | 'team' | 'adjustments';
-
-const TABS: { id: Tab; label: string }[] = [
+const TABS: { id: BalanceTab; label: string }[] = [
   { id: 'mine', label: 'Meu saldo' },
   { id: 'team', label: 'Equipe' },
   { id: 'adjustments', label: 'Ajustes' },
@@ -20,10 +19,27 @@ export function BalancePage({ currentYear: yearProp }: { currentYear?: number })
   const { status } = useAuth();
   const role = useRole();
   const currentYear = yearProp ?? Number(todayLocal().slice(0, 4));
-  const [year, setYear] = useState(currentYear);
-  const [tab, setTab] = useState<Tab>('mine');
+  const [params, setParams] = useSearchParams();
+  const requestedYear = Number(params.get('year'));
+  const year =
+    Number.isInteger(requestedYear) && requestedYear >= 2000 ? requestedYear : currentYear;
+  const requestedTab = params.get('tab');
+  const tab: BalanceTab = TABS.some((t) => t.id === requestedTab)
+    ? (requestedTab as BalanceTab)
+    : 'mine';
   const isManager = role === 'manager';
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 3 + i);
+  const years = [
+    ...new Set([...Array.from({ length: 5 }, (_, i) => currentYear - 3 + i), year]),
+  ].sort();
+  const update = (next: { tab?: BalanceTab; year?: number }) => {
+    const query = new URLSearchParams(params);
+    if (next.tab !== undefined) {
+      if (next.tab === 'mine') query.delete('tab');
+      else query.set('tab', next.tab);
+    }
+    if (next.year !== undefined) query.set('year', String(next.year));
+    setParams(query, { replace: true });
+  };
 
   if (status === 'loading') {
     return (
@@ -39,7 +55,7 @@ export function BalancePage({ currentYear: yearProp }: { currentYear?: number })
       <div className="bal-toolbar">
         <label className="bal-field">
           Ano
-          <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
+          <select value={year} onChange={(e) => update({ year: Number(e.target.value) })}>
             {years.map((y) => (
               <option key={y} value={y}>
                 {y}
@@ -59,7 +75,7 @@ export function BalancePage({ currentYear: yearProp }: { currentYear?: number })
               className="bal-tab"
               aria-selected={tab === t.id}
               aria-controls="bal-panel"
-              onClick={() => setTab(t.id)}
+              onClick={() => update({ tab: t.id })}
             >
               {t.label}
             </button>
@@ -74,7 +90,7 @@ export function BalancePage({ currentYear: yearProp }: { currentYear?: number })
           <BalanceView key={year} path={`/api/me/balance?year=${year}`} label="Meu saldo" />
         )}
         {isManager && tab === 'team' && <TeamBalance year={year} />}
-        {isManager && tab === 'adjustments' && <Adjustments year={year} />}
+        {isManager && tab === 'adjustments' && <AdjustmentsList year={year} />}
       </div>
     </section>
   );
