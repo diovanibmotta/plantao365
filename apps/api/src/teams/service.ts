@@ -17,6 +17,8 @@ export interface TeamDto {
 export interface AccessibleTeamDto extends TeamDto {
   role: Role;
   participatesInRotation: boolean;
+  /** Nomes dos gestores da equipe, em ordem alfabética. */
+  managers: string[];
 }
 
 export type MemberRole = 'manager' | 'member';
@@ -40,9 +42,10 @@ export class TeamsError extends Error {
 /** Master e convidado (somente leitura) enxergam todas as equipes; os demais, só as suas. */
 export async function listAccessibleTeams(db: Sql, user: AuthUser): Promise<AccessibleTeamDto[]> {
   if (user.isMaster || user.role === 'guest') {
-    const teams = await db<
-      TeamDto[]
-    >`select id, name, dashboard_url as "dashboardUrl", avatar from teams order by lower(name), id`;
+    const teams = await db<(TeamDto & { managers: string[] })[]>`
+      select t.id, t.name, t.dashboard_url as "dashboardUrl", t.avatar,
+        coalesce((select array_agg(u.name order by lower(u.name)) from team_members tm join users u on u.id = tm.user_id where tm.team_id = t.id and tm.role = 'manager'), '{}') as managers
+      from teams t order by lower(t.name), t.id`;
     return teams.map((t) => ({
       ...t,
       role: user.role,
@@ -51,7 +54,8 @@ export async function listAccessibleTeams(db: Sql, user: AuthUser): Promise<Acce
   }
   return db<AccessibleTeamDto[]>`
     select t.id, t.name, t.dashboard_url as "dashboardUrl", t.avatar,
-      m.role, m.participates_in_rotation as "participatesInRotation"
+      m.role, m.participates_in_rotation as "participatesInRotation",
+      coalesce((select array_agg(u.name order by lower(u.name)) from team_members tm join users u on u.id = tm.user_id where tm.team_id = t.id and tm.role = 'manager'), '{}') as managers
     from teams t
     join team_members m on m.team_id = t.id
     where m.user_id = ${user.id}

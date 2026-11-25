@@ -21,7 +21,7 @@ export function TeamsPage() {
     const term = normalizeSearch(search);
     return teams.filter(
       (t) =>
-        (!term || normalizeSearch(t.name).includes(term)) &&
+        (!term || normalizeSearch(`${t.name} ${(t.managers ?? []).join(' ')}`).includes(term)) &&
         (!dashboard || (dashboard === 'with') === Boolean(t.dashboardUrl)),
     );
   }, [teams, search, dashboard]);
@@ -57,7 +57,7 @@ export function TeamsPage() {
           <FilterBar
             search={search}
             onSearch={setSearch}
-            placeholder="Buscar por nome"
+            placeholder="Buscar por equipe ou gestor"
             onClear={clear}
             clearable={Boolean(search || dashboard)}
           >
@@ -79,6 +79,7 @@ export function TeamsPage() {
                 <thead>
                   <tr>
                     <th scope="col">Equipe</th>
+                    <th scope="col">Gestor</th>
                     <th scope="col">Dashboard</th>
                     <th scope="col">
                       <span className="sr-only">Ações</span>
@@ -94,13 +95,20 @@ export function TeamsPage() {
                     >
                       <th scope="row">
                         <span className="teams-name-cell">
-                          <TeamAvatar name={t.name} avatar={t.avatar} size="lg" />
+                          <TeamAvatar name={t.name} avatar={t.avatar} />
                           <span>{t.name}</span>
                           {t.id === activeTeam?.id && (
                             <span className="teams-badge">Em exibição</span>
                           )}
                         </span>
                       </th>
+                      <td>
+                        {t.managers?.length ? (
+                          t.managers.join(', ')
+                        ) : (
+                          <span className="muted">Sem gestor</span>
+                        )}
+                      </td>
                       <td>
                         {t.dashboardUrl ? (
                           <a

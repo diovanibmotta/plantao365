@@ -1,3 +1,13 @@
+# [v1.26.1](https://github.com/diovanibmotta/plantao365/compare/v1.26.0...v1.26.1) (2026-11-25)
+
+## 🐛 Bug Fixes
+- [`1030c12`](https://github.com/diovanibmotta/plantao365/commit/1030c12) : fix(web): mantém acesso master na tela de login quando /auth/config falha (#45) (Issues: [`#45`](https://github.com/diovanibmotta/plantao365/issues/45))
+
+# [v1.26.0](https://github.com/diovanibmotta/plantao365/compare/v1.25.0...v1.26.0) (2026-11-25)
+
+## ✨ New Features
+- [`b4373eb`](https://github.com/diovanibmotta/plantao365/commit/b4373eb) : feat(teams): mostra gestor e ajusta visual da listagem de equipes (#44) (Issues: [`#44`](https://github.com/diovanibmotta/plantao365/issues/44))
+
 # [v1.25.0](https://github.com/diovanibmotta/plantao365/compare/v1.24.1...v1.25.0) (2026-11-25)
 
 ## ✨ New Features
