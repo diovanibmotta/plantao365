@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api } from '../api/client';
 import { Avatar } from '../layout/Avatar';
-import { ROLE_LABELS, phoneToPayload, validateBadge, validatePhone } from './types';
+import { ROLE_LABELS, formatPhone, phoneToPayload, validateBadge, validatePhone } from './types';
 import type { Profile } from './types';
 import './profile.css';
 
@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function PersonalDataSection({ profile, onSaved }: Props) {
-  const [phone, setPhone] = useState(profile.phone ?? '');
+  const [phone, setPhone] = useState(formatPhone(profile.phone ?? ''));
   const [badge, setBadge] = useState(profile.badgeNumber ?? '');
   const [badgeError, setBadgeError] = useState<string | null>(null);
   const [reminders, setReminders] = useState(profile.remindersEnabled);
@@ -42,7 +42,7 @@ export function PersonalDataSection({ profile, onSaved }: Props) {
         { successMessage: 'Perfil salvo.' },
       );
       onSaved(saved);
-      setPhone(saved.phone ?? '');
+      setPhone(formatPhone(saved.phone ?? ''));
       setBadge(saved.badgeNumber ?? '');
       setReminders(saved.remindersEnabled);
     } catch {
@@ -76,11 +76,14 @@ export function PersonalDataSection({ profile, onSaved }: Props) {
           <input
             id={phoneId}
             type="tel"
+            inputMode="tel"
             autoComplete="tel"
+            placeholder="(11) 91234-5678"
+            maxLength={20}
             value={phone}
             aria-invalid={phoneError !== null}
             aria-describedby={phoneError ? phoneErrorId : undefined}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => setPhone(formatPhone(e.target.value))}
           />
           {phoneError && (
             <p id={phoneErrorId} className="profile-error">

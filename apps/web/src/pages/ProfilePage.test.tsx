@@ -60,7 +60,7 @@ describe('tela de perfil', () => {
     expect(screen.getByText('Membro')).toBeTruthy();
     expect(screen.getByText('Ativo')).toBeTruthy();
     expect(screen.queryByRole('textbox', { name: /nome|e-mail/i })).toBeNull();
-    expect((screen.getByLabelText(/Telefone/) as HTMLInputElement).value).toBe('11 99999-0000');
+    expect((screen.getByLabelText(/Telefone/) as HTMLInputElement).value).toBe('(11) 99999-0000');
     expect((screen.getByLabelText(/lembretes/i) as HTMLInputElement).checked).toBe(true);
   });
 
@@ -123,11 +123,28 @@ describe('tela de perfil', () => {
     const call = fetchMock.mock.calls.find((c) => c[1]?.method === 'PATCH')!;
     expect(call[0]).toBe('/api/me');
     expect(JSON.parse(String(call[1]?.body))).toEqual({
-      phone: '11 98888-7777',
+      phone: '(11) 98888-7777',
       badgeNumber: 'C-123',
       remindersEnabled: false,
     });
     expect((screen.getByLabelText(/lembretes/i) as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('aplica máscara de celular enquanto digita e ignora letras', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(json(profile))),
+    );
+    const user = userEvent.setup();
+    render(<ProfilePage />);
+    const phone = (await screen.findByLabelText(/Telefone/)) as HTMLInputElement;
+    expect(phone.value).toBe('(11) 99999-0000');
+    await user.clear(phone);
+    await user.type(phone, 'a47988864083299');
+    expect(phone.value).toBe('(47) 98886-4083');
+    await user.clear(phone);
+    await user.type(phone, '+5547988864083');
+    expect(phone.value).toBe('+55 (47) 98886-4083');
   });
 
   it('envia phone null quando o telefone é esvaziado', async () => {
@@ -161,7 +178,7 @@ describe('tela de perfil', () => {
     );
     const phone = await screen.findByLabelText(/Telefone/);
     await user.clear(phone);
-    await user.type(phone, 'abc');
+    await user.type(phone, '123');
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
     expect(screen.getByText(/Telefone inválido/)).toBeTruthy();
     expect(
