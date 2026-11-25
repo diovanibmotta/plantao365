@@ -67,6 +67,7 @@ interface ShiftRow {
   ends_at: Date | null;
   user_id: string | null;
   user_name: string | null;
+  user_badge_number: string | null;
   original_user_id: string | null;
   original_hours: number | null;
 }
@@ -92,6 +93,7 @@ const toShiftDto = (r: ShiftRow): ShiftDto => ({
   endsAt: r.ends_at?.toISOString() ?? null,
   userId: r.user_id,
   userName: r.user_name,
+  userBadgeNumber: r.user_badge_number,
   originalUserId: r.original_user_id,
   originalHours: r.original_hours,
 });
@@ -163,7 +165,7 @@ export async function getSchedule(
 export async function listShiftsOfSchedule(sql: Sql, scheduleId: string): Promise<ShiftDto[]> {
   const rows = await sql<ShiftRow[]>`
     select s.id, s.schedule_id, s.date::text as date, s.day_type, s.hours, s.starts_at, s.ends_at,
-      s.user_id, u.name as user_name, s.original_user_id, s.original_hours
+      s.user_id, u.name as user_name, u.badge_number as user_badge_number, s.original_user_id, s.original_hours
     from shifts s left join users u on u.id = s.user_id
     where s.schedule_id = ${scheduleId}
     order by s.date`;
@@ -174,7 +176,7 @@ export async function listShiftsInRange(sql: Sql, q: ShiftRangeQuery): Promise<S
   const status = q.status ?? 'published';
   const rows = await sql<ShiftRow[]>`
     select s.id, s.schedule_id, s.date::text as date, s.day_type, s.hours, s.starts_at, s.ends_at,
-      s.user_id, u.name as user_name, s.original_user_id, s.original_hours
+      s.user_id, u.name as user_name, u.badge_number as user_badge_number, s.original_user_id, s.original_hours
     from shifts s
     join schedules sc on sc.id = s.schedule_id
     left join users u on u.id = s.user_id

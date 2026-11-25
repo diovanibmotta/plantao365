@@ -124,6 +124,25 @@ export function createUsersRouter({ db, futureShiftsFinder, now }: UsersRouterDe
     return c.body(new Uint8Array(row.photo));
   });
 
+  // Cartão de visita de quem está de plantão: qualquer usuário autenticado vê nome, e-mail, telefone e crachá.
+  router.get('/users/:id/contact', requireAuth(), async (c) => {
+    const id = c.req.param('id');
+    const [row] = UUID.test(id)
+      ? await db<
+          {
+            id: string;
+            name: string;
+            email: string;
+            phone: string | null;
+            badgeNumber: string | null;
+          }[]
+        >`
+          select id, name, email, phone, badge_number as "badgeNumber" from users where id = ${id} and active`
+      : [];
+    if (!row) return c.json({ error: 'not_found', message: 'Usuário não encontrado' }, 404);
+    return c.json(row);
+  });
+
   router.get('/users', requireRole('manager'), async (c) => c.json(await listUsers(db)));
 
   router.post('/users', requireRole('manager'), async (c) => {

@@ -5,10 +5,20 @@ import { PreferencesSection } from '../exceptions/PreferencesSection';
 import { PersonalDataSection } from '../profile/PersonalDataSection';
 import type { Profile } from '../profile/types';
 
+import '../schedule-admin/schedule-admin.css';
+
 type Loaded = { profile: Profile } | { error: string } | null;
+type Tab = 'profile' | 'preferences' | 'exceptions';
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'profile', label: 'Perfil' },
+  { id: 'preferences', label: 'Preferências' },
+  { id: 'exceptions', label: 'Exceções' },
+];
 
 export function ProfilePage() {
   const [loaded, setLoaded] = useState<Loaded>(null);
+  const [tab, setTab] = useState<Tab>('profile');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -39,12 +49,32 @@ export function ProfilePage() {
       )}
       {loaded !== null && 'profile' in loaded && (
         <>
-          <PersonalDataSection
-            profile={loaded.profile}
-            onSaved={(profile) => setLoaded({ profile })}
-          />
-          <PreferencesSection />
-          <ExceptionsSection />
+          <div className="sad-tabs" role="tablist" aria-label="Seções do perfil">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                id={`profile-tab-${t.id}`}
+                className="sad-tab"
+                aria-selected={tab === t.id}
+                aria-controls="profile-panel"
+                onClick={() => setTab(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-tab-${tab}`}>
+            {tab === 'profile' && (
+              <PersonalDataSection
+                profile={loaded.profile}
+                onSaved={(profile) => setLoaded({ profile })}
+              />
+            )}
+            {tab === 'preferences' && <PreferencesSection />}
+            {tab === 'exceptions' && <ExceptionsSection />}
+          </div>
         </>
       )}
     </section>

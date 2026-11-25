@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toast, getToasts } from '../toast/toast-store';
-import { api, ForbiddenError, NetworkError, UnauthorizedError } from './client';
+import {
+  api,
+  ForbiddenError,
+  NetworkError,
+  setUnauthorizedHandler,
+  UnauthorizedError,
+} from './client';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -36,6 +42,20 @@ describe('api client', () => {
     await expect(api.get('/a')).rejects.toBeInstanceOf(ForbiddenError);
     vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new TypeError('fail')));
     await expect(api.get('/a')).rejects.toBeInstanceOf(NetworkError);
+  });
+
+  it('chama o handler de sessão expirada em 401', async () => {
+    const handler = vi.fn();
+    const off = setUnauthorizedHandler(handler);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => Promise.resolve(json({}, 401))),
+    );
+    await expect(api.get('/a')).rejects.toBeInstanceOf(UnauthorizedError);
+    expect(handler).toHaveBeenCalledTimes(1);
+    off();
+    await expect(api.get('/a')).rejects.toBeInstanceOf(UnauthorizedError);
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 
   describe('toasts em mutações', () => {

@@ -5,6 +5,7 @@ export interface Profile {
   name: string;
   email: string;
   phone: string | null;
+  badgeNumber: string | null;
   role: ProfileRole;
   active: boolean;
   participatesInRotation: boolean;
@@ -27,6 +28,10 @@ export function validatePhone(raw: string): string | null {
     return 'Telefone inválido. Use de 8 a 15 dígitos, com DDD.';
   }
   return null;
+}
+
+export function validateBadge(raw: string): string | null {
+  return raw.trim().length > 30 ? 'Crachá muito longo (máx. 30 caracteres).' : null;
 }
 
 export function phoneToPayload(raw: string): string | null {

@@ -152,6 +152,7 @@ export function TimeGrid({
                         {shift.userId && <Avatar userId={shift.userId} name={name} />}
                         <span className="tg-shift-name">
                           {name}
+                          {shift.userBadgeNumber ? ` · crachá ${shift.userBadgeNumber}` : ''}
                           {mine ? ' (você)' : ''}
                         </span>
                       </span>

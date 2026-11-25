@@ -22,6 +22,7 @@ import {
   viewRange,
 } from '../schedule/calendar';
 import type { CalendarView, MonthKey } from '../schedule/calendar';
+import { ContactCardModal } from '../schedule/ContactCardModal';
 import { TimeGrid } from '../schedule/TimeGrid';
 import {
   DAY_TYPE_LABEL,
@@ -94,6 +95,7 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
   const [member, setMember] = useState('');
   const [status, setStatus] = useState<ShiftStatusFilter>('');
   const [colleagues, setColleagues] = useState<Colleague[]>([]);
+  const [person, setPerson] = useState<{ id: string; name: string } | null>(null);
   const [loaded, setLoaded] = useState<{ key: string; outcome: Outcome } | null>(null);
   const [shiftTimes, setShiftTimes] = useState<ShiftTimes | null>(null);
   const [workPeriods, setWorkPeriods] = useState<WorkPeriod[]>([...DEFAULT_WORK_PERIODS]);
@@ -257,7 +259,11 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
           member={activeMember}
           status={status}
           shiftTimes={shiftTimes}
+          onSelectPerson={(id, name) => setPerson({ id, name })}
         />
+      )}
+      {person && (
+        <ContactCardModal userId={person.id} name={person.name} onClose={() => setPerson(null)} />
       )}
       {data && view !== 'month' && (
         <TimeGrid
@@ -285,6 +291,7 @@ interface MonthCalendarProps {
   member: string;
   status: ShiftStatusFilter;
   shiftTimes: ShiftTimes | null;
+  onSelectPerson: (userId: string, name: string) => void;
 }
 
 function MonthCalendar({
@@ -295,6 +302,7 @@ function MonthCalendar({
   member,
   status,
   shiftTimes,
+  onSelectPerson,
 }: MonthCalendarProps) {
   const shiftsByDate = new Map<LocalDate, ShiftDto[]>();
   for (const s of data.shifts) {
@@ -350,27 +358,41 @@ function MonthCalendar({
               )}
               {holiday && !dimmed && <span className="sched-day-note">Feriado: {holiday}</span>}
               {vacation && !dimmed && <span className="sched-day-note">Férias coletivas</span>}
-              {shifts.map((s) => (
-                <span key={s.id} className="sched-day-shift">
-                  {s.userId && <Avatar userId={s.userId} name={s.userName ?? ''} />}
-                  <span>
-                    <span className="sched-day-name">
-                      {s.userName ?? 'Sem responsável'}
-                      {mine && s.userId === userId ? ' (você)' : ''}
+              {shifts.map((s) => {
+                const Wrapper = s.userId ? 'button' : 'span';
+                return (
+                  <Wrapper
+                    key={s.id}
+                    className="sched-day-shift"
+                    {...(s.userId
+                      ? {
+                          type: 'button' as const,
+                          title: 'Ver cartão de contato',
+                          onClick: () => onSelectPerson(s.userId!, s.userName ?? ''),
+                        }
+                      : {})}
+                  >
+                    {s.userId && <Avatar userId={s.userId} name={s.userName ?? ''} />}
+                    <span>
+                      <span className="sched-day-name">
+                        {s.userName ?? 'Sem responsável'}
+                        {s.userBadgeNumber ? ` · crachá ${s.userBadgeNumber}` : ''}
+                        {mine && s.userId === userId ? ' (você)' : ''}
+                      </span>
+                      <span className="sched-day-period">
+                        <span>{formatPeriod(s)}</span>
+                        {s.endsAt && todayLocal(new Date(s.endsAt)) !== s.date && (
+                          <abbr title="Termina no dia seguinte"> +1</abbr>
+                        )}{' '}
+                        <span className="muted">{formatHours(s.hours)}</span>
+                      </span>
+                      <span className={`sched-status sched-status--${shiftStatus(s, today)}`}>
+                        {SHIFT_STATUS_LABEL[shiftStatus(s, today)]}
+                      </span>
                     </span>
-                    <span className="sched-day-period">
-                      <span>{formatPeriod(s)}</span>
-                      {s.endsAt && todayLocal(new Date(s.endsAt)) !== s.date && (
-                        <abbr title="Termina no dia seguinte"> +1</abbr>
-                      )}{' '}
-                      <span className="muted">{formatHours(s.hours)}</span>
-                    </span>
-                    <span className={`sched-status sched-status--${shiftStatus(s, today)}`}>
-                      {SHIFT_STATUS_LABEL[shiftStatus(s, today)]}
-                    </span>
-                  </span>
-                </span>
-              ))}
+                  </Wrapper>
+                );
+              })}
             </li>
           );
         })}

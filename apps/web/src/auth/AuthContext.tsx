@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { apiUrl } from '../api/base-url';
-import { api, UnauthorizedError } from '../api/client';
+import { api, setUnauthorizedHandler, UnauthorizedError } from '../api/client';
 
 export type Role = 'manager' | 'member' | 'guest';
 
@@ -47,6 +47,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     return () => controller.abort();
   }, []);
+
+  // Sessão expirada em qualquer chamada: vira anônimo e RequireAuth leva ao login.
+  useEffect(
+    () =>
+      setUnauthorizedHandler(() => {
+        setUser(null);
+        setStatus('anonymous');
+      }),
+    [],
+  );
 
   const login = useCallback(() => {
     window.location.assign(apiUrl('/auth/login'));

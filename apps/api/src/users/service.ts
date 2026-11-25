@@ -40,6 +40,8 @@ const phoneSchema = z
     return PHONE_PATTERN.test(v) && digits >= 8 && digits <= 15;
   }, 'Telefone inválido');
 
+const badgeSchema = z.string().trim().max(30, 'Crachá muito longo');
+
 export const PROTECTED_PROFILE_FIELDS = [
   'name',
   'email',
@@ -51,12 +53,16 @@ export const PROTECTED_PROFILE_FIELDS = [
 export const updateProfileSchema = z
   .object({
     phone: phoneSchema.nullable().optional(),
+    badgeNumber: badgeSchema.nullable().optional(),
     remindersEnabled: z.boolean().optional(),
   })
   .strict()
-  .refine((v) => v.phone !== undefined || v.remindersEnabled !== undefined, {
-    message: 'Informe ao menos um campo para alterar',
-  });
+  .refine(
+    (v) => v.phone !== undefined || v.badgeNumber !== undefined || v.remindersEnabled !== undefined,
+    {
+      message: 'Informe ao menos um campo para alterar',
+    },
+  );
 
 // z.uuid() recusa o id da equipe principal (versão 0); basta o formato.
 const UUID_FORMAT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -99,6 +105,7 @@ interface UserRow {
   name: string;
   email: string;
   phone: string | null;
+  badge_number: string | null;
   role: Role;
   active: boolean;
   participates_in_rotation: boolean;
@@ -112,6 +119,7 @@ const toProfile = (r: UserRow): ProfileDto => ({
   name: r.name,
   email: r.email,
   phone: r.phone,
+  badgeNumber: r.badge_number,
   role: r.role,
   active: r.active,
   participatesInRotation: r.participates_in_rotation,
@@ -151,9 +159,10 @@ export async function updateProfile(
     const [before] = await tx<UserRow[]>`select * from users where id = ${userId} for update`;
     if (!before) throw new UsersError(404, 'not_found', 'Usuário não encontrado');
     const phone = input.phone === undefined ? before.phone : input.phone;
+    const badge = input.badgeNumber === undefined ? before.badge_number : input.badgeNumber || null;
     const reminders = input.remindersEnabled ?? before.reminders_enabled;
     const [after] = await tx<UserRow[]>`
-      update users set phone = ${phone}, reminders_enabled = ${reminders}, updated_at = now()
+      update users set phone = ${phone}, badge_number = ${badge}, reminders_enabled = ${reminders}, updated_at = now()
       where id = ${userId} returning *`;
     await recordAudit(tx, {
       actorId: userId,

@@ -36,7 +36,8 @@ export function UnavailabilityManager({
   const { user } = useAuth();
   const role = useRole();
   const vacations = mode === 'vacations';
-  const showMembers = role === 'manager';
+  // No Perfil (mode 'member') a tela é só da própria conta, mesmo para o gestor.
+  const showMembers = role === 'manager' && vacations;
   const [loaded, setLoaded] = useState<{ key: number; data: Loaded } | null>(null);
   const [reload, setReload] = useState(0);
   const [members, setMembers] = useState<MemberOption[]>([]);
@@ -56,7 +57,7 @@ export function UnavailabilityManager({
             items: res.items.filter((i) =>
               vacations
                 ? i.kind === 'vacation' || i.kind === 'collective_vacation'
-                : i.kind !== 'collective_vacation',
+                : i.kind !== 'collective_vacation' && i.userId === user?.id,
             ),
           },
         }),
@@ -69,7 +70,7 @@ export function UnavailabilityManager({
         });
       });
     return () => controller.abort();
-  }, [vacations, reload]);
+  }, [vacations, reload, user?.id]);
 
   useEffect(() => {
     if (!showMembers) return;

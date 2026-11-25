@@ -120,6 +120,26 @@ describe('exceções do membro', () => {
     expect(writes(fetchMock)).toHaveLength(0);
   });
 
+  it('não oferece Férias ao criar exceção, mas mantém ao editar registro antigo de férias', async () => {
+    mockApi(() => json({ items: [item('a')] }));
+    const user = userEvent.setup();
+    render(
+      <>
+        <ExceptionsSection />
+        <ToastViewport />
+      </>,
+    );
+    await user.click(await screen.findByRole('button', { name: 'Nova exceção' }));
+    const optionsOf = () =>
+      within(screen.getByLabelText('Tipo'))
+        .getAllByRole('option')
+        .map((o) => o.textContent);
+    expect(optionsOf()).toEqual(['Folga', 'Outro']);
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(await screen.findByRole('button', { name: /Editar Férias/ }));
+    expect(optionsOf()).toEqual(['Férias', 'Folga', 'Outro']);
+  });
+
   it('cria exceção e mostra avisos de conflito', async () => {
     const created = item('n', { kind: 'time_off', note: 'Médico' });
     const fetchMock = mockApi((_url, init) =>
@@ -224,14 +244,13 @@ describe('exceções do membro', () => {
     expect(fetchMock.mock.calls.some((c) => String(c[0]) === '/api/users')).toBe(false);
   });
 
-  it('gestor vê exceções de outros e cadastra para um membro', async () => {
+  it('gestor no Perfil vê só as próprias exceções e não escolhe membro', async () => {
     auth.role = 'manager';
-    const fetchMock = mockApi((url, init) => {
-      if (url === '/api/users') return json(MEMBERS);
-      if (init?.method === 'POST')
-        return json({ unavailability: item('n', { userId: 'u2' }) }, 201);
-      return json({ items: [item('b', { userId: 'u2' })] });
-    });
+    const fetchMock = mockApi((url) =>
+      url === '/api/users'
+        ? json(MEMBERS)
+        : json({ items: [item('a', { note: 'Casamento' }), item('b', { userId: 'u2' })] }),
+    );
     const user = userEvent.setup();
     render(
       <>
@@ -240,13 +259,10 @@ describe('exceções do membro', () => {
       </>,
     );
     const list = await screen.findByRole('list', { name: 'Exceções' });
-    await within(list).findByText('Bruno');
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(list).getByText('Casamento')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Nova exceção' }));
-    await user.selectOptions(await screen.findByLabelText('Membro'), 'u2');
-    setDates('2026-08-01', '2026-08-05');
-    await user.click(screen.getByRole('button', { name: 'Salvar' }));
-    await screen.findByRole('list', { name: 'Exceções' });
-    const [, init] = writes(fetchMock)[0]!;
-    expect(JSON.parse(String(init.body))).toMatchObject({ userId: 'u2', kind: 'vacation' });
+    expect(screen.queryByLabelText('Membro')).toBeNull();
+    expect(fetchMock.mock.calls.some((c) => String(c[0]) === '/api/users')).toBe(false);
   });
 });

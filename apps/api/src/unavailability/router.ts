@@ -178,6 +178,7 @@ export function createUnavailabilityRouter({
       to,
       userId,
       visibleTo: isManager ? undefined : user.id,
+      selfId: user.id,
       teamId: c.get('teamId') ?? undefined,
     });
     return c.json({ items });
