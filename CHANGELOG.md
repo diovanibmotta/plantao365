@@ -1,3 +1,8 @@
+# [v1.26.1](https://github.com/diovanibmotta/plantao365/compare/v1.26.0...v1.26.1) (2026-11-25)
+
+## 🐛 Bug Fixes
+- [`1030c12`](https://github.com/diovanibmotta/plantao365/commit/1030c12) : fix(web): mantém acesso master na tela de login quando /auth/config falha (#45) (Issues: [`#45`](https://github.com/diovanibmotta/plantao365/issues/45))
+
 # [v1.26.0](https://github.com/diovanibmotta/plantao365/compare/v1.25.0...v1.26.0) (2026-11-25)
 
 ## ✨ New Features
