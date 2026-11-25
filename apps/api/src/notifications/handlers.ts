@@ -16,6 +16,7 @@ import {
   notifyShiftsChanged,
 } from './schedule-events.js';
 import { notifySwapEvent } from './swap-events.js';
+import { notifyScheduleImpact } from './impact-events.js';
 import { notifyUnavailabilityConflict } from './unavailability-events.js';
 
 export interface HandlerDeps {
@@ -79,6 +80,10 @@ export function createEventHandlers(deps: HandlerDeps = {}): Required<EventHandl
     'swap.rejected': swap,
     'unavailability.conflict': async (tx, e, ctx) => {
       await notifyUnavailabilityConflict(tx, e.payload, { appBaseUrl, now: ctx.now });
+    },
+
+    'schedule.impact': async (tx, e, ctx) => {
+      await notifyScheduleImpact(tx, e.payload, { appBaseUrl, now: ctx.now, eventId: e.id });
     },
 
     'schedule.generated': async (tx, e, ctx) => {

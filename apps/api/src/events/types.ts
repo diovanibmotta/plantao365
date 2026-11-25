@@ -1,5 +1,6 @@
 import type { PublishedEvent, ShiftChange } from '../schedules/index.js';
 import type { SwapEvent } from '../swaps/index.js';
+import type { ScheduleImpactPayload } from '../schedule-impact/types.js';
 import type { UnavailabilityConflictEvent } from '../unavailability/index.js';
 
 /** Alteração de um plantão de escala publicada (edição do gestor ou recálculo por feriado). */
@@ -68,6 +69,7 @@ export interface DomainEventMap {
   'swap.approved': SwapEvent;
   'swap.rejected': SwapEvent;
   'unavailability.conflict': UnavailabilityConflictEvent;
+  'schedule.impact': ScheduleImpactPayload;
   'balance.adjusted': BalanceAdjustedPayload;
   'team.member_added': TeamMemberPayload;
   'team.member_updated': TeamMemberPayload;

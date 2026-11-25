@@ -3,6 +3,7 @@ import type { Sql } from '../db.js';
 import { buildTestApp, csrfHeaders, loginAs, TEST_ORIGIN, type TestUser } from '../test-app.js';
 import { createTestDb, type TestDb } from '../test-utils.js';
 import { createUnavailabilityRouter } from './index.js';
+import type { ScheduleImpactNotifier, ScheduleImpactTrigger } from '../schedule-impact/index.js';
 import type { CollectiveImpactChecker, UnavailabilityConflictEvent } from './types.js';
 
 describe.skipIf(!process.env['TEST_DATABASE_URL'])('avisos de conflito (PostgreSQL)', () => {
@@ -13,6 +14,17 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('avisos de conflito (PostgreS
   let events: UnavailabilityConflictEvent[];
   let impactCalls: string[][];
   let failHook = false;
+  let triggers: ScheduleImpactTrigger[];
+  const notifier: ScheduleImpactNotifier = async (_sql, trigger) => {
+    triggers.push(trigger);
+    return {
+      source: trigger.source,
+      shifts: 1,
+      dates: ['2026-12-03'],
+      teams: [],
+      message: 'aviso',
+    };
+  };
 
   const impact: CollectiveImpactChecker = async (_sql, dates) => {
     impactCalls.push(dates);
@@ -27,6 +39,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('avisos de conflito (PostgreS
           conflictChecker: async (_s, args) =>
             args.userId ? [{ date: '2026-12-03', userId: args.userId }] : [],
           collectiveImpactChecker: impact,
+          scheduleImpactNotifier: notifier,
           onConflict: (e) => {
             events.push(e);
             if (failHook) throw new Error('boom');
@@ -59,6 +72,7 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('avisos de conflito (PostgreS
     ana = await loginAs(sql, { email: 'ana@x.com' });
     events = [];
     impactCalls = [];
+    triggers = [];
     failHook = false;
   });
 
@@ -117,5 +131,26 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('avisos de conflito (PostgreS
       '2026-12-27',
     ]);
     expect(events).toEqual([]);
+  });
+
+  it('regra core: gestor ou membro, individual ou coletiva, sempre aciona o notificador', async () => {
+    const byManager = await call('POST', '/unavailabilities', manager, { ...mine, userId: ana.id });
+    expect((await byManager.json()).scheduleImpact.message).toBe('aviso');
+    const coll = await call('POST', '/unavailabilities', manager, {
+      kind: 'collective_vacation',
+      startDate: '2026-12-24',
+      endDate: '2026-12-26',
+    });
+    expect((await coll.json()).scheduleImpact.source).toBe('collective_vacation');
+    const byMember = await call('POST', '/unavailabilities', ana, mine);
+    const { unavailability: u } = await byMember.json();
+    const patch = await call('PATCH', `/unavailabilities/${u.id}`, ana, { endDate: '2026-12-06' });
+    expect((await patch.json()).scheduleImpact.shifts).toBe(1);
+    expect(triggers.map((t) => t.source)).toEqual([
+      'member_exception',
+      'collective_vacation',
+      'member_exception',
+      'member_exception',
+    ]);
   });
 });

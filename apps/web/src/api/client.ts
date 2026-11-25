@@ -100,16 +100,24 @@ function bodyString(body: unknown, key: 'message' | 'notice'): string | undefine
   return typeof value === 'string' && value.trim() ? value : undefined;
 }
 
+/**
+ * Avisos de uma mutação: `warnings[].message` e, pela regra core, `scheduleImpact.message` (a
+ * alteração atinge plantões de escala publicada; o gestor também é avisado por e-mail).
+ */
 function warningMessages(body: unknown): string[] {
   if (typeof body !== 'object' || body === null) return [];
-  const list = (body as { warnings?: unknown }).warnings;
-  if (!Array.isArray(list) || list.length === 0) return [];
-  const texts = list.flatMap((w) =>
-    typeof w === 'object' && w !== null && typeof (w as { message?: unknown }).message === 'string'
-      ? [(w as { message: string }).message]
-      : [],
-  );
-  return texts;
+  const { warnings, scheduleImpact } = body as { warnings?: unknown; scheduleImpact?: unknown };
+  const texts = Array.isArray(warnings)
+    ? warnings.flatMap((w) =>
+        typeof w === 'object' &&
+        w !== null &&
+        typeof (w as { message?: unknown }).message === 'string'
+          ? [(w as { message: string }).message]
+          : [],
+      )
+    : [];
+  const impact = bodyString(scheduleImpact, 'message');
+  return impact ? [...texts, impact] : texts;
 }
 
 function notifySuccess(verb: string, data: unknown, opts: ToastOptions): void {

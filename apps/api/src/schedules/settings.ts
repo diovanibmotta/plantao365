@@ -18,6 +18,12 @@ import { recordAudit } from '../audit/index.js';
 import { requireRole } from '../auth/authz.js';
 import type { AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
+import type { Logger } from '../logger.js';
+import {
+  runScheduleImpact,
+  type ScheduleImpact,
+  type ScheduleImpactNotifier,
+} from '../schedule-impact/index.js';
 
 /** Horário configurado por tipo de dia; tipos sem linha usam o padrão. */
 export async function getShiftTimes(sql: Sql, teamId: string): Promise<ShiftTimes> {
@@ -170,8 +176,24 @@ const exceptionJson = (e: ShiftException) => ({
 const invalidDate = { error: 'validation_error', message: 'Data inválida; use AAAA-MM-DD' };
 
 /** GET/PUT /shift-settings. Vale para escalas geradas depois; plantões existentes não mudam. */
-export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql }): void {
-  const { db } = deps;
+export function registerSettingsRoutes(
+  router: Hono<AuthEnv>,
+  deps: {
+    db: Sql;
+    /** Regra core: avisa tela e gestores quando a mudança de horário atinge escala publicada. */
+    scheduleImpactNotifier?: ScheduleImpactNotifier | undefined;
+    logger?: Logger | undefined;
+  },
+): void {
+  const { db, scheduleImpactNotifier, logger } = deps;
+  const impactOf = (
+    tx: Sql,
+    source: 'shift_times' | 'shift_exception',
+    teamId: string,
+    actorId: string,
+  ): Promise<ScheduleImpact | null> =>
+    runScheduleImpact(tx, scheduleImpactNotifier, { source, teamId, actorId }, logger);
+  const withImpact = (impact: ScheduleImpact | null) => (impact ? { scheduleImpact: impact } : {});
   router.get('/shift-settings', async (c) => c.json(await getShiftTimes(db, c.get('teamId')!)));
 
   router.get('/work-hours', async (c) =>
@@ -232,6 +254,7 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
     const { startHour, endHour, holiday } = parsed.data;
     const weekdays = [...new Set(parsed.data.weekdays)].sort((a, b) => a - b);
     const teamId = c.get('teamId')!;
+    let impact: ScheduleImpact | null = null;
     await db.begin(async (txRaw) => {
       const tx = txRaw as unknown as Sql;
       const before = {
@@ -269,8 +292,9 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
           holiday: { ...(await getShiftTimes(tx, teamId)).holiday },
         },
       });
+      impact = await impactOf(tx, 'shift_times', teamId, c.get('user')!.id);
     });
-    return c.json({ weekdays, holiday, startHour, endHour });
+    return c.json({ weekdays, holiday, startHour, endHour, ...withImpact(impact) });
   });
 
   router.delete('/shift-weekday-times', requireRole('manager'), async (c) => {
@@ -283,6 +307,7 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
       return c.json({ error: 'validation_error', message: 'Informe os dias da semana' }, 400);
     }
     const teamId = c.get('teamId')!;
+    let impact: ScheduleImpact | null = null;
     const removed = await db.begin(async (txRaw) => {
       const tx = txRaw as unknown as Sql;
       const before = await listWeekdayTimes(tx, teamId);
@@ -298,10 +323,11 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
         before: gone.map((w) => ({ ...w })),
         after: null,
       });
+      impact = await impactOf(tx, 'shift_times', teamId, c.get('user')!.id);
       return true;
     });
     if (!removed) return c.json({ error: 'not_found' }, 404);
-    return c.body(null, 204);
+    return impact ? c.json(withImpact(impact)) : c.body(null, 204);
   });
 
   router.get('/shift-exceptions', async (c) => {
@@ -331,6 +357,7 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
     const workPeriods = parsed.data.workPeriods ? normalizePeriods(parsed.data.workPeriods) : null;
     const teamId = c.get('teamId')!;
     const saved: ShiftException = { date, startHour, endHour, workPeriods, note: note || null };
+    let impact: ScheduleImpact | null = null;
     await db.begin(async (txRaw) => {
       const tx = txRaw as unknown as Sql;
       const [before] = await listShiftExceptions(tx, teamId, { from: date, to: date });
@@ -348,14 +375,16 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
         before: before ? exceptionJson(before) : null,
         after: exceptionJson(saved),
       });
+      impact = await impactOf(tx, 'shift_exception', teamId, c.get('user')!.id);
     });
-    return c.json(saved);
+    return c.json({ ...saved, ...withImpact(impact) });
   });
 
   router.delete('/shift-exceptions/:date', requireRole('manager'), async (c) => {
     const date = asLocalDate(c.req.param('date'));
     if (!date) return c.json(invalidDate, 400);
     const teamId = c.get('teamId')!;
+    let impact: ScheduleImpact | null = null;
     const removed = await db.begin(async (txRaw) => {
       const tx = txRaw as unknown as Sql;
       const [before] = await listShiftExceptions(tx, teamId, { from: date, to: date });
@@ -369,10 +398,11 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
         before: exceptionJson(before),
         after: null,
       });
+      impact = await impactOf(tx, 'shift_exception', teamId, c.get('user')!.id);
       return true;
     });
     if (!removed) return c.json({ error: 'not_found' }, 404);
-    return c.body(null, 204);
+    return impact ? c.json(withImpact(impact)) : c.body(null, 204);
   });
 
   router.put('/shift-settings', requireRole('manager'), async (c) => {
@@ -389,6 +419,7 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
     }
     const next = parsed.data;
     const teamId = c.get('teamId')!;
+    let impact: ScheduleImpact | null = null;
     await db.begin(async (txRaw) => {
       const tx = txRaw as unknown as Sql;
       const before = await getShiftTimes(tx, teamId);
@@ -409,7 +440,8 @@ export function registerSettingsRoutes(router: Hono<AuthEnv>, deps: { db: Sql })
         before: toJson(before),
         after: toJson(next),
       });
+      impact = await impactOf(tx, 'shift_times', teamId, c.get('user')!.id);
     });
-    return c.json(next);
+    return c.json({ ...next, ...withImpact(impact) });
   });
 }
