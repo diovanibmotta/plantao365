@@ -81,6 +81,13 @@ const schema = z
     MASTER_USERNAME: optional(z.string().min(3).max(64)),
     MASTER_PASSWORD: optional(z.string().min(12, 'use ao menos 12 caracteres').max(256)),
     SESSION_TTL_SECONDS: z.coerce.number().int().min(60).default(28800),
+    /**
+     * Chaves públicas Ed25519 (base64 DER/SPKI, separadas por vírgula) que assinam os pacotes de
+     * plugin. Vazio: instalação de plugins desativada.
+     */
+    PLUGIN_PUBLIC_KEYS: optional(z.string()),
+    /** Cache local onde os pacotes de plugin são extraídos; padrão: diretório temporário do SO. */
+    PLUGINS_DIR: optional(z.string()),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production') {

@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { serve } from '@hono/node-server';
 import { createApp } from './app.js';
 import { bootstrapManagers, syncMasterUser, type AuthOptions } from './auth/index.js';
@@ -7,6 +9,7 @@ import { createMailer, startOutboxWorker, type SmtpOptions } from './email/index
 import { startEventWorker } from './events/index.js';
 import { createLogger } from './logger.js';
 import { createEventHandlers } from './notifications/handlers.js';
+import { parsePublicKeys, PluginRegistry, startPluginDeliveryWorker } from './plugins/index.js';
 import { startReminderJob } from './reminders/index.js';
 import { computeConfigWarnings } from './system/index.js';
 
@@ -53,11 +56,20 @@ await bootstrapManagers(db, config.MANAGER_EMAILS);
 await syncMasterUser(db, authOptions.master);
 const mailer = createMailer(smtp, logger);
 const worker = startOutboxWorker({ sql: db, mailer, logger });
+const plugins = new PluginRegistry({
+  sql: db,
+  logger,
+  pluginsDir: config.PLUGINS_DIR ?? path.join(tmpdir(), 'plantao365-plugins'),
+  publicKeys: parsePublicKeys(config.PLUGIN_PUBLIC_KEYS),
+});
+await plugins.loadEnabled();
 const events = startEventWorker({
   sql: db,
   handlers: createEventHandlers({ appBaseUrl: config.APP_BASE_URL }),
+  fanOut: (type) => plugins.subscribersOf(type),
   logger,
 });
+const pluginDeliveries = startPluginDeliveryWorker({ sql: db, target: plugins, logger });
 const reminders = startReminderJob({ sql: db, logger, appBaseUrl: config.APP_BASE_URL });
 const app = createApp({
   logger,
@@ -65,6 +77,7 @@ const app = createApp({
   authOptions,
   corsOrigins: config.CORS_ALLOWED_ORIGINS,
   configWarnings: computeConfigWarnings(config),
+  plugins,
   ...(config.WEB_DIST_DIR && { webDistDir: config.WEB_DIST_DIR }),
 });
 
@@ -75,7 +88,13 @@ const server = serve({ fetch: app.fetch, port: config.PORT }, (info) => {
 const shutdown = (signal: string) => {
   logger.info({ signal }, 'shutting down');
   server.close(() => {
-    void Promise.all([events.stop(), worker.stop(), reminders.stop()])
+    void Promise.all([
+      events.stop(),
+      worker.stop(),
+      reminders.stop(),
+      pluginDeliveries.stop(),
+      plugins.stopAll(),
+    ])
       .then(() => mailer.close())
       .then(() => db.end())
       .finally(() => process.exit(0));
