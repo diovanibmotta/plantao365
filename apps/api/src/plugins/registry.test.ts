@@ -171,10 +171,11 @@ describe.skipIf(!TEST_DATABASE_URL)('kernel de plugins', () => {
 
     await processDomainEvents(sql, {}, { fanOut: (type) => registry.subscribersOf(type) });
     const result = await processPluginDeliveries(sql, registry);
-    expect(result).toMatchObject({ processed: 1, retried: 1 });
+    // Os eventos das notas 'oi' e 'evento' vão para os dois assinantes: demo processa, other falha.
+    expect(result).toMatchObject({ processed: 2, retried: 2 });
 
     const notes = await sql<{ body: string }[]>`select body from plugin_demo.notes order by id`;
-    expect(notes.map((n) => n.body)).toEqual(['oi', 'evento', 'echo:evento']);
+    expect(notes.map((n) => n.body)).toEqual(['oi', 'evento', 'echo:oi', 'echo:evento']);
     const [failed] = await sql<{ status: string; last_error: string }[]>`
       select status, last_error from plugin_event_deliveries where plugin_id = 'other'`;
     expect(failed).toMatchObject({ status: 'pending', last_error: 'falhou' });
