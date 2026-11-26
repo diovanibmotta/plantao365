@@ -1,3 +1,8 @@
+# [v1.29.1](https://github.com/diovanibmotta/plantao365/compare/v1.29.0...v1.29.1) (2026-11-26)
+
+## 🐛 Bug Fixes
+- [`884041b`](https://github.com/diovanibmotta/plantao365/commit/884041b)  fix(schedules): aplica férias e exceções antes de distribuir a escala
+
 # [v1.29.0](https://github.com/diovanibmotta/plantao365/compare/v1.28.0...v1.29.0) (2026-11-26)
 
 ## ✨ New Features
