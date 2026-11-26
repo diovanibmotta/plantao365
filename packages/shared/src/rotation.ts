@@ -1,7 +1,11 @@
 /**
  * Motor de rodízio (puro e determinístico, sem relógio nem aleatoriedade).
  *
- * Heurística gulosa, dia a dia em ordem cronológica:
+ * Heurística gulosa em duas fases:
+ * 0. Antes de gerar, aplica férias coletivas e exceções/férias dos membros: cada dia fica com
+ *    seus elegíveis. Depois atribui os dias mais restritos primeiro (menos elegíveis, depois
+ *    data), para que o plantão forçado por férias dos outros entre na conta de quem o assume
+ *    antes da divisão do resto. Sem exceções, a ordem é a cronológica.
  * 1. Elegível = ativo, participa do rodízio e sem exceção na data (regra rígida, nunca violada).
  *    Férias coletivas: 0h, sem responsável, não conta como "sem elegível".
  * 2. Disponibilidade = dias do período (fora férias coletivas) sem exceção; 0 vira 1 na divisão.
@@ -93,6 +97,7 @@ interface MemberState {
 const byId = (a: { id: string }, b: { id: string }): number =>
   a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 
+/** Plantões seguidos do membro colados à data, antes e depois (a atribuição não é cronológica). */
 function consecutiveRun(
   assigned: ReadonlyMap<LocalDate, string>,
   userId: string,
@@ -100,6 +105,7 @@ function consecutiveRun(
 ): number {
   let run = 0;
   for (let d = addDays(date, -1); assigned.get(d) === userId; d = addDays(d, -1)) run += 1;
+  for (let d = addDays(date, 1); assigned.get(d) === userId; d = addDays(d, 1)) run += 1;
   return run;
 }
 
@@ -130,24 +136,34 @@ export function generateRotation(input: RotationInput): RotationOutput {
   const assigned = new Map<LocalDate, string>();
   for (const last of input.lastAssignments ?? []) assigned.set(last.date, last.userId);
 
-  const shifts: RotationShift[] = [];
-  const unassignedDates: LocalDate[] = [];
+  // Fase 1: férias coletivas e exceções/férias dos membros definem os elegíveis de cada dia.
+  const plan = days.map(({ date, dayType }) => ({
+    date,
+    dayType,
+    hours: shiftHoursFor(date, dayType, ctx),
+    candidates:
+      dayType === 'collective_vacation'
+        ? []
+        : states.filter(
+            (s) => s.member.active && s.member.participatesInRotation && !s.unavailable.has(date),
+          ),
+  }));
+
+  // Fase 2: dias mais restritos primeiro; empate pela data (sort estável sobre a ordem cronológica).
+  const order = plan
+    .filter((d) => d.candidates.length > 0)
+    .sort((a, b) => a.candidates.length - b.candidates.length);
+  const chosen = new Map<LocalDate, string>();
   const preferenceViolations: PreferenceViolation[] = [];
 
-  for (const { date, dayType } of days) {
-    const hours = shiftHoursFor(date, dayType, ctx);
-    if (dayType === 'collective_vacation') {
-      shifts.push({ date, userId: null, dayType, hours });
-      continue;
-    }
+  for (const { date, dayType, hours, candidates } of order) {
     const special = dayType !== 'weekday';
     const dow = dayOfWeek(date);
 
     let best: { state: MemberState; score: number; avoid: boolean; consecutive: boolean } | null =
       null;
-    for (const state of states) {
+    for (const state of candidates) {
       const { member } = state;
-      if (!member.active || !member.participatesInRotation || state.unavailable.has(date)) continue;
       const avail = Math.max(state.availableDays, 1);
       const hoursBefore = (member.history.hoursDone + state.hours) / avail;
       const hoursAfter = (member.history.hoursDone + state.hours + hours) / avail;
@@ -171,22 +187,29 @@ export function generateRotation(input: RotationInput): RotationOutput {
         best = { state, score, avoid, consecutive };
     }
 
-    if (best === null) {
-      shifts.push({ date, userId: null, dayType, hours });
-      unassignedDates.push(date);
-      continue;
-    }
+    if (best === null) continue; // não ocorre: o dia tem ao menos um elegível
     const { state } = best;
     state.hours += hours;
     if (special) state.specialShifts += 1;
     assigned.set(date, state.member.id);
-    shifts.push({ date, userId: state.member.id, dayType, hours });
+    chosen.set(date, state.member.id);
     if (best.avoid)
       preferenceViolations.push({ date, userId: state.member.id, kind: 'avoid_weekday' });
     if (best.consecutive) {
       preferenceViolations.push({ date, userId: state.member.id, kind: 'max_consecutive' });
     }
   }
+  preferenceViolations.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+
+  const shifts: RotationShift[] = plan.map(({ date, dayType, hours }) => ({
+    date,
+    userId: chosen.get(date) ?? null,
+    dayType,
+    hours,
+  }));
+  const unassignedDates = plan
+    .filter((d) => d.dayType !== 'collective_vacation' && d.candidates.length === 0)
+    .map((d) => d.date);
 
   const summary = states.map((s) => ({
     userId: s.member.id,

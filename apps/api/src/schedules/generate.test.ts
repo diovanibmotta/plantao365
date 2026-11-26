@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Sql } from '../db.js';
-import { buildTestApp, csrfHeaders, loginAs, type TestUser } from '../test-app.js';
+import { DEFAULT_TEAM_ID, buildTestApp, csrfHeaders, loginAs, type TestUser } from '../test-app.js';
 import { createTestDb, type TestDb } from '../test-utils.js';
 import { createSchedulesRouter } from './router.js';
 
@@ -189,5 +189,58 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('POST /schedules/generate (Po
     const res = await generate({ from: '2031-03-03', to: '2031-03-05' });
     const body = (await res.json()) as { shifts: ShiftOut[] };
     expect(new Set(body.shifts.map((s) => s.userId))).toEqual(new Set([ana.id]));
+  });
+
+  // Último do arquivo: os horários cadastrados aqui valeriam para as gerações seguintes.
+  it('aplica férias, exceções de membro e todos os cadastros de horário na geração', async () => {
+    // 2032-03-01 segunda, 03-02 terça (exceção de horário), 03-03 quarta (feriado), 03-06 sábado.
+    const team = DEFAULT_TEAM_ID;
+    await sql`insert into shift_weekday_times (team_id, weekday, start_hour, end_hour)
+      values (${team}, 1, 19, 7), (${team}, 6, 8, 20)`;
+    await sql`insert into shift_exceptions (team_id, date, start_hour, end_hour, note)
+      values (${team}, '2032-03-02', 12, 8, 'véspera')`;
+    await sql`insert into shift_settings (team_id, day_type, start_hour, end_hour)
+      values (${team}, 'holiday', 10, 22)
+      on conflict (team_id, day_type) do update set start_hour = 10, end_hour = 22`;
+    await sql`insert into holidays (date, name, scope) values ('2032-03-03', 'Feriado', 'national')`;
+    await sql`insert into unavailabilities (user_id, kind, start_date, end_date) values
+      (${bia.id}, 'vacation', '2032-03-01', '2032-03-07'),
+      (${caio.id}, 'time_off', '2032-03-04', '2032-03-04')`;
+
+    const res = await generate({ from: '2032-03-01', to: '2032-03-07' });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as {
+      schedule: { id: string };
+      shifts: Array<ShiftOut & { startsAt: string; endsAt: string }>;
+      unassignedDates: string[];
+    };
+    const byDate = new Map(body.shifts.map((s) => [s.date, s]));
+    // Horário por dia da semana, exceção da data e horário de feriado (UTC = local + 3h).
+    expect(byDate.get('2032-03-01')).toMatchObject({
+      dayType: 'weekday',
+      hours: 12,
+      startsAt: '2032-03-01T22:00:00.000Z',
+      endsAt: '2032-03-02T10:00:00.000Z',
+    });
+    expect(byDate.get('2032-03-02')).toMatchObject({ hours: 20 });
+    expect(byDate.get('2032-03-03')).toMatchObject({ dayType: 'holiday', hours: 12 });
+    expect(byDate.get('2032-03-05')).toMatchObject({ dayType: 'weekday', hours: 14 });
+    expect(byDate.get('2032-03-06')).toMatchObject({ dayType: 'weekend', hours: 12 });
+    expect(byDate.get('2032-03-07')).toMatchObject({ dayType: 'weekend', hours: 24 });
+    // Férias e folga aplicadas antes da distribuição: ninguém escalado na própria exceção.
+    expect(body.unassignedDates).toEqual([]);
+    expect(body.shifts.some((s) => s.userId === bia.id)).toBe(false);
+    expect(byDate.get('2032-03-04')!.userId).toBe(ana.id);
+
+    // O detector de conflitos recalcula com os cadastros atuais e não acha divergência.
+    const list = await app.request('/schedules', { headers: { cookie: manager.cookie } });
+    const schedules = (await list.json()) as Array<{
+      id: string;
+      conflicts: { unavailable: number; outdated: number };
+    }>;
+    expect(schedules.find((s) => s.id === body.schedule.id)!.conflicts).toEqual({
+      unavailable: 0,
+      outdated: 0,
+    });
   });
 });
