@@ -1,3 +1,8 @@
+# [v1.30.0](https://github.com/diovanibmotta/plantao365/compare/v1.29.1...v1.30.0) (2026-11-26)
+
+## ✨ New Features
+- [`8ca3fae`](https://github.com/diovanibmotta/plantao365/commit/8ca3fae) : feat(schedules): filtros, paginação e motivo de conflito na escala; edição de plantão em tela própria
+
 # [v1.29.1](https://github.com/diovanibmotta/plantao365/compare/v1.29.0...v1.29.1) (2026-11-26)
 
 ## 🐛 Bug Fixes
