@@ -1,3 +1,8 @@
+# [v1.29.0](https://github.com/diovanibmotta/plantao365/compare/v1.28.0...v1.29.0) (2026-11-26)
+
+## ✨ New Features
+- [`1608a1a`](https://github.com/diovanibmotta/plantao365/commit/1608a1a)  feat(web): relatório PDF e exportação CSV da escala
+
 # [v1.28.0](https://github.com/diovanibmotta/plantao365/compare/v1.27.0...v1.28.0) (2026-11-25)
 
 ## ✨ New Features
