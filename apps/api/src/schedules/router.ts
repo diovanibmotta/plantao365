@@ -11,7 +11,7 @@ import {
 } from '../schedule-impact/index.js';
 import { requireTeam } from '../teams/middleware.js';
 import { registerEditRoutes, type ShiftChangedHook } from './edit.js';
-import { registerGenerateRoute } from './generate.js';
+import { registerGenerateRoute, type RotationAdjustersProvider } from './generate.js';
 import { registerPublishRoutes, type PublishedHook } from './publish.js';
 import { registerSettingsRoutes } from './settings.js';
 import {
@@ -32,6 +32,8 @@ export interface SchedulesRouterDeps {
   onPublished?: PublishedHook;
   /** Regra core: avisa tela e gestores quando horários configurados atingem escala publicada. */
   scheduleImpactNotifier?: ScheduleImpactNotifier;
+  /** Ajustes de regra de plugins aplicados na geração da escala. */
+  rotationAdjusters?: RotationAdjustersProvider;
   logger?: Logger;
 }
 
@@ -47,12 +49,13 @@ export function createSchedulesRouter({
   onShiftChanged,
   onPublished,
   scheduleImpactNotifier,
+  rotationAdjusters,
   logger,
 }: SchedulesRouterDeps): Hono<AuthEnv> {
   const router = new Hono<AuthEnv>();
   router.use('*', requireAuth(), requireTeam());
 
-  registerGenerateRoute(router, { db, now });
+  registerGenerateRoute(router, { db, now, rotationAdjusters });
   registerPublishRoutes(router, { db, now, onPublished });
   registerEditRoutes(router, { db, onShiftChanged });
   registerSettingsRoutes(router, { db, scheduleImpactNotifier, logger });

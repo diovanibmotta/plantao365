@@ -117,7 +117,10 @@ export function createApp({
       }),
     );
     app.use(sessionMiddleware({ db, cookieOptions: { secure: authOptions.cookieSecure } }));
-    app.use('/api/*', guestGuard());
+    app.use(
+      '/api/*',
+      guestGuard(plugins ? { extraReadPaths: () => plugins.guestReadPaths() } : {}),
+    );
     app.use('/api/*', teamMiddleware({ db }));
     app.route('/api', createTeamsRouter({ db }));
     app.route('/api', createSystemRouter({ warnings: configWarnings }));
@@ -163,10 +166,18 @@ export function createApp({
         onPublished: createOnPublished(notifyDeps),
         onShiftChanged: createOnShiftChanged(notifyDeps),
         scheduleImpactNotifier,
+        ...(plugins && { rotationAdjusters: plugins.rotationAdjusters }),
         logger,
       }),
     );
-    app.route('/api', createSwapsRouter({ db, onSwapEvent: createOnSwapEvent(notifyDeps) }));
+    app.route(
+      '/api',
+      createSwapsRouter({
+        db,
+        onSwapEvent: createOnSwapEvent(notifyDeps),
+        ...(plugins && { swapGuard: plugins.swapGuard }),
+      }),
+    );
     app.route('/api', createPreferencesRouter({ db }));
     app.route('/api', createBalanceRouter({ db }));
     if (plugins) app.route('/api', createPluginsRouter({ registry: plugins }));

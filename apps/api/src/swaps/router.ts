@@ -25,7 +25,17 @@ export interface SwapsRouterDeps {
   now?: () => Date;
   /** Ponto de extensão (task 9.3): chamado na transação da mutação (em savepoint); falhas não a desfazem. */
   onSwapEvent?: SwapEventHook;
+  /**
+   * Ponto de extensão (plugins): roda na transação ANTES da ação; devolver uma mensagem bloqueia
+   * a ação com 422 `swap_blocked` (nada é alterado).
+   */
+  swapGuard?: SwapGuard;
 }
+
+export type SwapGuard = (
+  tx: Sql,
+  input: { action: SwapAction; swap: SwapDto; actorId: string },
+) => Promise<string | null>;
 
 const reasonText = z
   .string()
@@ -74,6 +84,7 @@ export function createSwapsRouter({
   db,
   now = () => new Date(),
   onSwapEvent,
+  swapGuard,
 }: SwapsRouterDeps): Hono<AuthEnv> {
   const router = new Hono<AuthEnv>();
   router.use('/swaps', requireAuth());
@@ -158,6 +169,13 @@ export function createSwapsRouter({
       }
       const result = await db.begin(async (t) => {
         const tx = t as unknown as Sql;
+        const current = swapGuard ? await getSwap(tx, id.data) : null;
+        const blocked = current
+          ? await swapGuard!(tx, { action, swap: current, actorId: user.id })
+          : null;
+        if (blocked) {
+          return { ok: false, status: 422, error: 'swap_blocked', message: blocked } as const;
+        }
         const r = await transitionSwap(tx, {
           action,
           swapId: id.data,

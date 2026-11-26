@@ -4,6 +4,7 @@ import {
   parseLocalDate,
   shiftForDate,
   type LocalDate,
+  type RotationAdjuster,
   type RotationMember,
   type RotationOutput,
   type ShiftContext,
@@ -102,9 +103,24 @@ async function loadLastAssignments(sql: Sql, from: LocalDate, teamId: string) {
 }
 
 /** Gera o rascunho dentro da transação `tx`; lança ScheduleOverlapError se houver sobreposição. */
+/**
+ * Ponto de extensão: devolve ajustes de regra (plugins) para a geração, carregados na transação
+ * antes do motor puro rodar. Falhas devem ser tratadas por quem fornece (a geração não para).
+ */
+export type RotationAdjustersProvider = (
+  tx: Sql,
+  ctx: { teamId: string; from: LocalDate; to: LocalDate; memberIds: string[] },
+) => Promise<RotationAdjuster[]>;
+
 export async function generateDraft(
   tx: Sql,
-  input: { body: GenerateBody; actorId: string; now: Date; teamId: string },
+  input: {
+    body: GenerateBody;
+    actorId: string;
+    now: Date;
+    teamId: string;
+    rotationAdjusters?: RotationAdjustersProvider | undefined;
+  },
 ): Promise<GenerateResult> {
   const { from, to } = input.body;
   const { teamId } = input;
@@ -156,7 +172,17 @@ export async function generateDraft(
     };
   });
 
-  const result = generateRotation({ from, to, shiftContext, members, lastAssignments });
+  const adjusters = input.rotationAdjusters
+    ? await input.rotationAdjusters(tx, { teamId, from, to, memberIds: users.map((u) => u.id) })
+    : [];
+  const result = generateRotation({
+    from,
+    to,
+    shiftContext,
+    members,
+    lastAssignments,
+    adjusters,
+  });
 
   const [created] = await tx<{ id: string }[]>`
     insert into schedules (start_date, end_date, status, created_by, team_id)
@@ -218,7 +244,11 @@ export async function generateDraft(
  */
 export function registerGenerateRoute(
   router: Hono<AuthEnv>,
-  deps: { db: Sql; now?: (() => Date) | undefined },
+  deps: {
+    db: Sql;
+    now?: (() => Date) | undefined;
+    rotationAdjusters?: RotationAdjustersProvider | undefined;
+  },
 ): void {
   const now = deps.now ?? (() => new Date());
   router.post('/schedules/generate', requireRole('manager'), async (c) => {
@@ -243,6 +273,7 @@ export function registerGenerateRoute(
           actorId: c.get('user')!.id,
           now: now(),
           teamId: c.get('teamId')!,
+          rotationAdjusters: deps.rotationAdjusters,
         }),
       );
       return c.json(result, 201);

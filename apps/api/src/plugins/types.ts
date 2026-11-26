@@ -23,6 +23,14 @@ export const pluginManifestSchema = z.object({
   /** Faixa do contrato do kernel, no formato `^MAJOR.MINOR.PATCH`. */
   kernelApi: z.string().regex(/^\^\d+\.\d+\.\d+$/),
   server: z.object({ entry: packagePath }).optional(),
+  /**
+   * Rotas do plugin (relativas a /api/extensions/<id>) que o convidado pode ler (GET/HEAD).
+   * Segmentos `:param` casam qualquer valor; sem isso, convidado recebe 403.
+   */
+  guestReadPaths: z
+    .array(z.string().regex(/^(\/(:?[A-Za-z0-9_-]+))+$|^\/$/))
+    .max(20)
+    .optional(),
   web: z.object({ entry: packagePath }).optional(),
 });
 export type PluginManifest = z.infer<typeof pluginManifestSchema>;

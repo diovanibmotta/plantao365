@@ -7,6 +7,8 @@ export const SCHEDULE_IMPACT_SOURCES = [
   'holiday',
   'shift_times',
   'shift_exception',
+  /** Mutação de plugin que afeta a escala (via `ctx.scheduleImpact.run`). */
+  'plugin',
 ] as const;
 
 export type ScheduleImpactSource = (typeof SCHEDULE_IMPACT_SOURCES)[number];
@@ -42,6 +44,15 @@ export type ScheduleImpactTrigger =
       source: 'shift_times' | 'shift_exception';
       actorId: string;
       teamId: string;
+      removed?: boolean;
+    }
+  | {
+      source: 'plugin';
+      actorId: string;
+      pluginId: string;
+      /** Nulo: todas as equipes. */
+      teamId: string | null;
+      dates: string[];
       removed?: boolean;
     };
 
