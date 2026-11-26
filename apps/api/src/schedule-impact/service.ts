@@ -56,12 +56,13 @@ async function periodShifts(sql: Sql, start: string, end: string, teamId: string
     order by s.date`;
 }
 
-async function datesShifts(sql: Sql, dates: string[]) {
+async function datesShifts(sql: Sql, dates: string[], teamId: string | null = null) {
   if (dates.length === 0) return [];
   return sql<TeamDateRow[]>`
     select sc.team_id, s.date::text as date
     from shifts s join schedules sc on sc.id = s.schedule_id
     where sc.status = 'published' and s.date = any(${dates}::date[])
+      ${teamId ? sql`and sc.team_id = ${teamId}` : sql``}
     order by s.date`;
 }
 
@@ -255,6 +256,10 @@ export async function assessScheduleImpact(
     case 'shift_times':
     case 'shift_exception':
       return groupByTeam(await settingsShifts(sql, trigger.teamId));
+    case 'plugin':
+      return groupByTeam(
+        await datesShifts(sql, [...new Set(trigger.dates)].sort(), trigger.teamId),
+      );
   }
 }
 

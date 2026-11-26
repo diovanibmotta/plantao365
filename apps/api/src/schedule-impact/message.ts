@@ -8,6 +8,7 @@ const BY_SOURCE: Record<ScheduleImpactSource, (n: number) => string> = {
   holiday: (n) => `${plural(n)} em datas afetadas por este feriado.`,
   shift_times: (n) => `${plural(n)} com horário diferente do novo horário configurado.`,
   shift_exception: (n) => `${plural(n)} com horário diferente desta exceção de horário.`,
+  plugin: (n) => `${plural(n)} em datas afetadas por esta alteração.`,
 };
 
 const BY_SOURCE_REMOVED: Record<ScheduleImpactSource, (n: number) => string> = {
@@ -17,6 +18,7 @@ const BY_SOURCE_REMOVED: Record<ScheduleImpactSource, (n: number) => string> = {
   shift_times: (n) =>
     `${plural(n)} com horário diferente do horário configurado depois da exclusão.`,
   shift_exception: (n) => `${plural(n)} com horário diferente depois da exclusão desta exceção.`,
+  plugin: (n) => `${plural(n)} em datas afetadas por esta exclusão.`,
 };
 
 const summary = (source: ScheduleImpactSource, shifts: number, removed: boolean) =>

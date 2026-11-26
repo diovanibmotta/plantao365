@@ -1,4 +1,4 @@
-export { createSwapsRouter, type SwapsRouterDeps } from './router.js';
+export { createSwapsRouter, type SwapGuard, type SwapsRouterDeps } from './router.js';
 export {
   SWAP_KINDS,
   SWAP_STATUSES,

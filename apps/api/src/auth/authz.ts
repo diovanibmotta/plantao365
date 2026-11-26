@@ -32,15 +32,17 @@ const GUEST_READ_PATHS: readonly RegExp[] = [
 ];
 
 /**
- * Trava global do convidado: só GET/HEAD nas rotas de leitura acima; qualquer outra
+ * Trava global do convidado: só GET/HEAD nas rotas de leitura acima (mais as declaradas por
+ * plugins em `extraReadPaths`); qualquer outra
  * chamada de /api responde 403. Montar depois do sessionMiddleware e antes dos routers.
  */
-export const guestGuard = () =>
+export const guestGuard = (opts: { extraReadPaths?: () => readonly RegExp[] } = {}) =>
   createMiddleware<AuthEnv>(async (c, next) => {
     const user = c.get('user');
     if (user?.role !== 'guest') return next();
     const readOnly = c.req.method === 'GET' || c.req.method === 'HEAD';
-    if (readOnly && GUEST_READ_PATHS.some((re) => re.test(c.req.path))) return next();
+    const paths = [...GUEST_READ_PATHS, ...(opts.extraReadPaths?.() ?? [])];
+    if (readOnly && paths.some((re) => re.test(c.req.path))) return next();
     return c.json(
       {
         error: 'guest_forbidden',

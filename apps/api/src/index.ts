@@ -11,6 +11,7 @@ import { createLogger } from './logger.js';
 import { createEventHandlers } from './notifications/handlers.js';
 import { parsePublicKeys, PluginRegistry, startPluginDeliveryWorker } from './plugins/index.js';
 import { startReminderJob } from './reminders/index.js';
+import { createScheduleImpactNotifier } from './schedule-impact/index.js';
 import { computeConfigWarnings } from './system/index.js';
 
 let config;
@@ -61,6 +62,7 @@ const plugins = new PluginRegistry({
   logger,
   pluginsDir: config.PLUGINS_DIR ?? path.join(tmpdir(), 'plantao365-plugins'),
   publicKeys: parsePublicKeys(config.PLUGIN_PUBLIC_KEYS),
+  scheduleImpactNotifier: createScheduleImpactNotifier(),
 });
 await plugins.loadEnabled();
 const events = startEventWorker({

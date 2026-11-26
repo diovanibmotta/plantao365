@@ -288,3 +288,39 @@ describe('generateRotation', () => {
     expect(elapsed).toBeLessThan(1000);
   });
 });
+
+describe('generateRotation com adjusters de plugin', () => {
+  it('eligible=false bloqueia o membro como exceção (e sem elegível vira unassigned)', () => {
+    const out = generateRotation(
+      input([member('a'), member('b')], {
+        to: '2026-03-08',
+        adjusters: [{ eligible: (id, date) => !(id === 'a' && date <= '2026-03-04') }],
+      }),
+    );
+    for (const s of out.shifts.filter((s) => s.date <= '2026-03-04')) expect(s.userId).toBe('b');
+
+    const none = generateRotation(
+      input([member('a')], { to: '2026-03-03', adjusters: [{ eligible: () => false }] }),
+    );
+    expect(none.unassignedDates).toEqual(['2026-03-02', '2026-03-03']);
+  });
+
+  it('penalty desvia plantões sem quebrar o equilíbrio e é determinística', () => {
+    const adjusters = [{ penalty: (id: string) => (id === 'a' ? 10 : 0) }];
+    const base = generateRotation(input([member('a'), member('b')]));
+    const out = generateRotation(input([member('a'), member('b')], { adjusters }));
+    expect(hoursOf(out, 'a')).toBeLessThan(hoursOf(base, 'a'));
+    expect(hoursOf(out, 'a')).toBeGreaterThan(0);
+    expect(generateRotation(input([member('b'), member('a')], { adjusters }))).toEqual(out);
+  });
+
+  it('ignora penalidade negativa ou não finita', () => {
+    const base = generateRotation(input([member('a'), member('b')]));
+    const out = generateRotation(
+      input([member('a'), member('b')], {
+        adjusters: [{ penalty: (id) => (id === 'a' ? -5 : Number.NaN) }],
+      }),
+    );
+    expect(out).toEqual(base);
+  });
+});

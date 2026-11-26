@@ -138,7 +138,12 @@ export function renderUserStatusEmail(input: UserStatusEmailInput): RenderedEmai
 
 export interface ScheduleImpactEmailInput {
   source:
-    'member_exception' | 'collective_vacation' | 'holiday' | 'shift_times' | 'shift_exception';
+    | 'member_exception'
+    | 'collective_vacation'
+    | 'holiday'
+    | 'shift_times'
+    | 'shift_exception'
+    | 'plugin';
   teamName: string;
   /** Quem fez a alteração. */
   actorName: string;
@@ -173,6 +178,8 @@ function impactCause(i: ScheduleImpactEmailInput): string {
       return `${i.actorName} alterou os horários dos plantões da equipe.`;
     case 'shift_exception':
       return `${i.actorName} alterou ou removeu uma exceção de horário de plantão.`;
+    case 'plugin':
+      return `${i.actorName} fez uma alteração em uma extensão que atinge datas da escala.`;
   }
 }
 

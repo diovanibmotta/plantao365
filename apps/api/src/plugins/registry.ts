@@ -10,8 +10,18 @@ import type {
   PluginEnv,
   PluginEventHandler,
   PluginJob,
+  RotationPrepareHook,
+  SwapGuardHook,
 } from '@diovanibmotta/plantao365-plugin-sdk';
+import type { RotationAdjuster } from '@diovanibmotta/plantao365-shared';
 import { recordAudit } from '../audit/index.js';
+import {
+  impactConfirmationResponse,
+  runScheduleImpact,
+  type ScheduleImpactNotifier,
+} from '../schedule-impact/index.js';
+import type { RotationAdjustersProvider } from '../schedules/index.js';
+import type { SwapGuard } from '../swaps/index.js';
 import { requireAuth, requireRole } from '../auth/index.js';
 import type { Sql } from '../db.js';
 import { publishEvent } from '../events/index.js';
@@ -36,6 +46,10 @@ export interface PluginRegistryDeps {
   publicKeys: KeyObject[];
   /** Tempo máximo do `setup` de um plugin. */
   setupTimeoutMs?: number;
+  /** Tempo máximo de um hook de plugin dentro de uma mutação do core. */
+  hookTimeoutMs?: number;
+  /** Regra core do impacto em escala publicada (para `ctx.scheduleImpact.run`). */
+  scheduleImpactNotifier?: ScheduleImpactNotifier;
 }
 
 interface ActivePlugin {
@@ -45,7 +59,18 @@ interface ActivePlugin {
   router: Hono<PluginEnv>;
   subscribers: Map<string, PluginEventHandler>;
   jobs: Loop[];
+  rotationPrepare: RotationPrepareHook[];
+  swapGuards: SwapGuardHook[];
+  guestReadPaths: RegExp[];
 }
+
+type SavepointSql = Sql & { savepoint: <T>(fn: (sp: Sql) => Promise<T>) => Promise<T> };
+
+/** `/items/:id` → `^/api/extensions/<id>/items/[^/]+$`. */
+const guestPathRegex = (id: string, route: string) =>
+  new RegExp(
+    `^/api/extensions/${id}${route === '/' ? '' : route.replace(/:[A-Za-z0-9_-]+/g, '[^/]+')}/?$`,
+  );
 
 interface PackageRow {
   version: string;
@@ -110,6 +135,76 @@ export class PluginRegistry implements DeliveryTarget {
 
   handlerFor(pluginId: string, type: string): PluginEventHandler | undefined {
     return this.active.get(pluginId)?.subscribers.get(type);
+  }
+
+  /** Rotas de plugin liberadas para leitura do convidado (guestGuard). */
+  guestReadPaths(): RegExp[] {
+    return [...this.active.values()].flatMap((p) => p.guestReadPaths);
+  }
+
+  /**
+   * Ajustes de rotação dos plugins ativos. Cada `prepare` roda em savepoint e com timeout; o que
+   * falhar é ignorado (registrado no log) e o adjuster que lançar vira neutro: a geração não para.
+   */
+  readonly rotationAdjusters: RotationAdjustersProvider = async (tx, input) => {
+    const adjusters: RotationAdjuster[] = [];
+    for (const [id, plugin] of this.active) {
+      for (const prepare of plugin.rotationPrepare) {
+        const adjuster = await this.runHook(id, 'rotation.prepare', tx, (sp) => prepare(sp, input));
+        if (adjuster) adjusters.push(this.safeAdjuster(id, adjuster));
+      }
+    }
+    return adjusters;
+  };
+
+  /** Primeiro veto dos plugins ativos; falha do hook não bloqueia a troca. */
+  readonly swapGuard: SwapGuard = async (tx, input) => {
+    for (const [id, plugin] of this.active) {
+      for (const guard of plugin.swapGuards) {
+        const message = await this.runHook(id, 'swaps.beforeAction', tx, (sp) =>
+          guard(sp, { action: input.action, swap: input.swap, actorId: input.actorId }),
+        );
+        if (message) return message;
+      }
+    }
+    return null;
+  };
+
+  private async runHook<T>(
+    id: string,
+    name: string,
+    tx: Sql,
+    fn: (sp: Sql) => Promise<T>,
+  ): Promise<T | undefined> {
+    try {
+      return await (tx as SavepointSql).savepoint((sp) =>
+        withTimeout(fn(sp), this.deps.hookTimeoutMs ?? 5000, name),
+      );
+    } catch (err) {
+      this.deps.logger.error({ pluginId: id, hook: name, err: errorMessage(err) }, 'Falha no hook');
+      return undefined;
+    }
+  }
+
+  private safeAdjuster(id: string, adjuster: RotationAdjuster): RotationAdjuster {
+    let logged = false;
+    const guard =
+      <A extends unknown[], R>(fn: (...args: A) => R, fallback: R) =>
+      (...args: A): R => {
+        try {
+          return fn(...args);
+        } catch (err) {
+          if (!logged) {
+            logged = true;
+            this.deps.logger.error({ pluginId: id, err: errorMessage(err) }, 'Adjuster falhou');
+          }
+          return fallback;
+        }
+      };
+    return {
+      ...(adjuster.eligible && { eligible: guard(adjuster.eligible.bind(adjuster), true) }),
+      ...(adjuster.penalty && { penalty: guard(adjuster.penalty.bind(adjuster), 0) }),
+    };
   }
 
   /** Plugins ativos, para o front montar telas e menus (Fase 3). */
@@ -354,6 +449,9 @@ export class PluginRegistry implements DeliveryTarget {
       router: this.createRouter(logger),
       subscribers: new Map(),
       jobs: [],
+      rotationPrepare: [],
+      swapGuards: [],
+      guestReadPaths: (manifest.guestReadPaths ?? []).map((r) => guestPathRegex(id, r)),
     };
     const pendingJobs: PluginJob[] = [];
     try {
@@ -424,6 +522,9 @@ export class PluginRegistry implements DeliveryTarget {
       await next();
     });
     router.onError((err, c) => {
+      // Impacto em escala publicada sem confirmação: mesmo 409 das rotas do core.
+      const confirmation = impactConfirmationResponse(err, c as never);
+      if (confirmation) return confirmation;
       logger.error({ err: errorMessage(err), path: c.req.path }, 'Erro em rota do plugin');
       return c.json({ error: 'plugin_error', message: 'Erro interno no plugin.' }, 500);
     });
@@ -484,6 +585,28 @@ export class PluginRegistry implements DeliveryTarget {
       auth: {
         requireAuth: () => requireAuth() as unknown as MiddlewareHandler<PluginEnv>,
         requireRole: (role) => requireRole(role) as unknown as MiddlewareHandler<PluginEnv>,
+      },
+      hooks: {
+        rotation: { prepare: (hook) => void plugin.rotationPrepare.push(hook) },
+        swaps: { beforeAction: (hook) => void plugin.swapGuards.push(hook) },
+      },
+      scheduleImpact: {
+        run: async (tx, trigger, opts) => {
+          const impact = await runScheduleImpact(
+            tx as Sql,
+            this.deps.scheduleImpactNotifier,
+            {
+              source: 'plugin',
+              pluginId: id,
+              actorId: trigger.actorId,
+              teamId: trigger.teamId,
+              dates: trigger.dates,
+              ...(trigger.removed && { removed: true }),
+            },
+            { logger, confirmed: opts?.confirmed === true },
+          );
+          return impact;
+        },
       },
     };
   }

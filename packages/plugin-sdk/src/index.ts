@@ -61,6 +61,56 @@ export interface PluginAuditEntry {
   reason?: string | null;
 }
 
+/** Ajuste de regra da escala: funções puras e síncronas (use dados carregados no `prepare`). */
+export interface RotationAdjuster {
+  /** `false` = membro não pode ser escalado na data (regra rígida). */
+  eligible?(userId: string, date: string): boolean;
+  /** Penalidade branda >= 0; 2 equivale a uma preferência violada. */
+  penalty?(userId: string, date: string): number;
+}
+
+export type RotationPrepareHook = (
+  tx: PluginSql,
+  input: { teamId: string; from: string; to: string; memberIds: string[] },
+) => Promise<RotationAdjuster | null | undefined>;
+
+export interface PluginSwapShift {
+  id: string;
+  date: string;
+}
+
+/** Troca como a API a devolve (campos estáveis do contrato). */
+export interface PluginSwap {
+  id: string;
+  kind: string;
+  status: string;
+  requesterId: string;
+  counterpartId: string;
+  requesterShift: PluginSwapShift;
+  counterpartShift: PluginSwapShift | null;
+}
+
+/** Devolva uma mensagem (pt-BR) para bloquear a ação da troca; `null` deixa seguir. */
+export type SwapGuardHook = (
+  tx: PluginSql,
+  input: { action: string; swap: PluginSwap; actorId: string },
+) => Promise<string | null | undefined>;
+
+/** Mutação do plugin que atinge plantões publicados nas datas informadas. */
+export interface PluginImpactTrigger {
+  actorId: string;
+  /** Nulo: todas as equipes. */
+  teamId: string | null;
+  dates: string[];
+  removed?: boolean;
+}
+
+export interface PluginScheduleImpact {
+  shifts: number;
+  dates: string[];
+  message: string;
+}
+
 export interface PluginContext {
   id: string;
   version: string;
@@ -88,6 +138,24 @@ export interface PluginContext {
     subscribe<P = unknown>(type: string, handler: PluginEventHandler<P>): void;
   };
   jobs: { register(job: PluginJob): void };
+  hooks: {
+    /** Carrega dados na transação da geração e devolve ajustes de elegibilidade/pontuação. */
+    rotation: { prepare(hook: RotationPrepareHook): void };
+    /** Pode vetar accept/decline/cancel/approve/reject de trocas (422 `swap_blocked`). */
+    swaps: { beforeAction(hook: SwapGuardHook): void };
+  };
+  /**
+   * Regra core do impacto em escala publicada: chame na transação da mutação que afeta a escala.
+   * Com impacto e sem `confirmed`, lança e a API responde 409 pedindo confirmação ao usuário
+   * (o front reenvia com `?confirmImpact=true`); devolva o retorno como `scheduleImpact`.
+   */
+  scheduleImpact: {
+    run(
+      tx: PluginSql,
+      trigger: PluginImpactTrigger,
+      opts?: { confirmed?: boolean },
+    ): Promise<PluginScheduleImpact | null>;
+  };
   auth: {
     requireAuth(): MiddlewareHandler<PluginEnv>;
     requireRole(role: PluginRole): MiddlewareHandler<PluginEnv>;
