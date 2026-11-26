@@ -26,6 +26,11 @@ export interface EventProcessOptions {
   leaseMs?: number;
   now?: () => Date;
   logger?: Logger;
+  /**
+   * Plugins que assinam o tipo do evento. Cada um ganha uma entrega própria
+   * (`plugin_event_deliveries`), processada à parte do handler do core.
+   */
+  fanOut?: (type: string) => string[];
 }
 
 export interface EventProcessResult {
@@ -82,6 +87,16 @@ export async function processDomainEvents(
           update domain_events
           set next_attempt_at = ${new Date(now().getTime() + leaseMs)}
           where id in ${tx(claimed.map((r) => r.id))}`;
+        const deliveries = opts.fanOut
+          ? claimed.flatMap((r) =>
+              opts.fanOut!(r.type).map((pluginId) => ({ event_id: r.id, plugin_id: pluginId })),
+            )
+          : [];
+        if (deliveries.length > 0) {
+          await tx`
+            insert into plugin_event_deliveries ${tx(deliveries)}
+            on conflict (event_id, plugin_id) do nothing`;
+        }
       }
       return claimed;
     });
@@ -113,7 +128,8 @@ export async function processDomainEvents(
             where id = ${row.id} and status = 'pending'`;
         });
         result.processed += 1;
-        if (!handler) logger.warn({ eventId: row.id, type: row.type }, 'Evento sem handler');
+        if (!handler && !opts.fanOut?.(row.type).length)
+          logger.warn({ eventId: row.id, type: row.type }, 'Evento sem handler');
         continue;
       } catch (err) {
         failure = errorMessage(err);

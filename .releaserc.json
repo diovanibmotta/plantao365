@@ -25,6 +25,13 @@
     [
       "@semantic-release/npm",
       {
+        "pkgRoot": "packages/plugin-sdk",
+        "npmPublish": false
+      }
+    ],
+    [
+      "@semantic-release/npm",
+      {
         "pkgRoot": "apps/api",
         "npmPublish": true
       }
@@ -36,6 +43,7 @@
           "CHANGELOG.md",
           "package.json",
           "packages/shared/package.json",
+          "packages/plugin-sdk/package.json",
           "apps/api/package.json",
           "package-lock.json"
         ],

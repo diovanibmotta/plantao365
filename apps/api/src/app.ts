@@ -15,6 +15,7 @@ import {
 import { createAuditRouter } from './audit/index.js';
 import { createBalanceRouter } from './balance/index.js';
 import { createOnPublished, createOnShiftChanged } from './notifications/schedule-events.js';
+import { createPluginsRouter, type PluginRegistry } from './plugins/index.js';
 import { createPreferencesRouter } from './preferences/index.js';
 import { createHolidaysRouter, createOnShiftsRecalculated } from './holidays/index.js';
 import {
@@ -48,6 +49,8 @@ export interface AppDeps {
   oidcProvider?: OidcProvider;
   /** Recursos desativados por falta de configuração; exibidos como banner ao gestor. */
   configWarnings?: ConfigWarning[];
+  /** Kernel de plugins: administração em /api/plugins e rotas em /api/extensions/<id>. */
+  plugins?: PluginRegistry;
 }
 
 export function createApp({
@@ -59,6 +62,7 @@ export function createApp({
   corsOrigins = [],
   oidcProvider,
   configWarnings = [],
+  plugins,
 }: AppDeps): Hono {
   const app = new Hono();
 
@@ -165,6 +169,7 @@ export function createApp({
     app.route('/api', createSwapsRouter({ db, onSwapEvent: createOnSwapEvent(notifyDeps) }));
     app.route('/api', createPreferencesRouter({ db }));
     app.route('/api', createBalanceRouter({ db }));
+    if (plugins) app.route('/api', createPluginsRouter({ registry: plugins }));
   }
 
   app.get('/health', (c) => {

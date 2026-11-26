@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@diovanibmotta/plantao365-shared": "*",
+    "@diovanibmotta/plantao365-plugin-sdk": "*",
     "@hono/node-server": "^2.1.11",
     "hono": "^4.13.21",
     "jose": "^6.2.18",

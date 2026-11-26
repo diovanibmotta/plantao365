@@ -3,17 +3,20 @@ FROM node:22-alpine AS build
 WORKDIR /repo
 COPY package.json package-lock.json tsconfig.base.json tsconfig.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/plugin-sdk/package.json packages/plugin-sdk/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 RUN npm ci --ignore-scripts
 COPY packages/shared packages/shared
+COPY packages/plugin-sdk packages/plugin-sdk
 COPY apps/api apps/api
-RUN npm run build -w @diovanibmotta/plantao365-shared && npm run build -w @diovanibmotta/plantao365-api
+RUN npm run build -w @diovanibmotta/plantao365-shared && npm run build -w @diovanibmotta/plantao365-plugin-sdk && npm run build -w @diovanibmotta/plantao365-api
 
 FROM node:22-alpine AS deps
 WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/plugin-sdk/package.json packages/plugin-sdk/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 RUN npm ci --omit=dev --ignore-scripts -w @diovanibmotta/plantao365-api -w @diovanibmotta/plantao365-shared
