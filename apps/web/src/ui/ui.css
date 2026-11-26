@@ -98,6 +98,34 @@
   font-size: 13px;
 }
 
+.ui-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 8px;
+}
+
+.ui-pagination .ui-count {
+  margin: 0;
+}
+
+.ui-pagination-controls,
+.ui-pagination-nav,
+.ui-pagination-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ui-pagination-controls {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
 .ui-empty {
   padding: 40px var(--space);
   border: 1px dashed var(--border-strong);
@@ -257,4 +285,11 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.ui-pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 8px;
 }

@@ -6,6 +6,7 @@ import { useRole } from '../team/TeamContext';
 import { EmptyState } from '../ui/EmptyState';
 import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { PageHeader } from '../ui/PageHeader';
+import { Pagination, usePagination } from '../ui/Pagination';
 import { SCOPES } from './paths';
 import type { UnavailabilityMode } from './paths';
 import { KIND_LABELS, errorMessage, formatPeriod } from './types';
@@ -129,6 +130,7 @@ export function UnavailabilityList({ mode }: { mode: UnavailabilityMode }) {
     );
   });
 
+  const pager = usePagination(visible, [search, kind, year, status, member].join('|'));
   const clear = () => {
     setSearch('');
     setKind('');
@@ -236,7 +238,7 @@ export function UnavailabilityList({ mode }: { mode: UnavailabilityMode }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((i) => (
+                  {pager.slice.map((i) => (
                     <tr
                       key={i.id}
                       onClick={() => void navigate(scope.itemPath(i.id))}
@@ -262,9 +264,15 @@ export function UnavailabilityList({ mode }: { mode: UnavailabilityMode }) {
               </table>
             </div>
           )}
-          <p className="ui-count">
-            {visible.length} de {items.length} {items.length === 1 ? 'registro' : 'registros'}
-          </p>
+          <Pagination
+            total={items.length}
+            filtered={visible.length}
+            page={pager.page}
+            pages={pager.pages}
+            pageSize={pager.pageSize}
+            onPage={pager.setPage}
+            onPageSize={pager.setPageSize}
+          />
         </>
       )}
     </section>

@@ -53,6 +53,13 @@ export interface ScheduleConflicts {
   outdated: number;
 }
 
+/** Motivo pelo qual um plantão está em conflito (tela da escala, só gestor). */
+export interface ShiftConflict {
+  code: 'member_unavailable' | 'collective_vacation' | 'outdated';
+  /** Texto pt-BR exibido ao gestor. */
+  message: string;
+}
+
 /** Resultado devolvido à tela (campo `scheduleImpact` da resposta da mutação). */
 export interface ScheduleImpact {
   source: ScheduleImpactSource;

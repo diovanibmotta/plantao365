@@ -5,6 +5,7 @@ import { useManageableTeams } from '../team/TeamContext';
 import { EmptyState } from '../ui/EmptyState';
 import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { PageHeader } from '../ui/PageHeader';
+import { Pagination, usePagination } from '../ui/Pagination';
 import { MEMBERS_NEW_PATH, memberPath } from './paths';
 import { describeError, sortMembers } from './types';
 import type { Member } from './types';
@@ -48,6 +49,7 @@ export function MembersList() {
     );
   }, [items, search, status, access, team]);
 
+  const pager = usePagination(visible, [search, status, access, team].join('|'));
   const clear = () => {
     setSearch('');
     setStatus('');
@@ -137,7 +139,7 @@ export function MembersList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((m) => (
+                  {pager.slice.map((m) => (
                     <tr
                       key={m.id}
                       className={m.active ? undefined : 'members-inactive'}
@@ -171,9 +173,15 @@ export function MembersList() {
               </table>
             </div>
           )}
-          <p className="ui-count">
-            {visible.length} de {items.length} {items.length === 1 ? 'registro' : 'registros'}
-          </p>
+          <Pagination
+            total={items.length}
+            filtered={visible.length}
+            page={pager.page}
+            pages={pager.pages}
+            pageSize={pager.pageSize}
+            onPage={pager.setPage}
+            onPageSize={pager.setPageSize}
+          />
         </>
       )}
     </section>

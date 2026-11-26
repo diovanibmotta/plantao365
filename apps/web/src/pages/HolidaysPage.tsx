@@ -7,6 +7,7 @@ import type { Holiday, HolidayScope } from '../holidays/types';
 import { EmptyState } from '../ui/EmptyState';
 import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { PageHeader } from '../ui/PageHeader';
+import { Pagination, usePagination } from '../ui/Pagination';
 
 type Outcome = { error: string } | { items: Holiday[] };
 
@@ -49,6 +50,7 @@ export function HolidaysPage() {
       );
   }, [items, search, year, scope]);
 
+  const pager = usePagination(visible, [search, year, scope].join('|'));
   const clear = () => {
     setSearch('');
     setYear('');
@@ -126,7 +128,7 @@ export function HolidaysPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((h) => (
+                  {pager.slice.map((h) => (
                     <tr
                       key={h.id}
                       onClick={() => void navigate(holidayPath(h.id))}
@@ -154,9 +156,15 @@ export function HolidaysPage() {
             </div>
           )}
           {items.length > 0 && (
-            <p className="ui-count">
-              {visible.length} de {items.length} {items.length === 1 ? 'registro' : 'registros'}
-            </p>
+            <Pagination
+              total={items.length}
+              filtered={visible.length}
+              page={pager.page}
+              pages={pager.pages}
+              pageSize={pager.pageSize}
+              onPage={pager.setPage}
+              onPageSize={pager.setPageSize}
+            />
           )}
         </>
       )}

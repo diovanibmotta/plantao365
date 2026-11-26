@@ -195,6 +195,7 @@ export async function notifyShiftChange(
         hours: change.shift.hours,
         previousUserId: change.previousUserId,
         newUserId: change.newUserId,
+        previousHours: change.previousHours,
         reason: change.reason,
         ...(opts.eventId ? { changeKey: opts.eventId } : {}),
       },

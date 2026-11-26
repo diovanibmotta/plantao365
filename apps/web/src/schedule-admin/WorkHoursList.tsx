@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import { EmptyState } from '../ui/EmptyState';
 import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { PageHeader } from '../ui/PageHeader';
+import { Pagination, usePagination } from '../ui/Pagination';
 import { WORK_HOURS_NEW_PATH, workHoursPath } from './paths';
 import { describe } from './types';
 
@@ -52,6 +53,8 @@ export function WorkHoursList() {
           (!part || partOf(p) === part),
       );
   }, [periods, search, part]);
+
+  const pager = usePagination(visible, [search, part].join('|'));
 
   const clear = () => {
     setSearch('');
@@ -125,7 +128,7 @@ export function WorkHoursList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map(({ p, i }) => (
+                  {pager.slice.map(({ p, i }) => (
                     <tr key={`${p.startMinute}-${p.endMinute}`}>
                       <th scope="row">{p.name || `Período ${i + 1}`}</th>
                       <td>{formatMinute(p.startMinute)}</td>
@@ -146,10 +149,17 @@ export function WorkHoursList() {
               </table>
             </div>
           )}
-          <p className="ui-count">
-            {visible.length} de {periods.length} {periods.length === 1 ? 'período' : 'períodos'} ·
-            Total: {formatDuration(workMinutes(periods))} por dia útil.
-          </p>
+          <Pagination
+            noun={['período', 'períodos']}
+            total={periods.length}
+            filtered={visible.length}
+            page={pager.page}
+            pages={pager.pages}
+            pageSize={pager.pageSize}
+            onPage={pager.setPage}
+            onPageSize={pager.setPageSize}
+          />
+          <p className="ui-count">Total: {formatDuration(workMinutes(periods))} por dia útil.</p>
         </>
       )}
     </section>

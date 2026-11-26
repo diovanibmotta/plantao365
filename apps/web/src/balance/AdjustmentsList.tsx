@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { EmptyState } from '../ui/EmptyState';
 import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { PageHeader } from '../ui/PageHeader';
+import { Pagination, usePagination } from '../ui/Pagination';
 import { Diff } from './Diff';
 import { formatDate } from './format';
 import { ADJUSTMENTS_NEW_PATH, adjustmentPath } from './paths';
@@ -92,6 +93,7 @@ export function AdjustmentsList({ year }: { year: number }) {
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [items, data, search, member, month, sign]);
 
+  const pager = usePagination(visible, [search, member, month, sign].join('|'));
   const clear = () => {
     setSearch('');
     setMember('');
@@ -182,7 +184,7 @@ export function AdjustmentsList({ year }: { year: number }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((a) => (
+                  {pager.slice.map((a) => (
                     <tr
                       key={a.id}
                       data-testid="bal-adjustment"
@@ -212,9 +214,15 @@ export function AdjustmentsList({ year }: { year: number }) {
               </table>
             </div>
           )}
-          <p className="ui-count">
-            {visible.length} de {items.length} {items.length === 1 ? 'registro' : 'registros'}
-          </p>
+          <Pagination
+            total={items.length}
+            filtered={visible.length}
+            page={pager.page}
+            pages={pager.pages}
+            pageSize={pager.pageSize}
+            onPage={pager.setPage}
+            onPageSize={pager.setPageSize}
+          />
         </>
       )}
     </section>

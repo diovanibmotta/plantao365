@@ -13,6 +13,13 @@ export interface ShiftDto {
   userBadgeNumber?: string | null;
   originalUserId: string | null;
   originalHours: number | null;
+  /** Motivos de conflito (só gestor, na escala aberta); vazio/ausente = sem conflito. */
+  conflicts?: ShiftConflictDto[];
+}
+
+export interface ShiftConflictDto {
+  code: 'member_unavailable' | 'collective_vacation' | 'outdated';
+  message: string;
 }
 
 export interface HolidayDto {

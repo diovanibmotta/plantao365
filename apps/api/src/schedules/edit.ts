@@ -1,5 +1,6 @@
 import type { Hono } from 'hono';
 import { z } from 'zod';
+import { addDays, localToInstant, shiftDuration } from '@diovanibmotta/plantao365-shared';
 import { recordAudit } from '../audit/index.js';
 import { requireRole } from '../auth/authz.js';
 import type { AuthEnv } from '../auth/index.js';
@@ -26,6 +27,7 @@ export interface ShiftChange {
   shift: ShiftDto;
   previousUserId: string | null;
   newUserId: string | null;
+  previousHours: number;
   reason: string | null;
   actorId: string;
 }
@@ -33,10 +35,24 @@ export interface ShiftChange {
 /** Ponto de extensão (task 9.2): chamado dentro da transação (savepoint, com o `sql` dela); falha não aborta a edição. */
 export type ShiftChangedHook = (change: ShiftChange, sql: Sql) => void | Promise<void>;
 
-export const editShiftBodySchema = z.object({
-  userId: z.uuid().nullable(),
-  reason: z.string().trim().min(1).max(2000).optional(),
-});
+const hour = z.number().int().min(0).max(23);
+
+/** `userId` ausente mantém o responsável; `startHour`/`endHour` (juntos) mudam o horário do plantão. */
+export const editShiftBodySchema = z
+  .object({
+    userId: z.uuid().nullable().optional(),
+    startHour: hour.optional(),
+    endHour: hour.optional(),
+    reason: z.string().trim().min(1).max(2000).optional(),
+  })
+  .refine((b) => (b.startHour === undefined) === (b.endHour === undefined), {
+    message: 'Informe início e fim do plantão',
+    path: ['startHour'],
+  })
+  .refine((b) => b.userId !== undefined || b.startHour !== undefined, {
+    message: 'Informe o responsável ou o horário',
+    path: ['userId'],
+  });
 
 const errorBody = (error: string, message: string, extra: object = {}) => ({
   error,
@@ -83,6 +99,8 @@ interface ShiftRow {
   hours: number;
   date: string;
   user_id: string | null;
+  starts_at: Date | null;
+  ends_at: Date | null;
 }
 
 type Outcome =
@@ -93,7 +111,7 @@ export function registerEditRoutes(
   router: Hono<AuthEnv>,
   deps: { db: Sql; onShiftChanged?: ShiftChangedHook | undefined },
 ): void {
-  /** PATCH /schedules/:id/shifts/:shiftId — troca o responsável (rascunho ou publicada). */
+  /** PATCH /schedules/:id/shifts/:shiftId — troca responsável e/ou horário (rascunho ou publicada). */
   router.patch('/schedules/:id/shifts/:shiftId', requireRole('manager'), async (c) => {
     const { id, shiftId } = c.req.param();
     const parsed = editShiftBodySchema.safeParse(await c.req.json().catch(() => null));
@@ -105,7 +123,7 @@ export function registerEditRoutes(
         400,
       );
     }
-    const { userId, reason } = parsed.data;
+    const { reason, startHour, endHour } = parsed.data;
     const actorId = c.get('user')!.id;
     const teamId = c.get('teamId')!;
     if (!z.uuid().safeParse(id).success || !z.uuid().safeParse(shiftId).success) {
@@ -125,7 +143,7 @@ export function registerEditRoutes(
         };
       }
       const [shift] = await tx<ShiftRow[]>`
-        select id, hours, date::text as date, user_id from shifts
+        select id, hours, date::text as date, user_id, starts_at, ends_at from shifts
         where id = ${shiftId} and schedule_id = ${id}`;
       if (!shift) {
         return {
@@ -142,14 +160,16 @@ export function registerEditRoutes(
           body: errorBody('reason_required', 'Motivo obrigatório para alterar escala publicada'),
         };
       }
-      if (shift.hours === 0 && userId !== null) {
+      const userId = parsed.data.userId === undefined ? shift.user_id : parsed.data.userId;
+      const retime = startHour !== undefined && endHour !== undefined;
+      if (shift.hours === 0 && (userId !== null || retime)) {
         return {
           kind: 'error',
           status: 422,
           body: errorBody('shift_not_applicable', 'Dia sem plantão (férias coletivas)'),
         };
       }
-      if (userId !== null) {
+      if (userId !== null && userId !== shift.user_id) {
         const [u] = await tx<{ id: string }[]>`
           select user_id as id from team_members
           where user_id = ${userId} and team_id = ${teamId}`;
@@ -167,15 +187,38 @@ export function registerEditRoutes(
         userId,
         teamId,
       });
-      await tx`update shifts set user_id = ${userId}, updated_at = now() where id = ${shiftId}`;
+      let hours = shift.hours;
+      let startsAt = shift.starts_at;
+      let endsAt = shift.ends_at;
+      if (retime) {
+        hours = shiftDuration({ startHour, endHour });
+        startsAt = localToInstant(shift.date, startHour);
+        endsAt = localToInstant(endHour > startHour ? shift.date : addDays(shift.date, 1), endHour);
+      }
+      await tx`update shifts set user_id = ${userId}, hours = ${hours},
+        starts_at = ${startsAt}, ends_at = ${endsAt}, updated_at = now() where id = ${shiftId}`;
       await tx`update schedules set updated_at = now() where id = ${id}`;
       await recordAudit(tx, {
         actorId,
         action: published ? 'schedule.published_shift_change' : 'schedule.shift_edit',
         entityType: 'shift',
         entityId: shiftId,
-        before: { scheduleId: id, date: shift.date, userId: shift.user_id },
-        after: { scheduleId: id, date: shift.date, userId },
+        before: {
+          scheduleId: id,
+          date: shift.date,
+          userId: shift.user_id,
+          hours: shift.hours,
+          startsAt: shift.starts_at?.toISOString() ?? null,
+          endsAt: shift.ends_at?.toISOString() ?? null,
+        },
+        after: {
+          scheduleId: id,
+          date: shift.date,
+          userId,
+          hours,
+          startsAt: startsAt?.toISOString() ?? null,
+          endsAt: endsAt?.toISOString() ?? null,
+        },
         reason: reason ?? null,
       });
       const sched = (await getSchedule(tx, id))!;
@@ -185,6 +228,7 @@ export function registerEditRoutes(
         shift: shifts.find((s) => s.id === shiftId)!,
         previousUserId: shift.user_id,
         newUserId: userId,
+        previousHours: shift.hours,
         reason: reason ?? null,
         actorId,
       };

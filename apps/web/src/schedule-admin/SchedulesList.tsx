@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { EmptyState } from '../ui/EmptyState';
 import { FilterBar, normalizeSearch } from '../ui/FilterBar';
 import { PageHeader } from '../ui/PageHeader';
+import { Pagination, usePagination } from '../ui/Pagination';
 import { SCHEDULE_NEW_PATH, schedulePath } from './paths';
 import { ConflictBadge } from './ConflictBadge';
 import { StatusPill } from './StatusPill';
@@ -53,6 +54,7 @@ export function SchedulesList() {
     );
   }, [schedules, search, status, onDate]);
 
+  const pager = usePagination(visible, [search, status, onDate].join('|'));
   const clear = () => {
     setSearch('');
     setStatus('');
@@ -128,7 +130,7 @@ export function SchedulesList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((s) => {
+                  {pager.slice.map((s) => {
                     const period = `${formatDate(s.startDate)} a ${formatDate(s.endDate)}`;
                     return (
                       <tr
@@ -160,10 +162,15 @@ export function SchedulesList() {
               </table>
             </div>
           )}
-          <p className="ui-count">
-            {visible.length} de {schedules.length}{' '}
-            {schedules.length === 1 ? 'registro' : 'registros'}
-          </p>
+          <Pagination
+            total={schedules.length}
+            filtered={visible.length}
+            page={pager.page}
+            pages={pager.pages}
+            pageSize={pager.pageSize}
+            onPage={pager.setPage}
+            onPageSize={pager.setPageSize}
+          />
         </>
       )}
     </section>
