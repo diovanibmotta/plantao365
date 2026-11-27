@@ -14,4 +14,4 @@ export const SESSION_FILE = `${WORK_DIR}/session.json`;
 export const PLUGIN_ID = 'emergency-contacts';
 /** Commit fixo do plugin de referência: ao atualizar, revise os snapshots. */
 export const PLUGIN_REPO = 'plantao365/plugin-emergency-contacts';
-export const PLUGIN_SHA = '715ae5dac5e7b183311a4bca90a7e21a6aa70fa7';
+export const PLUGIN_SHA = 'f7b570cba5299a96f5fda7fdcc1fe8cc102bae50';
