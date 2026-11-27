@@ -20,3 +20,7 @@ data:
   SMTP_PORT: '587'
   SMTP_SECURE: 'false'
   SMTP_FROM: ''
+  # Chaves públicas Ed25519 que assinam os plugins, separadas por vírgula. Vazio: instalação desativada.
+  PLUGIN_PUBLIC_KEYS: ''
+  # Cache dos pacotes extraídos; padrão: diretório temporário do container.
+  # PLUGINS_DIR: /tmp/plantao365-plugins

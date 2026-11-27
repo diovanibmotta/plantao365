@@ -1,5 +1,5 @@
 # Origem da API para o CDN. O host é o da ORIGEM (ex.: origin-plantao.example.com),
-# não o domínio público: o CDN encaminha /api/* e /auth/* para cá.
+# não o domínio público: o CDN encaminha /api/*, /auth/* e /plugins-assets/* para cá.
 # Ajuste host, ingressClassName e o issuer do cert-manager ao seu cluster.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -9,6 +9,8 @@ metadata:
     app.kubernetes.io/name: plantao365
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt
+    # Instalação de plugin envia até 15 MB (o padrão do ingress-nginx é 1 MB).
+    nginx.ingress.kubernetes.io/proxy-body-size: 16m
 spec:
   ingressClassName: nginx
   tls:
@@ -26,6 +28,13 @@ spec:
                 port:
                   name: http
           - path: /auth
+            pathType: Prefix
+            backend:
+              service:
+                name: plantao365-api
+                port:
+                  name: http
+          - path: /plugins-assets
             pathType: Prefix
             backend:
               service:

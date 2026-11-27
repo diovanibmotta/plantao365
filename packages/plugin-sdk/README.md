@@ -33,4 +33,6 @@ npx plantao-plugin install contacts-0.1.0.p365 --url https://plantao.exemplo --t
 
 - `PLUGIN_PUBLIC_KEYS`: chaves públicas Ed25519 (saída do `keygen`), separadas por vírgula. Vazio desativa o install.
 - `PLUGIN_INSTALL_TOKEN`: token aceito pela CLI (mínimo 32 caracteres). Vazio: só a master key instala.
+- `PLUGINS_DIR`: cache dos pacotes extraídos (o original fica no banco). Vazio: diretório temporário do SO.
+- Proxy na frente da API: encaminhe `/plugins-assets/` e aceite corpo de até 16 MB no install (o nginx e o Ingress do repositório já fazem isso).
 - Com várias réplicas, install/enable/disable/configuração feitos em uma chegam às outras por `NOTIFY plugins_changed`; as migrações do plugin rodam uma vez, sob advisory lock.
