@@ -74,6 +74,13 @@ export default definePluginWeb({
   margin-block: var(--space);
 }
 `,
+    'web/index.html': `<!doctype html>
+<html lang="pt-BR">
+  <body>
+    <!-- Entrada mínima exigida pelo vite build; o plugin é servido via remoteEntry.js. -->
+  </body>
+</html>
+`,
     'web/vite.config.ts': `import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { federation } from '@module-federation/vite';
@@ -84,7 +91,9 @@ const id = process.env.PLUGIN_ID ?? '${id}';
 const version = process.env.PLUGIN_VERSION ?? '0.0.0';
 
 export default defineConfig({
-  root: 'web',
+  // \`root\` precisa ser absoluto. Com 'web' relativo o Module Federation não lê os exports do React
+  // e o plugin usa a cópia própria em vez do singleton do host (hooks quebram na tela).
+  root: fileURLToPath(new URL('.', import.meta.url)),
   base: \`/plugins-assets/\${id}/\${version}/web/\`,
   plugins: [
     react(),
@@ -106,9 +115,8 @@ export default defineConfig({
     target: 'esnext',
     outDir: '../dist/web',
     emptyOutDir: true,
+    // A entrada é o web/index.html mínimo; o plugin é servido pelo remoteEntry.js.
     rollupOptions: {
-      // Remote sem página: a entrada é o módulo exposto (sem isso o Vite procura web/index.html).
-      input: fileURLToPath(new URL('./index.tsx', import.meta.url)),
       // Nomes curtos: os chunks do MF repetem o id e os shared e o kernel limita o caminho a 200.
       output: { chunkFileNames: 'assets/[hash].js', assetFileNames: 'assets/[hash][extname]' },
     },

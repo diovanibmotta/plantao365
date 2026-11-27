@@ -26,9 +26,11 @@ describe('CLI plantao-plugin', () => {
     await create('contacts', dir);
     const manifest = JSON.parse(await readFile(path.join(dir, MANIFEST_FILE), 'utf8'));
     expect(manifest).toMatchObject({ id: 'contacts', version: '0.1.0', kernelApi: '^1.1.0' });
-    expect(await readFile(path.join(dir, 'web/vite.config.ts'), 'utf8')).toContain(
-      "name: 'plugin_contacts'",
-    );
+    const vite = await readFile(path.join(dir, 'web/vite.config.ts'), 'utf8');
+    expect(vite).toContain("name: 'plugin_contacts'");
+    // root relativo faz o plugin carregar um React próprio e quebrar no host
+    expect(vite).toContain("root: fileURLToPath(new URL('.', import.meta.url))");
+    expect(await readFile(path.join(dir, 'web/index.html'), 'utf8')).toContain('<body>');
     // o CSS do template passa no próprio lint
     await mkdir(path.join(dir, 'dist/web'), { recursive: true });
     const css = await readFile(path.join(dir, 'web/styles.css'), 'utf8');
