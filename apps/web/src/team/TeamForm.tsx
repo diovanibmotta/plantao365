@@ -4,8 +4,12 @@ import { useTeam } from './TeamContext';
 import type { TeamInput } from './TeamContext';
 import { AVATAR_OPTIONS, TeamAvatar } from './TeamAvatar';
 import { TEAMS_PATH, teamMembersPath } from './paths';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { FormActions, FormPage, FormSection } from '../ui/FormPage';
+import {
+  ConfirmDialog,
+  FormActions,
+  FormPage,
+  FormSection,
+} from '@diovanibmotta/plantao365-web-sdk';
 import './teams.css';
 
 const URL_PATTERN = /^https?:\/\/\S+$/i;

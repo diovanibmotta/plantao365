@@ -94,6 +94,8 @@ describe('kernel de plugins no front', () => {
     renderApp('/plugins/demo');
     expect(await screen.findByRole('heading', { name: 'Contatos de emergência' })).toBeTruthy();
     expect(screen.getByText('Quem acionar').closest('.ui-header')).not.toBeNull();
+    // escopo do CSS do plugin
+    expect(screen.getByText('Quem acionar').closest('.plg-demo')).not.toBeNull();
     const link = screen.getByRole('link', { name: /Contatos/ });
     expect(link.getAttribute('href')).toBe('/plugins/demo');
     expect(link.querySelector('svg path')?.getAttribute('d')).toBe('M3 12h18');
@@ -157,7 +159,7 @@ describe('Slot', () => {
         <Slot name="schedule.toolbar" />
       </PluginProvider>,
     );
-    expect(await screen.findByText('Seção do plugin')).toBeTruthy();
+    expect((await screen.findByText('Seção do plugin')).closest('.plg-demo')).not.toBeNull();
     expect(screen.getByRole('alert').textContent).toContain(
       'A extensão Quebrado não pôde ser exibida.',
     );

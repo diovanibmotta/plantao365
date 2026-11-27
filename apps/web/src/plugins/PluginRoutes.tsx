@@ -46,18 +46,21 @@ export function PluginRoutes() {
       </p>
     );
   }
+  // `plg-<id>` é o escopo exigido pelo lint de estilo: o CSS do plugin só atinge o que está aqui.
   return (
-    <PluginBoundary name={plugin.name}>
-      <Routes>
-        {(plugin.module.routes ?? []).map((route) =>
-          route.path === '' ? (
-            <Route key="" index element={<Gate route={route} />} />
-          ) : (
-            <Route key={route.path} path={route.path} element={<Gate route={route} />} />
-          ),
-        )}
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </PluginBoundary>
+    <div className={`plg-${plugin.id}`}>
+      <PluginBoundary name={plugin.name}>
+        <Routes>
+          {(plugin.module.routes ?? []).map((route) =>
+            route.path === '' ? (
+              <Route key="" index element={<Gate route={route} />} />
+            ) : (
+              <Route key={route.path} path={route.path} element={<Gate route={route} />} />
+            ),
+          )}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </PluginBoundary>
+    </div>
   );
 }

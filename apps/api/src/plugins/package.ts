@@ -1,5 +1,6 @@
 import { createHash, createPublicKey, verify, type KeyObject } from 'node:crypto';
 import { gunzipSync, gzipSync } from 'node:zlib';
+import { checkPluginStyles } from '@diovanibmotta/plantao365-plugin-sdk';
 import { z } from 'zod';
 import {
   KERNEL_API_VERSION,
@@ -58,6 +59,30 @@ export function decodePackage(archive: Buffer): PluginPackage {
     }
   }
   return { manifest, files: map };
+}
+
+/**
+ * Gate de identidade visual, só no install: pacote com front precisa de `styleCheck: "passed"`
+ * (gravado pela CLI) e o kernel confere o CSS de novo. Não roda na ativação, para que um lint
+ * mais rígido num kernel futuro não derrube plugins já instalados.
+ */
+export function assertStyleCheck({ manifest, files }: PluginPackage): void {
+  if (manifest.web && manifest.styleCheck !== 'passed') {
+    throw new PluginError(
+      'invalid_package',
+      'O pacote não passou pelo lint de estilo da CLI (styleCheck ausente no manifesto).',
+    );
+  }
+  const violations = [...files]
+    .filter(([p]) => p.endsWith('.css'))
+    .flatMap(([p, content]) => checkPluginStyles(content.toString('utf8'), manifest.id, p));
+  if (violations.length > 0) {
+    const first = violations
+      .slice(0, 3)
+      .map((v) => `${v.file}:${v.line} ${v.message}`)
+      .join(' ');
+    throw new PluginError('invalid_package', `Estilo do plugin reprovado: ${first}`);
+  }
 }
 
 /** Chaves públicas Ed25519 em base64 (DER/SPKI), separadas por vírgula. */

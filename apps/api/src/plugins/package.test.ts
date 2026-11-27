@@ -2,6 +2,7 @@ import { generateKeyPairSync, sign } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import {
+  assertStyleCheck,
   decodePackage,
   encodePackage,
   isKernelCompatible,
@@ -46,6 +47,26 @@ describe('pacote de plugin', () => {
   it('rejeita entry do manifesto ausente e conteúdo ilegível', () => {
     expect(() => decodePackage(encodePackage(manifest, {}))).toThrow(/server\/index.js/);
     expect(() => decodePackage(Buffer.from('lixo'))).toThrow(/ilegível/);
+  });
+
+  it('exige styleCheck no pacote com front e reprova CSS fora do padrão visual', () => {
+    const web: PluginManifest = { ...manifest, web: { entry: 'web/remoteEntry.js' } };
+    const files = { 'server/index.js': 'x', 'web/remoteEntry.js': 'x' };
+    const check = (m: PluginManifest, f: Record<string, string>) =>
+      assertStyleCheck(decodePackage(encodePackage(m, f)));
+    expect(() => check(web, files)).toThrow(/lint de estilo/);
+
+    const passed: PluginManifest = { ...web, styleCheck: 'passed' };
+    const ok = { ...files, 'web/assets/app.css': '.plg-demo { color: var(--text); }' };
+    expect(() => check(passed, ok)).not.toThrow();
+
+    // Manifesto diz que passou, mas o CSS do pacote não passa: o kernel confere de novo.
+    const bad = { ...files, 'web/assets/app.css': '.btn { color: #000 !important; }' };
+    expect(() => check(passed, bad)).toThrow(
+      /web\/assets\/app.css:1 Seletor fora do escopo ".btn"/,
+    );
+    // Decodificar (ativação/extração) não roda o gate.
+    expect(() => decodePackage(encodePackage(passed, bad))).not.toThrow();
   });
 
   it('verifica a assinatura Ed25519 e recusa pacote alterado ou sem chaves', () => {

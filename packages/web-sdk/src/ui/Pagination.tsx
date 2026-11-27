@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import './ui.css';
 
 export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 export const DEFAULT_PAGE_SIZE = 25;

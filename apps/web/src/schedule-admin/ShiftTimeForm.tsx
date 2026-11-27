@@ -4,8 +4,12 @@ import { DEFAULT_SHIFT_TIMES, shiftDuration } from '@diovanibmotta/plantao365-sh
 import type { ShiftTimes, WeekdayShiftTime } from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
 import { formatHours } from '../schedule/format';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { FormActions, FormPage, FormSection } from '../ui/FormPage';
+import {
+  ConfirmDialog,
+  FormActions,
+  FormPage,
+  FormSection,
+} from '@diovanibmotta/plantao365-web-sdk';
 import { SCHEDULE_ADMIN_PATH, tabPath } from './paths';
 import { describe } from './types';
 import { HOLIDAY_KEY, SHIFT_TARGETS, effectiveTime, parseTarget, targetLabel } from './weekdays';

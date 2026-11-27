@@ -1,5 +1,4 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import './ui.css';
 
 /** Diálogo informativo (só leitura): título, conteúdo e um botão "Fechar". */
 export function InfoDialog({

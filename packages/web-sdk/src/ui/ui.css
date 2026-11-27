@@ -259,7 +259,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space);
-  background: rgb(0 0 0 / 45%);
+  background: var(--backdrop);
 }
 
 .ui-dialog {

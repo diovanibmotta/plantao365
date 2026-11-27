@@ -5,7 +5,7 @@ import { api } from '../api/client';
 import { toast } from '../toast/toast-store';
 import { DAY_TYPE_LABEL, formatHours, localDateMinute } from '../schedule/format';
 import type { ShiftDto } from '../schedule/types';
-import { FormActions, FormPage, FormSection } from '../ui/FormPage';
+import { FormActions, FormPage, FormSection } from '@diovanibmotta/plantao365-web-sdk';
 import { SCHEDULE_ADMIN_PATH, schedulePath, tabPath } from './paths';
 import { describe, formatDate } from './types';
 import type { EditResult, MemberOption, ScheduleDetail } from './types';

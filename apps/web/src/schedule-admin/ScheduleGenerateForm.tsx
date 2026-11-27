@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { api, describeApiError } from '../api/client';
 import type { ApiError } from '../api/client';
-import { FormActions, FormPage, FormSection } from '../ui/FormPage';
+import { FormActions, FormPage, FormSection } from '@diovanibmotta/plantao365-web-sdk';
 import { SCHEDULE_ADMIN_PATH, schedulePath, tabPath } from './paths';
 import { errorCode } from './types';
 import type { GenerateResult } from './types';

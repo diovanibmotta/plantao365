@@ -17,7 +17,7 @@ export function Slot({ name }: { name: SlotName }) {
   return (
     <>
       {entries.map(({ id, name: pluginName, Content }) => (
-        <div key={id} className="plugin-slot" data-plugin={id} data-slot={name}>
+        <div key={id} className={`plugin-slot plg-${id}`} data-plugin={id} data-slot={name}>
           <PluginBoundary name={pluginName}>
             <Content />
           </PluginBoundary>

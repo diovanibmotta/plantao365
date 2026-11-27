@@ -4,10 +4,14 @@ import { formatMinute, shiftDuration } from '@diovanibmotta/plantao365-shared';
 import type { ShiftException } from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
 import { formatHours } from '../schedule/format';
-import { EmptyState } from '../ui/EmptyState';
-import { FilterBar, normalizeSearch } from '../ui/FilterBar';
-import { PageHeader } from '../ui/PageHeader';
-import { Pagination, usePagination } from '../ui/Pagination';
+import {
+  EmptyState,
+  FilterBar,
+  normalizeSearch,
+  PageHeader,
+  Pagination,
+  usePagination,
+} from '@diovanibmotta/plantao365-web-sdk';
 import { EXCEPTIONS_NEW_PATH, exceptionPath } from './paths';
 import { describe, formatDate } from './types';
 
