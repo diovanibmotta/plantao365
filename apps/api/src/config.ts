@@ -84,13 +84,15 @@ const schema = z
     MASTER_PASSWORD: optional(z.string().min(12, 'use ao menos 12 caracteres').max(256)),
     SESSION_TTL_SECONDS: z.coerce.number().int().min(60).default(28800),
     /**
-     * Chaves públicas Ed25519 (base64 DER/SPKI, separadas por vírgula) que assinam os pacotes de
-     * plugin. Vazio: instalação de plugins desativada.
+     * Chaves públicas Ed25519 (base64 DER/SPKI, separadas por vírgula) confiáveis além da loja
+     * oficial e das cadastradas pela tela. Opcional.
      */
     PLUGIN_PUBLIC_KEYS: optional(z.string()),
     /** Cache local onde os pacotes de plugin são extraídos; padrão: diretório temporário do SO. */
     PLUGINS_DIR: optional(z.string()),
-    /** Token da CLI (`plantao-plugin install --token`); vazio: só a master key instala pela tela. */
+    /** Índice da loja de plugins; sem valor usa a loja oficial, `off` desliga. */
+    PLUGIN_CATALOG_URL: optional(z.union([z.literal('off'), z.url({ protocol: /^https?$/ })])),
+    /** Token da CLI (`plantao-plugin install --token`); vazio: só gestor logado instala. */
     PLUGIN_INSTALL_TOKEN: optional(z.string().min(32, 'use ao menos 32 caracteres')),
   })
   .superRefine((env, ctx) => {

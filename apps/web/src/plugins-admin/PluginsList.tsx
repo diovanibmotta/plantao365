@@ -9,12 +9,17 @@ import {
   usePagination,
 } from '@diovanibmotta/plantao365-web-sdk';
 import { api } from '../api/client';
-import { pluginAdminPath } from './paths';
+import { PLUGIN_UPLOAD_PATH, pluginAdminPath } from './paths';
 import { STATUS_LABELS, type PluginStatus, type PluginSummary } from './types';
 
-/** Plugins instalados: versão e situação. O install é pela CLI; a gestão fica no formulário. */
+/** Plugins instalados: versão e situação. A gestão fica no formulário. */
 export function PluginsList() {
   const navigate = useNavigate();
+  const cta = (
+    <Link to={PLUGIN_UPLOAD_PATH} className="btn primary">
+      Instalar de arquivo
+    </Link>
+  );
   const [items, setItems] = useState<PluginSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -49,7 +54,11 @@ export function PluginsList() {
 
   return (
     <section>
-      <PageHeader title="Plugins" description="Extensões instaladas, a versão e a situação." />
+      <PageHeader
+        title="Plugins"
+        description="Extensões instaladas, a versão e a situação."
+        action={cta}
+      />
       {error && (
         <p className="alert" role="alert">
           {error}
@@ -61,8 +70,8 @@ export function PluginsList() {
         </p>
       )}
       {items?.length === 0 && (
-        <EmptyState>
-          Nenhum plugin instalado. Instale com a CLI: <code>plantao-plugin install</code>.
+        <EmptyState action={cta}>
+          Nenhum plugin instalado. Escolha um na aba Loja ou instale de arquivo.
         </EmptyState>
       )}
       {items && items.length > 0 && (

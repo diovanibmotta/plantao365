@@ -101,7 +101,7 @@ export function verifySignature(archive: Buffer, signature: Buffer, keys: KeyObj
   if (keys.length === 0) {
     throw new PluginError(
       'plugins_disabled',
-      'Instalação de plugins desativada: configure PLUGIN_PUBLIC_KEYS.',
+      'Nenhuma chave confiável: cadastre a chave do publicador em Plugins › Chaves.',
     );
   }
   if (!keys.some((key) => verify(null, archive, key, signature))) {
