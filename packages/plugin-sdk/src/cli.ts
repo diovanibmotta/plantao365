@@ -168,6 +168,10 @@ export async function signFile(file: string, keyPem: string): Promise<string> {
 async function install(file: string, url: string, token: string): Promise<string> {
   const sigFile = `${file}.sig`;
   if (!existsSync(sigFile)) throw new CliError(`Assinatura ${sigFile} não encontrada; rode sign.`);
+  const body = JSON.stringify({
+    archive: (await readFile(file)).toString('base64'),
+    signature: (await readFile(sigFile)).toString('base64'),
+  });
   const res = await fetch(new URL('/api/plugins', url), {
     method: 'POST',
     headers: {
@@ -175,15 +179,15 @@ async function install(file: string, url: string, token: string): Promise<string
       'content-type': 'application/json',
       'x-requested-with': 'plantao360',
     },
-    body: JSON.stringify({
-      archive: (await readFile(file)).toString('base64'),
-      signature: (await readFile(sigFile)).toString('base64'),
-    }),
+    body,
+  }).catch((err: unknown) => {
+    const cause = err instanceof Error && err.cause instanceof Error ? err.cause.message : '';
+    throw new CliError(`Não foi possível conectar a ${url}${cause ? ` (${cause})` : ''}.`);
   });
-  const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+  const reply = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
   if (!res.ok)
-    throw new CliError(`Install recusado (${res.status}): ${body.message ?? body.error}`);
-  return body.message ?? 'Plugin instalado.';
+    throw new CliError(`Install recusado (${res.status}): ${reply.message ?? reply.error}`);
+  return reply.message ?? 'Plugin instalado.';
 }
 
 const USAGE = `Uso: plantao-plugin <comando>

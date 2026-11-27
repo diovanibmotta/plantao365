@@ -6,23 +6,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Hono } from 'hono';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { main, signFile } from '@diovanibmotta/plantao365-plugin-sdk/cli';
-import type { AuthEnv } from '../auth/index.js';
+import { createApp } from '../app.js';
 import type { Sql } from '../db.js';
 import { processDomainEvents, publishEvent } from '../events/index.js';
 import { createLogger } from '../logger.js';
-import {
-  buildTestApp,
-  csrfHeaders,
-  DEFAULT_TEAM_ID,
-  loginAs,
-  TEST_ORIGIN,
-  type TestUser,
-} from '../test-app.js';
+import { csrfHeaders, DEFAULT_TEAM_ID, loginAs, TEST_ORIGIN, type TestUser } from '../test-app.js';
 import { createTestDb, TEST_DATABASE_URL, type TestDb } from '../test-utils.js';
 import { processPluginDeliveries } from './deliveries.js';
 import { parsePublicKeys } from './package.js';
 import { PluginRegistry } from './registry.js';
-import { createPluginsRouter } from './router.js';
 
 /*
  * E2E do plugin de referência (plugins/emergency-contacts) pelo caminho real do autor:
@@ -41,7 +33,7 @@ describe.skipIf(!TEST_DATABASE_URL)('plugin de referência emergency-contacts', 
   let sql: Sql;
   let dir: string;
   let registry: PluginRegistry;
-  let app: Hono<AuthEnv>;
+  let app: Hono;
   let master: TestUser;
   let manager: TestUser;
   let member: TestUser;
@@ -71,9 +63,19 @@ describe.skipIf(!TEST_DATABASE_URL)('plugin de referência emergency-contacts', 
         publicKey.export({ format: 'der', type: 'spki' }).toString('base64'),
       ),
     });
-    app = buildTestApp(sql, (a) =>
-      a.route('/api', createPluginsRouter({ registry, installToken: TOKEN })),
-    );
+    // App completo (mesma ordem de middlewares e routers da produção), não um router isolado.
+    app = createApp({
+      logger: createLogger({ level: 'silent' }),
+      db: sql,
+      authOptions: {
+        appBaseUrl: TEST_ORIGIN,
+        cookieSecure: false,
+        sessionTtlSeconds: 3600,
+        oidc: {},
+      },
+      plugins: registry,
+      pluginInstallToken: TOKEN,
+    });
     master = await loginAs(sql, { email: 'master@example.com', role: 'manager' });
     await sql`update users set is_master = true where id = ${master.id}`;
     manager = await loginAs(sql, { email: 'gestor@example.com', role: 'manager' });
