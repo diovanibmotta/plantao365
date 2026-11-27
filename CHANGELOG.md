@@ -1,3 +1,8 @@
+# [v1.32.0](https://github.com/diovanibmotta/plantao365/compare/v1.31.0...v1.32.0) (2026-11-27)
+
+## ✨ New Features
+- [`801e639`](https://github.com/diovanibmotta/plantao365/commit/801e639)  feat(schedules): valida membros elegíveis antes de gerar a escala
+
 # [v1.31.0](https://github.com/diovanibmotta/plantao365/compare/v1.30.0...v1.31.0) (2026-11-27)
 
 ## ✨ New Features
