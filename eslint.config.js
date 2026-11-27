@@ -4,11 +4,26 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/dist-types/**', '**/node_modules/**', '.ai/**', 'spikes/**'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/dist-types/**',
+      '**/node_modules/**',
+      '.ai/**',
+      'spikes/**',
+      '**/.local/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['apps/api/**/*.ts', 'packages/**/*.ts', '*.config.{js,ts}', 'apps/web/vite.config.ts'],
+    files: [
+      'apps/api/**/*.ts',
+      'packages/**/*.ts',
+      'packages/*/bin/*.js',
+      '*.config.{js,ts}',
+      'apps/web/vite.config.ts',
+    ],
     languageOptions: { globals: globals.node },
   },
   {

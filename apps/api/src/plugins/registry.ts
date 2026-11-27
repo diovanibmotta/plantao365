@@ -226,13 +226,15 @@ export class PluginRegistry implements DeliveryTarget {
 
   /** Plugins ativos, para o front montar telas e menus (Fase 3). */
   activeManifests() {
-    return [...this.active.values()].map(({ manifest }) => ({
+    return [...this.active.values()].map(({ manifest, sha256 }) => ({
       id: manifest.id,
       name: manifest.name,
       version: manifest.version,
       web: manifest.web
         ? {
-            entry: `${PLUGIN_ASSETS_PREFIX}/${manifest.id}/${manifest.version}/${manifest.web.entry}`,
+            // `?v=<sha>`: o remoteEntry não tem hash no nome e é servido como immutable; reinstalar
+            // a mesma versão com outro conteúdo precisa de URL nova para furar o cache do navegador.
+            entry: `${PLUGIN_ASSETS_PREFIX}/${manifest.id}/${manifest.version}/${manifest.web.entry}?v=${sha256.slice(0, 16)}`,
             remote: remoteName(manifest.id),
           }
         : null,

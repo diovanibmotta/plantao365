@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
 import { createPrivateKey, generateKeyPairSync, sign } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -70,6 +69,22 @@ export async function lintStyles(dir: string, id: string): Promise<string[]> {
   return violations.flat().map((v) => `${v.file}:${v.line} ${v.message}`);
 }
 
+/**
+ * Env do `vite build`: herdado, mas sempre de produção. Com NODE_ENV=test ou VITEST (build
+ * chamado de dentro de testes/CI) o Module Federation não gera o remoteEntry.js.
+ */
+export function buildEnv(manifest: { id: string; version: string }): NodeJS.ProcessEnv {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST')),
+  );
+  return {
+    ...env,
+    NODE_ENV: 'production',
+    PLUGIN_ID: manifest.id,
+    PLUGIN_VERSION: manifest.version,
+  };
+}
+
 async function build(dir: string): Promise<void> {
   const manifest = await readManifest(dir);
   const dist = path.join(dir, 'dist');
@@ -94,11 +109,12 @@ async function build(dir: string): Promise<void> {
   }
 
   if (existsSync(path.join(dir, 'web/vite.config.ts'))) {
-    const res = spawnSync('npx', ['vite', 'build', '--config', 'web/vite.config.ts'], {
+    // Comando fixo (sem entrada do usuário); shell para achar o npx.cmd no Windows.
+    const res = spawnSync('npx vite build --config web/vite.config.ts', {
       cwd: dir,
       stdio: 'inherit',
-      shell: process.platform === 'win32',
-      env: { ...process.env, PLUGIN_ID: manifest.id, PLUGIN_VERSION: manifest.version },
+      shell: true,
+      env: buildEnv(manifest),
     });
     if (res.status !== 0) throw new CliError('vite build falhou.');
     out.web = { entry: 'web/remoteEntry.js' };
@@ -152,6 +168,10 @@ export async function signFile(file: string, keyPem: string): Promise<string> {
 async function install(file: string, url: string, token: string): Promise<string> {
   const sigFile = `${file}.sig`;
   if (!existsSync(sigFile)) throw new CliError(`Assinatura ${sigFile} não encontrada; rode sign.`);
+  const body = JSON.stringify({
+    archive: (await readFile(file)).toString('base64'),
+    signature: (await readFile(sigFile)).toString('base64'),
+  });
   const res = await fetch(new URL('/api/plugins', url), {
     method: 'POST',
     headers: {
@@ -159,15 +179,15 @@ async function install(file: string, url: string, token: string): Promise<string
       'content-type': 'application/json',
       'x-requested-with': 'plantao360',
     },
-    body: JSON.stringify({
-      archive: (await readFile(file)).toString('base64'),
-      signature: (await readFile(sigFile)).toString('base64'),
-    }),
+    body,
+  }).catch((err: unknown) => {
+    const cause = err instanceof Error && err.cause instanceof Error ? err.cause.message : '';
+    throw new CliError(`Não foi possível conectar a ${url}${cause ? ` (${cause})` : ''}.`);
   });
-  const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+  const reply = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
   if (!res.ok)
-    throw new CliError(`Install recusado (${res.status}): ${body.message ?? body.error}`);
-  return body.message ?? 'Plugin instalado.';
+    throw new CliError(`Install recusado (${res.status}): ${reply.message ?? reply.error}`);
+  return reply.message ?? 'Plugin instalado.';
 }
 
 const USAGE = `Uso: plantao-plugin <comando>
@@ -230,9 +250,4 @@ export async function main(argv: string[]): Promise<number> {
     console.error(err.message);
     return 1;
   }
-}
-
-// Executado como binário (não quando importado pelos testes).
-if (process.argv[1] && /plantao-plugin|cli\.js$/.test(process.argv[1])) {
-  main(process.argv.slice(2)).then((code) => process.exit(code));
 }

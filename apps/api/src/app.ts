@@ -129,6 +129,18 @@ export function createApp({
       guestGuard(plugins ? { extraReadPaths: () => plugins.guestReadPaths() } : {}),
     );
     app.use('/api/*', teamMiddleware({ db }));
+    // Antes dos demais: o router de escalas registra `use('*', requireAuth())` sob /api, o que
+    // barraria o install por token da CLI (sem sessão) em /api/plugins.
+    if (plugins) {
+      app.route(
+        '/api',
+        createPluginsRouter({
+          registry: plugins,
+          ...(pluginInstallToken && { installToken: pluginInstallToken }),
+        }),
+      );
+      app.route('/', createPluginAssetsRouter({ registry: plugins }));
+    }
     app.route('/api', createTeamsRouter({ db }));
     app.route('/api', createSystemRouter({ warnings: configWarnings }));
     app.route('/api', createAuditRouter({ db, guard: requireRole('manager') }));
@@ -187,16 +199,6 @@ export function createApp({
     );
     app.route('/api', createPreferencesRouter({ db }));
     app.route('/api', createBalanceRouter({ db }));
-    if (plugins) {
-      app.route(
-        '/api',
-        createPluginsRouter({
-          registry: plugins,
-          ...(pluginInstallToken && { installToken: pluginInstallToken }),
-        }),
-      );
-      app.route('/', createPluginAssetsRouter({ registry: plugins }));
-    }
   }
 
   app.get('/health', (c) => {
