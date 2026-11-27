@@ -89,11 +89,15 @@ describe.skipIf(!TEST_DATABASE_URL)('front dos plugins (/plugins-assets)', () =>
         name: 'Web demo',
         version: '1.2.0',
         web: {
-          entry: '/plugins-assets/web-demo/1.2.0/web/remoteEntry.js',
+          // o hash do pacote na URL fura o cache immutable quando o conteúdo muda
+          entry: expect.stringMatching(
+            /^\/plugins-assets\/web-demo\/1\.2\.0\/web\/remoteEntry\.js\?v=[0-9a-f]{16}$/,
+          ),
           remote: 'plugin_web_demo',
         },
       },
     ]);
+    expect((await app.request(body.plugins[0].web.entry)).status).toBe(200);
   });
 
   it('serve os arquivos do front com tipo e cache imutável', async () => {
