@@ -2,10 +2,12 @@ import type { Hono, MiddlewareHandler } from 'hono';
 import type postgres from 'postgres';
 
 /*
- * Contrato v1.0.0 do kernel (KERNEL_API_VERSION em apps/api/src/plugins/types.ts). O manifesto
+ * Contrato v1.1.0 do kernel (KERNEL_API_VERSION em apps/api/src/plugins/types.ts). O manifesto
  * declara `kernelApi: "^MAJOR.MINOR.PATCH"`; o kernel recusa outro major ou minor/patch mais novo.
- * Só tipos: a API importa este pacote com `import type`, sem dependência em runtime.
+ * Quase só tipos; em runtime a API usa apenas o lint de estilo (`checkPluginStyles`).
  */
+
+export { checkPluginStyles, type StyleViolation } from './style-check.js';
 
 export type PluginSql = postgres.Sql;
 export type PluginTx = postgres.Sql | postgres.TransactionSql;
@@ -111,6 +113,25 @@ export interface PluginScheduleImpact {
   message: string;
 }
 
+export type PluginEmailTone = 'info' | 'success' | 'warning' | 'danger';
+
+/**
+ * Conteúdo de e-mail do plugin. O kernel monta o HTML com o layout base do core (cabeçalho,
+ * rodapé, tema e escape); o plugin não envia HTML próprio.
+ */
+export interface PluginEmail {
+  to: string;
+  subject: string;
+  heading?: string;
+  paragraphs: string[];
+  /** Linhas de lista já formatadas, exibidas num painel após os parágrafos. */
+  lines?: string[];
+  action?: { label: string; url: string };
+  badge?: { label: string; tone: PluginEmailTone };
+  /** Evita enfileirar o mesmo e-mail duas vezes; o kernel prefixa com o id do plugin. */
+  dedupeKey?: string;
+}
+
 export interface PluginContext {
   id: string;
   version: string;
@@ -126,6 +147,8 @@ export interface PluginContext {
   logger: PluginLogger;
   /** Grava no audit_log do core; a ação recebe o prefixo `<id>.`. */
   audit(tx: PluginTx, entry: PluginAuditEntry): Promise<void>;
+  /** Enfileira na outbox do core (`email_outbox`), na transação informada. */
+  enqueueEmail(tx: PluginTx, email: PluginEmail): Promise<void>;
   events: {
     /** Publica `<id>.<name>` na transação informada (outbox `domain_events`). */
     publish(

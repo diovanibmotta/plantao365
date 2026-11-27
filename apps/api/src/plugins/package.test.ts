@@ -48,6 +48,22 @@ describe('pacote de plugin', () => {
     expect(() => decodePackage(Buffer.from('lixo'))).toThrow(/ilegível/);
   });
 
+  it('exige styleCheck no pacote com front e reprova CSS fora do padrão visual', () => {
+    const web: PluginManifest = { ...manifest, web: { entry: 'web/remoteEntry.js' } };
+    const files = { 'server/index.js': 'x', 'web/remoteEntry.js': 'x' };
+    expect(() => decodePackage(encodePackage(web, files))).toThrow(/lint de estilo/);
+
+    const passed: PluginManifest = { ...web, styleCheck: 'passed' };
+    const ok = { ...files, 'web/assets/app.css': '.plg-demo { color: var(--text); }' };
+    expect(decodePackage(encodePackage(passed, ok)).manifest.styleCheck).toBe('passed');
+
+    // Manifesto diz que passou, mas o CSS do pacote não passa: o kernel confere de novo.
+    const bad = { ...files, 'web/assets/app.css': 'body { color: #000 !important; }' };
+    expect(() => decodePackage(encodePackage(passed, bad))).toThrow(
+      /web\/assets\/app.css:1 Seletor global "body"/,
+    );
+  });
+
   it('verifica a assinatura Ed25519 e recusa pacote alterado ou sem chaves', () => {
     const { privateKey, keys } = keyPair();
     const archive = encodePackage(manifest, { 'server/index.js': 'x' });

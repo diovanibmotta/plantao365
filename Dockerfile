@@ -36,12 +36,15 @@ COPY --from=deps /repo/package.json ./
 COPY --from=deps /repo/node_modules ./node_modules
 COPY --from=build /repo/packages/shared/package.json packages/shared/package.json
 COPY --from=build /repo/packages/shared/dist packages/shared/dist
+COPY --from=build /repo/packages/plugin-sdk/package.json packages/plugin-sdk/package.json
+COPY --from=build /repo/packages/plugin-sdk/dist packages/plugin-sdk/dist
 COPY --from=build /repo/apps/api/package.json apps/api/package.json
 COPY --from=build /repo/apps/api/dist apps/api/dist
 COPY --from=build /repo/apps/web/dist web
 COPY apps/api/migrations apps/api/migrations
 RUN mkdir -p node_modules/@diovanibmotta \
-  && { test -e node_modules/@diovanibmotta/plantao365-shared || ln -s ../../packages/shared node_modules/@diovanibmotta/plantao365-shared; }
+  && { test -e node_modules/@diovanibmotta/plantao365-shared || ln -s ../../packages/shared node_modules/@diovanibmotta/plantao365-shared; } \
+  && { test -e node_modules/@diovanibmotta/plantao365-plugin-sdk || ln -s ../../packages/plugin-sdk node_modules/@diovanibmotta/plantao365-plugin-sdk; }
 USER node
 WORKDIR /repo/apps/api
 EXPOSE 3000

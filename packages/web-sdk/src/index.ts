@@ -1,11 +1,27 @@
-import { createElement, type ComponentType, type ReactNode } from 'react';
+import type { ComponentType } from 'react';
 
 /*
- * SDK do front para plugins. O host (apps/web) registra a implementação real com
- * `registerWebSdk` antes de renderizar; o plugin importa daqui os mesmos componentes, cliente HTTP
- * e hooks das telas nativas, para seguir o padrão de telas e a identidade visual do app.
+ * SDK do front para plugins e design system compartilhado do Plantão365.
+ * - Tokens (`tokens.css`) e componentes "dumb" (só props → visual, sem estado de app nem HTTP)
+ *   moram aqui e são usados pelo próprio app e pelos plugins: mesma identidade visual.
+ * - Serviços com estado do app (cliente HTTP, toasts, equipe e papel) vêm do host, que os registra
+ *   com `registerWebSdk` antes de renderizar.
  * Host e plugins compartilham este módulo como singleton (Module Federation).
  */
+
+export { ConfirmDialog } from './ui/ConfirmDialog.js';
+export { EmptyState } from './ui/EmptyState.js';
+export { FilterBar, normalizeSearch } from './ui/FilterBar.js';
+export { Breadcrumb, FormActions, FormPage, FormSection, type Crumb } from './ui/FormPage.js';
+export { InfoDialog } from './ui/InfoDialog.js';
+export { PageHeader } from './ui/PageHeader.js';
+export {
+  DEFAULT_PAGE_SIZE,
+  PAGE_SIZE_OPTIONS,
+  Pagination,
+  usePagination,
+} from './ui/Pagination.js';
+export { PluginPage } from './ui/PluginPage.js';
 
 export type Role = 'manager' | 'member' | 'guest';
 
@@ -47,67 +63,7 @@ export interface PluginWebModule {
 /** Identidade: só dá tipo ao `export default` do módulo `./web` do plugin. */
 export const definePluginWeb = (module: PluginWebModule): PluginWebModule => module;
 
-// ---- superfície exposta pelo host ----
-
-export interface Crumb {
-  label: string;
-  to?: string;
-}
-
-export interface PageHeaderProps {
-  title: string;
-  description?: string;
-  action?: ReactNode;
-}
-
-export interface EmptyStateProps {
-  children: ReactNode;
-  action?: ReactNode;
-}
-
-export interface FilterBarProps {
-  search: string;
-  onSearch: (value: string) => void;
-  placeholder: string;
-  onClear: () => void;
-  clearable: boolean;
-  children?: ReactNode;
-}
-
-export interface ConfirmDialogProps {
-  title: string;
-  message: string;
-  confirmLabel: string;
-  cancelLabel?: string;
-  children?: ReactNode;
-  busy?: boolean;
-  tone?: 'danger' | 'primary';
-  onConfirm: () => void;
-  onCancel: () => void;
-}
-
-export interface FormPageProps {
-  crumbs: Crumb[];
-  title: string;
-  description?: string;
-  onSubmit: () => void;
-  children: ReactNode;
-}
-
-export interface FormSectionProps {
-  title: string;
-  description?: string;
-  children: ReactNode;
-}
-
-export interface FormActionsProps {
-  onCancel: () => void;
-  onDelete?: (() => void) | undefined;
-  busy: boolean;
-  saveDisabled?: boolean;
-  saveLabel?: string;
-  deleteLabel?: string;
-}
+// ---- serviços com estado, registrados pelo host ----
 
 export interface ToastOptions {
   successMessage?: string;
@@ -130,14 +86,6 @@ export interface ActiveTeam {
 }
 
 export interface WebSdkHost {
-  PageHeader: ComponentType<PageHeaderProps>;
-  EmptyState: ComponentType<EmptyStateProps>;
-  FilterBar: ComponentType<FilterBarProps>;
-  ConfirmDialog: ComponentType<ConfirmDialogProps>;
-  FormPage: ComponentType<FormPageProps>;
-  FormSection: ComponentType<FormSectionProps>;
-  FormActions: ComponentType<FormActionsProps>;
-  normalizeSearch(text: string): string;
   api: ApiClient;
   toast: {
     success(message: string): void;
@@ -159,21 +107,6 @@ function h(): WebSdkHost {
   if (!host) throw new Error('web-sdk: host do Plantão365 não registrado (registerWebSdk).');
   return host;
 }
-
-const component =
-  <P extends object>(pick: (s: WebSdkHost) => ComponentType<P>) =>
-  (props: P) =>
-    createElement(pick(h()), props);
-
-export const PageHeader = component((s) => s.PageHeader);
-export const EmptyState = component((s) => s.EmptyState);
-export const FilterBar = component((s) => s.FilterBar);
-export const ConfirmDialog = component((s) => s.ConfirmDialog);
-export const FormPage = component((s) => s.FormPage);
-export const FormSection = component((s) => s.FormSection);
-export const FormActions = component((s) => s.FormActions);
-
-export const normalizeSearch = (text: string) => h().normalizeSearch(text);
 
 /**
  * Prefixo das rotas de API do plugin: `pluginApi('emergency-contacts')('/contacts')` →

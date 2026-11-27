@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { api } from '../api/client';
-import { EmptyState } from '../ui/EmptyState';
-import { FilterBar, normalizeSearch } from '../ui/FilterBar';
-import { PageHeader } from '../ui/PageHeader';
-import { Pagination, usePagination } from '../ui/Pagination';
+import {
+  EmptyState,
+  FilterBar,
+  normalizeSearch,
+  PageHeader,
+  Pagination,
+  usePagination,
+} from '@diovanibmotta/plantao365-web-sdk';
 import { SCHEDULE_NEW_PATH, schedulePath } from './paths';
 import { ConflictBadge } from './ConflictBadge';
 import { StatusPill } from './StatusPill';

@@ -100,6 +100,26 @@ describe.skipIf(!TEST_DATABASE_URL)('hooks de plugin no core', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
+  it('enqueueEmail usa o layout base do core, escapa o texto e prefixa a dedupeKey', async () => {
+    await install(
+      'mailer',
+      `export default { async setup(ctx) {
+        await ctx.enqueueEmail(ctx.db, {
+          to: 'livre@example.com',
+          subject: 'Contato atualizado',
+          paragraphs: ['Olá <b>equipe</b>'],
+          dedupeKey: 'k1',
+        });
+      } };`,
+    );
+    const [row] = await sql<{ subject: string; html: string; text: string; dedupe_key: string }[]>`
+      select subject, html, text, dedupe_key from email_outbox where dedupe_key = 'mailer:k1'`;
+    expect(row?.subject).toBe('Contato atualizado');
+    expect(row?.html).toContain('Olá &lt;b&gt;equipe&lt;/b&gt;');
+    expect(row?.html).toContain('Plantão365 · mensagem automática');
+    expect(row?.text).toContain('Olá <b>equipe</b>');
+  });
+
   it('rotation.prepare bloqueia membro na geração; prepare que lança não impede gerar', async () => {
     await install(
       'blocker',

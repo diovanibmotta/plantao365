@@ -7,6 +7,7 @@ import { ImpactConfirmDialog } from './api/ImpactConfirmDialog';
 import { ToastViewport } from './toast/ToastViewport';
 import { initTheme } from './theme';
 import { registerPluginSdk } from './plugins/sdk-host';
+import '@diovanibmotta/plantao365-web-sdk/tokens.css';
 import './styles.css';
 
 initTheme();

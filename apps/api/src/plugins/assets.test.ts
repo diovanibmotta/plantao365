@@ -60,6 +60,7 @@ describe.skipIf(!TEST_DATABASE_URL)('front dos plugins (/plugins-assets)', () =>
         kernelApi: '^1.0.0',
         server: { entry: 'server/index.js' },
         web: { entry: 'web/remoteEntry.js' },
+        styleCheck: 'passed',
       },
       {
         'server/index.js': 'export default { setup() {} };',

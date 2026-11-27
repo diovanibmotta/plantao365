@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** Versão do contrato do kernel (ver packages/plugin-sdk). Mude o major ao quebrar o contrato. */
-export const KERNEL_API_VERSION = '1.0.0';
+export const KERNEL_API_VERSION = '1.1.0';
 
 export const PLUGIN_STATUSES = ['installed', 'enabled', 'disabled', 'failed'] as const;
 export type PluginStatus = (typeof PLUGIN_STATUSES)[number];
@@ -32,6 +32,8 @@ export const pluginManifestSchema = z.object({
     .max(20)
     .optional(),
   web: z.object({ entry: packagePath }).optional(),
+  /** Gravado pela CLI quando o CSS do pacote passou no lint de estilo; obrigatório com `web`. */
+  styleCheck: z.literal('passed').optional(),
 });
 export type PluginManifest = z.infer<typeof pluginManifestSchema>;
 

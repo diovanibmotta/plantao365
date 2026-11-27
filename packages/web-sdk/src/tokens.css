@@ -1,0 +1,90 @@
+/*
+ * Tokens do design system do Plantão365, em duas camadas:
+ * - primários: escala crua (cor, espaço, raio, tipografia, motion), sem significado de uso;
+ * - semânticos: papel na interface, mapeados aos primários, com claro/escuro via light-dark().
+ * Componentes e plugins usam só os semânticos. Plugins nunca redefinem tokens.
+ * data-theme no <html> força um dos temas.
+ */
+:root {
+  color-scheme: light dark;
+
+  /* ---------- primários ---------- */
+  --color-black: oklch(0 0 0);
+  --color-gray-25: oklch(0.998 0.001 260);
+  --color-gray-50: oklch(0.985 0.002 260);
+  --color-gray-75: oklch(0.965 0.003 260);
+  --color-gray-100: oklch(0.962 0.003 260);
+  --color-gray-200: oklch(0.922 0.004 260);
+  --color-gray-300: oklch(0.86 0.006 260);
+  --color-gray-400: oklch(0.7 0.008 260);
+  --color-gray-500: oklch(0.5 0.01 260);
+  --color-gray-700: oklch(0.345 0.006 260);
+  --color-gray-750: oklch(0.265 0.005 260);
+  --color-gray-800: oklch(0.215 0.005 260);
+  --color-gray-850: oklch(0.2 0.006 260);
+  --color-gray-900: oklch(0.178 0.004 260);
+  --color-gray-950: oklch(0.145 0.004 260);
+  --color-blue-50: oklch(0.95 0.025 255);
+  --color-blue-300: oklch(0.75 0.13 250);
+  --color-blue-600: oklch(0.5 0.19 255);
+  --color-blue-950: oklch(0.24 0.04 255);
+  --color-red-300: oklch(0.73 0.17 22);
+  --color-red-600: oklch(0.55 0.21 25);
+  --color-green-300: oklch(0.78 0.16 150);
+  --color-green-600: oklch(0.5 0.14 150);
+  --color-amber-300: oklch(0.8 0.14 80);
+  --color-amber-600: oklch(0.55 0.13 70);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius-1: 6px;
+  --radius-2: 8px;
+  --font-sans:
+    'Geist', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+
+  /* ---------- semânticos ---------- */
+  --bg: light-dark(var(--color-gray-50), var(--color-gray-950));
+  --surface: light-dark(var(--color-gray-25), var(--color-gray-900));
+  --surface-2: light-dark(var(--color-gray-100), var(--color-gray-800));
+  --border: light-dark(var(--color-gray-200), var(--color-gray-750));
+  --border-strong: light-dark(var(--color-gray-300), var(--color-gray-700));
+  --text: light-dark(var(--color-gray-850), var(--color-gray-75));
+  --muted: light-dark(var(--color-gray-500), var(--color-gray-400));
+  --accent: light-dark(var(--color-blue-600), var(--color-blue-300));
+  --accent-tint: light-dark(var(--color-blue-50), var(--color-blue-950));
+  --danger: light-dark(var(--color-red-600), var(--color-red-300));
+  --success: light-dark(var(--color-green-600), var(--color-green-300));
+  --warning: light-dark(var(--color-amber-600), var(--color-amber-300));
+  --ring: light-dark(
+    color-mix(in oklch, var(--color-blue-600) 28%, transparent),
+    color-mix(in oklch, var(--color-blue-300) 40%, transparent)
+  );
+  --day-weekend: color-mix(in oklch, var(--surface) 88%, var(--muted));
+  --day-holiday: color-mix(in oklch, var(--surface) 85%, var(--warning));
+  --primary: var(--text);
+  --on-primary: var(--bg);
+  /* Fundo atrás da sidebar aberta (scrim) e dos diálogos (backdrop). */
+  --scrim: color-mix(in oklch, var(--color-black) 55%, transparent);
+  --backdrop: color-mix(in oklch, var(--color-black) 45%, transparent);
+
+  --radius: var(--radius-2);
+  --radius-sm: var(--radius-1);
+  --space: var(--space-4);
+  --font: var(--font-sans);
+  --mono: var(--font-mono);
+  --ease: var(--ease-out-quart);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}

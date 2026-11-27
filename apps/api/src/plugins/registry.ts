@@ -24,6 +24,7 @@ import type { RotationAdjustersProvider } from '../schedules/index.js';
 import type { SwapGuard } from '../swaps/index.js';
 import { requireAuth, requireRole } from '../auth/index.js';
 import type { Sql } from '../db.js';
+import { enqueueEmail, renderEmail } from '../email/index.js';
 import { publishEvent } from '../events/index.js';
 import type { Logger } from '../logger.js';
 import { loadMigrations, migrateUp, type MigrationScope } from '../migrator.js';
@@ -589,6 +590,15 @@ export class PluginRegistry implements DeliveryTarget {
           after: entry.after as never,
           reason: entry.reason ?? null,
         }),
+      async enqueueEmail(tx, { to, dedupeKey, ...content }) {
+        // Layout base do core: o plugin só passa texto, o HTML sai escapado e com o tema do app.
+        const rendered = renderEmail(content);
+        await enqueueEmail(tx as Sql, {
+          to,
+          ...rendered,
+          ...(dedupeKey && { dedupeKey: `${id}:${dedupeKey}` }),
+        });
+      },
       events: {
         async publish(tx, name, payload, opts) {
           if (!/^[a-z0-9_.-]{1,80}$/.test(name))

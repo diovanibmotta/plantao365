@@ -1,5 +1,6 @@
 import { createHash, createPublicKey, verify, type KeyObject } from 'node:crypto';
 import { gunzipSync, gzipSync } from 'node:zlib';
+import { checkPluginStyles } from '@diovanibmotta/plantao365-plugin-sdk';
 import { z } from 'zod';
 import {
   KERNEL_API_VERSION,
@@ -56,6 +57,23 @@ export function decodePackage(archive: Buffer): PluginPackage {
     if (entry && !map.has(entry)) {
       throw new PluginError('invalid_package', `Arquivo ${entry} do manifesto não está no pacote.`);
     }
+  }
+  if (manifest.web && manifest.styleCheck !== 'passed') {
+    throw new PluginError(
+      'invalid_package',
+      'O pacote não passou pelo lint de estilo da CLI (styleCheck ausente no manifesto).',
+    );
+  }
+  // A CLI já rodou o lint; o kernel confere de novo para não depender só do manifesto.
+  const violations = [...map]
+    .filter(([p]) => p.endsWith('.css'))
+    .flatMap(([p, content]) => checkPluginStyles(content.toString('utf8'), p));
+  if (violations.length > 0) {
+    const first = violations
+      .slice(0, 3)
+      .map((v) => `${v.file}:${v.line} ${v.message}`)
+      .join(' ');
+    throw new PluginError('invalid_package', `Estilo do plugin reprovado: ${first}`);
   }
   return { manifest, files: map };
 }

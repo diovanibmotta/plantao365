@@ -10,8 +10,12 @@ import {
 import type { ShiftException, WorkPeriod } from '@diovanibmotta/plantao365-shared';
 import { api } from '../api/client';
 import { formatHours } from '../schedule/format';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { FormActions, FormPage, FormSection } from '../ui/FormPage';
+import {
+  ConfirmDialog,
+  FormActions,
+  FormPage,
+  FormSection,
+} from '@diovanibmotta/plantao365-web-sdk';
 import { EXCEPTIONS_LIST_PATH, SCHEDULE_ADMIN_PATH } from './paths';
 import { describe, formatDate } from './types';
 
