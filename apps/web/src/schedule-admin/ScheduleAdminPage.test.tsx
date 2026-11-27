@@ -495,6 +495,21 @@ describe('escalas: gerar', () => {
     await screen.findByRole('heading', { name: /Rascunho: 02\/03\/2026/ });
   });
 
+  it('mostra aviso quando a equipe não tem membros elegíveis', async () => {
+    mockApi('draft', (url, init) =>
+      url === '/api/schedules/generate' && init.method === 'POST'
+        ? json({ error: 'no_eligible_members', message: 'x' }, 422)
+        : undefined,
+    );
+    const user = userEvent.setup();
+    renderApp('/schedule-admin/schedules/new');
+    await user.type(await screen.findByLabelText('De'), '2026-03-02');
+    await user.type(screen.getByLabelText('Até'), '2026-03-03');
+    await user.click(screen.getByRole('button', { name: 'Gerar rascunho' }));
+    expect(await screen.findByText(/não tem membros ativos na rotação/)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Gerar escala' })).toBeTruthy();
+  });
+
   it('volta à listagem ao cancelar', async () => {
     mockApi('draft');
     const user = userEvent.setup();
