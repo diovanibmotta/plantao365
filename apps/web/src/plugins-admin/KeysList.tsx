@@ -33,7 +33,7 @@ export function KeysList() {
     <section>
       <PageHeader
         title="Chaves confiáveis"
-        description="Publicadores aceitos além da loja oficial."
+        description="Quem, além da loja oficial, pode assinar os plugins instalados aqui."
         action={cta}
       />
       {error && (
@@ -46,7 +46,12 @@ export function KeysList() {
           Carregando…
         </p>
       )}
-      {items?.length === 0 && <EmptyState action={cta}>Nenhuma chave cadastrada.</EmptyState>}
+      {items?.length === 0 && (
+        <EmptyState action={cta}>
+          Nenhuma chave cadastrada. Só é preciso cadastrar para instalar plugins de outros
+          publicadores.
+        </EmptyState>
+      )}
       {items && items.length > 0 && (
         <>
           <FilterBar

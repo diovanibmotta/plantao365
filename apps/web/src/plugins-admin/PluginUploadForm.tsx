@@ -62,7 +62,7 @@ export function PluginUploadForm() {
     >
       <FormSection
         title="Pacote"
-        description="Gerado por plantao-plugin pack e sign. A assinatura precisa ser de uma chave confiável; o plugin executa código no servidor."
+        description="Gerado por plantao-plugin pack e sign. A assinatura precisa conferir com uma chave confiável (a da loja oficial ou uma cadastrada na aba Chaves); o plugin executa código no servidor."
       >
         {picker('Pacote (.p365)', '.p365', setArchive)}
         {picker('Assinatura (.sig)', '.sig', setSignature)}
