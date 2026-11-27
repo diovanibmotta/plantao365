@@ -63,7 +63,8 @@ jobs:
       - run: npm run build -w @diovanibmotta/plantao365-shared
       - run: npx semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # RELEASE_TOKEN (PAT do admin) passa pelo ruleset da main; sem ele, cai no GITHUB_TOKEN
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - id: version
         run: |
