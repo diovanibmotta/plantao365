@@ -216,3 +216,7 @@ docker pull ghcr.io/diovanibmotta/plantao365-api:latest
 ## Contribuindo
 
 Leia o [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Licença
+
+Distribuído sob a [GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`). Quem rodar uma versão modificada como serviço de rede precisa disponibilizar o código-fonte dessa versão aos usuários.
