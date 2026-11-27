@@ -14,7 +14,7 @@ const toBase64 = (file: File) =>
     reader.readAsDataURL(file);
   });
 
-/** Install de um pacote local (.p365 + .sig), fora da loja. */
+/** Install manual de um pacote local (.p365 + .sig). */
 export function PluginUploadForm() {
   const navigate = useNavigate();
   const [archive, setArchive] = useState<File | null>(null);
@@ -62,7 +62,7 @@ export function PluginUploadForm() {
     >
       <FormSection
         title="Pacote"
-        description="Gerado por plantao-plugin pack e sign. A assinatura precisa conferir com uma chave confiável (a da loja oficial ou uma cadastrada na aba Chaves); o plugin executa código no servidor."
+        description="Gerado por plantao-plugin pack e sign. A assinatura precisa conferir com uma chave confiável (veja a aba Chaves); o plugin executa código no servidor."
       >
         {picker('Pacote (.p365)', '.p365', setArchive)}
         {picker('Assinatura (.sig)', '.sig', setSignature)}

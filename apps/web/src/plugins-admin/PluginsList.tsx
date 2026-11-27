@@ -70,9 +70,7 @@ export function PluginsList() {
         </p>
       )}
       {items?.length === 0 && (
-        <EmptyState action={cta}>
-          Nenhum plugin instalado. Escolha um na aba Loja ou instale de arquivo.
-        </EmptyState>
+        <EmptyState action={cta}>Nenhum plugin instalado. Instale um de arquivo.</EmptyState>
       )}
       {items && items.length > 0 && (
         <>

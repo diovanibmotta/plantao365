@@ -16,6 +16,7 @@ import {
   DEFAULT_CATALOG_URL,
   OFFICIAL_STORE_KEYS,
   parsePublicKeys,
+  PLUGIN_STORE_ENABLED,
   PluginRegistry,
   startPluginDeliveryWorker,
 } from './plugins/index.js';
@@ -106,7 +107,9 @@ const app = createApp({
   corsOrigins: config.CORS_ALLOWED_ORIGINS,
   configWarnings: computeConfigWarnings(config),
   plugins,
-  ...(catalogUrl && catalogUrl !== 'off' && { pluginStore: createPluginStore({ catalogUrl }) }),
+  ...(PLUGIN_STORE_ENABLED &&
+    catalogUrl &&
+    catalogUrl !== 'off' && { pluginStore: createPluginStore({ catalogUrl }) }),
   ...(config.PLUGIN_INSTALL_TOKEN && { pluginInstallToken: config.PLUGIN_INSTALL_TOKEN }),
   ...(config.WEB_DIST_DIR && { webDistDir: config.WEB_DIST_DIR }),
 });

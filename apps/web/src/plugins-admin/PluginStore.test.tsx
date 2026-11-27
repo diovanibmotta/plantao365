@@ -7,6 +7,7 @@ import { PluginsPage } from '../pages/PluginsPage';
 import { ToastViewport } from '../toast/ToastViewport';
 import { toast } from '../toast/toast-store';
 import { KeyForm } from './KeyForm';
+import { PLUGIN_STORE_ENABLED } from './paths';
 import { PluginUploadForm } from './PluginUploadForm';
 import { StorePluginForm } from './StorePluginForm';
 import type { StoreItem, TrustedKey } from './types';
@@ -71,7 +72,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('loja de plugins', () => {
+describe.skipIf(PLUGIN_STORE_ENABLED)('loja desligada (até a v3)', () => {
+  it('não mostra a aba, nem consulta o catálogo pelo link antigo', async () => {
+    const fetchMock = mockApi(() => undefined);
+    renderApp('/plugins?tab=store');
+    expect(await screen.findByText(/^Nenhum plugin instalado\./)).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Loja' })).toBeNull();
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/plugins']);
+  });
+});
+
+describe.skipIf(!PLUGIN_STORE_ENABLED)('loja de plugins', () => {
   const catalog = (url: string) =>
     url === '/api/plugins/catalog' ? json({ plugins: [item()] }) : undefined;
 
