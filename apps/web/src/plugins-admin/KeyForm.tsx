@@ -80,7 +80,7 @@ function Fields({
       <FormPage crumbs={crumbs} title={current?.name ?? 'Nova chave'} onSubmit={save}>
         <FormSection
           title="Publicador"
-          description="Pacotes assinados com esta chave podem ser instalados e executam código no servidor. Cadastre só chaves de quem você confia."
+          description="Só instalam aqui pacotes assinados por uma chave confiável. Cadastre a chave pública de quem publica o plugin; plugins da loja oficial usam a chave que já vem no aplicativo. Atenção: o que for assinado com esta chave executa código no servidor."
         >
           <label className="ui-field ui-field--wide">
             Nome
@@ -95,6 +95,10 @@ function Fields({
               onChange={(e) => setPublicKey(e.target.value)}
             />
           </label>
+          <p className="muted">
+            Peça a chave pública ao publicador (é o texto que o comando plantao-plugin keygen
+            mostra). Nunca cole a chave privada.
+          </p>
           {(error || duplicated) && (
             <p className="alert" role="alert">
               {duplicated ? 'Esta chave já está cadastrada.' : error}

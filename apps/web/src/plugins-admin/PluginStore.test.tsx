@@ -145,7 +145,7 @@ describe('chaves confiáveis', () => {
     cleanup();
     mockApi(() => json({ keys: [] }));
     renderApp('/plugins?tab=keys');
-    expect(await screen.findByText('Nenhuma chave cadastrada.')).toBeTruthy();
+    expect(await screen.findByText(/^Nenhuma chave cadastrada\./)).toBeTruthy();
     expect(screen.getAllByRole('link', { name: 'Nova chave' })).toHaveLength(2);
   });
 

@@ -105,7 +105,10 @@ export function verifySignature(archive: Buffer, signature: Buffer, keys: KeyObj
     );
   }
   if (!keys.some((key) => verify(null, archive, key, signature))) {
-    throw new PluginError('invalid_signature', 'Assinatura do pacote inválida.');
+    throw new PluginError(
+      'invalid_signature',
+      'Assinatura do pacote inválida: ela não confere com nenhuma chave confiável. Cadastre a chave pública do publicador em Plugins › Chaves.',
+    );
   }
 }
 

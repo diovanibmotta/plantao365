@@ -55,7 +55,7 @@ export function StorePluginForm() {
     >
       <FormSection
         title="Instalação"
-        description="O plugin executa código no servidor. Depois de instalar, habilite-o; um plugin já habilitado recebe a versão nova na hora."
+        description="O plugin executa código no servidor. Se for de outro publicador, cadastre antes a chave dele na aba Chaves. Depois de instalar, habilite-o; um plugin já habilitado recebe a versão nova na hora."
       >
         <label className="ui-field ui-field--wide">
           Versão
