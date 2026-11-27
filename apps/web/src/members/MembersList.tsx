@@ -9,7 +9,7 @@ import {
   PageHeader,
   Pagination,
   usePagination,
-} from '@diovanibmotta/plantao365-web-sdk';
+} from '@plantao365/web-sdk';
 import { MEMBERS_NEW_PATH, memberPath } from './paths';
 import { describeError, sortMembers } from './types';
 import type { Member } from './types';

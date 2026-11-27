@@ -1,5 +1,5 @@
-import { TIME_ZONE, addDays, dayOfWeek } from '@diovanibmotta/plantao365-shared';
-import type { DayType, LocalDate, ShiftTime } from '@diovanibmotta/plantao365-shared';
+import { TIME_ZONE, addDays, dayOfWeek } from '@plantao365/shared';
+import type { DayType, LocalDate, ShiftTime } from '@plantao365/shared';
 import type { HolidayDto, ShiftDto } from './types';
 
 const WEEKDAYS_SHORT = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];

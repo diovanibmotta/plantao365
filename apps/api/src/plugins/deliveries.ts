@@ -1,4 +1,4 @@
-import type { PluginEventHandler } from '@diovanibmotta/plantao365-plugin-sdk';
+import type { PluginEventHandler } from '@plantao365/plugin-sdk';
 import type { Sql } from '../db.js';
 import { backoffDelayMs } from '../email/index.js';
 import { createLogger, type Logger } from '../logger.js';

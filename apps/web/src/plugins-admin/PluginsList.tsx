@@ -7,7 +7,7 @@ import {
   PageHeader,
   Pagination,
   usePagination,
-} from '@diovanibmotta/plantao365-web-sdk';
+} from '@plantao365/web-sdk';
 import { api } from '../api/client';
 import { PLUGIN_UPLOAD_PATH, pluginAdminPath } from './paths';
 import { STATUS_LABELS, type PluginStatus, type PluginSummary } from './types';

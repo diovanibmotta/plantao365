@@ -51,8 +51,8 @@ describe('CLI plantao-plugin', () => {
     expect(web.version).toBe(version);
     const { devDependencies } = await readJson(path.join(dir, 'package.json'));
     expect(devDependencies).toMatchObject({
-      '@diovanibmotta/plantao365-plugin-sdk': `^${version}`,
-      '@diovanibmotta/plantao365-web-sdk': `^${version}`,
+      '@plantao365/plugin-sdk': `^${version}`,
+      '@plantao365/web-sdk': `^${version}`,
     });
   });
 

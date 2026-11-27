@@ -6,13 +6,8 @@ import {
   addDays,
   isWeekend,
   shiftDuration,
-} from '@diovanibmotta/plantao365-shared';
-import type {
-  LocalDate,
-  ShiftException,
-  ShiftTimes,
-  WorkPeriod,
-} from '@diovanibmotta/plantao365-shared';
+} from '@plantao365/shared';
+import type { LocalDate, ShiftException, ShiftTimes, WorkPeriod } from '@plantao365/shared';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useRole } from '../team/TeamContext';

@@ -7,7 +7,7 @@ import {
   PageHeader,
   Pagination,
   usePagination,
-} from '@diovanibmotta/plantao365-web-sdk';
+} from '@plantao365/web-sdk';
 import { keyPath, NEW_KEY_PATH } from './paths';
 import type { TrustedKey } from './types';
 import { useLoad } from './useLoad';

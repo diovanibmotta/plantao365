@@ -7,7 +7,7 @@ import { generateKeyPairSync } from 'node:crypto';
 import { copyFile, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { signFile } from '@diovanibmotta/plantao365-plugin-sdk/cli';
+import { signFile } from '@plantao365/plugin-sdk/cli';
 import postgres from 'postgres';
 import * as env from './env.js';
 

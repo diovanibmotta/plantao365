@@ -2,7 +2,7 @@ import { generateKeyPairSync } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { addToCatalog, signFile } from '@diovanibmotta/plantao365-plugin-sdk/cli';
+import { addToCatalog, signFile } from '@plantao365/plugin-sdk/cli';
 import { describe, expect, it, vi } from 'vitest';
 import { encodePackage, sha256 } from './package.js';
 import { createPluginStore, describeCatalogPlugin } from './store.js';

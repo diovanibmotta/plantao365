@@ -1,4 +1,4 @@
-import { shiftForDate, type DayType, type ShiftContext } from '@diovanibmotta/plantao365-shared';
+import { shiftForDate, type DayType, type ShiftContext } from '@plantao365/shared';
 import type { Sql } from '../db.js';
 import { publishEvent } from '../events/publisher.js';
 import { listHolidayDates } from '../holidays/service.js';

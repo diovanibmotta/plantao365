@@ -1,8 +1,8 @@
 import { Slot } from '../plugins/Slot';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { addDays } from '@diovanibmotta/plantao365-shared';
-import type { LocalDate } from '@diovanibmotta/plantao365-shared';
+import { addDays } from '@plantao365/shared';
+import type { LocalDate } from '@plantao365/shared';
 import { api } from '../api/client';
 import { formatHours, holidayMap, sumHours, todayLocal } from '../schedule/format';
 import { ShiftItem } from '../schedule/ShiftItem';

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Hono } from 'hono';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { create, main, signFile } from '@diovanibmotta/plantao365-plugin-sdk/cli';
+import { create, main, signFile } from '@plantao365/plugin-sdk/cli';
 import { createApp } from '../app.js';
 import type { Sql } from '../db.js';
 import { createLogger } from '../logger.js';
@@ -17,7 +17,7 @@ import { PluginRegistry } from './registry.js';
  * E2E do caminho do autor sobre o projeto que a CLI gera: create → build (esbuild + Vite/MF +
  * lint) → pack → sign → install por token → enable → rota, migração e front servidos pelo app
  * completo. Só o navegador fica de fora. Plugin real de exemplo:
- * https://github.com/diovanibmotta/plantao365-plugin-emergency-contacts
+ * https://github.com/plantao365/plugin-emergency-contacts
  */
 
 // Dentro do apps/web (pasta ignorada pelo git) para o build resolver vite, React e o MF.

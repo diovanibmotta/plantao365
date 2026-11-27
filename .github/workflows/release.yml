@@ -95,7 +95,7 @@ jobs:
           cache: npm
       - run: npm ci
       # Pacotes publicados pelo semantic-release precisam do dist: shared e os SDKs de plugin.
-      - run: npm run build -w @diovanibmotta/plantao365-shared -w @diovanibmotta/plantao365-plugin-sdk -w @diovanibmotta/plantao365-web-sdk
+      - run: npm run build -w @plantao365/shared -w @plantao365/plugin-sdk -w @plantao365/web-sdk
       - run: npx semantic-release
         env:
           # RELEASE_TOKEN (PAT do admin) passa pelo ruleset da main; sem ele, cai no GITHUB_TOKEN
@@ -128,7 +128,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/plantao365-api
+          images: ghcr.io/${{ github.repository_owner }}/app-api
           tags: |
             type=semver,pattern={{version}},value=v${{ needs.release.outputs.version }}
             type=semver,pattern={{major}}.{{minor}},value=v${{ needs.release.outputs.version }}
@@ -145,7 +145,7 @@ jobs:
       - id: meta-single
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/plantao365
+          images: ghcr.io/${{ github.repository_owner }}/app
           tags: |
             type=semver,pattern={{version}},value=v${{ needs.release.outputs.version }}
             type=semver,pattern={{major}}.{{minor}},value=v${{ needs.release.outputs.version }}

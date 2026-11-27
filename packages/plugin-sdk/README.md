@@ -1,4 +1,4 @@
-# @diovanibmotta/plantao365-plugin-sdk
+# @plantao365/plugin-sdk
 
 Contrato do kernel para plugins do Plantão365 (`definePlugin`, `PluginContext`), lint de estilo, formato do pacote e a CLI `plantao-plugin`.
 

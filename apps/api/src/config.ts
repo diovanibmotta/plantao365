@@ -67,7 +67,7 @@ const schema = z
     SMTP_FROM: optional(z.email()),
     SMTP_SECURE: optional(bool),
     /** Documentação de implantação (wiki), linkada nos avisos de recurso não configurado. */
-    DOCS_URL: z.url().default('https://github.com/diovanibmotta/plantao365/wiki'),
+    DOCS_URL: z.url().default('https://github.com/plantao365/app/wiki'),
     /** Pasta do build do front (imagem única): a API serve a SPA no mesmo domínio. */
     WEB_DIST_DIR: optional(z.string()),
     /**

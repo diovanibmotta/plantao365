@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { formatMinute, shiftDuration } from '@diovanibmotta/plantao365-shared';
-import type { ShiftException } from '@diovanibmotta/plantao365-shared';
+import { formatMinute, shiftDuration } from '@plantao365/shared';
+import type { ShiftException } from '@plantao365/shared';
 import { api } from '../api/client';
 import { formatHours } from '../schedule/format';
 import {
@@ -11,7 +11,7 @@ import {
   PageHeader,
   Pagination,
   usePagination,
-} from '@diovanibmotta/plantao365-web-sdk';
+} from '@plantao365/web-sdk';
 import { EXCEPTIONS_NEW_PATH, exceptionPath } from './paths';
 import { describe, formatDate } from './types';
 

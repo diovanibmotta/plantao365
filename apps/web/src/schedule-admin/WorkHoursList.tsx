@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { formatMinute, sortWorkPeriods, workMinutes } from '@diovanibmotta/plantao365-shared';
-import type { WorkPeriod } from '@diovanibmotta/plantao365-shared';
+import { formatMinute, sortWorkPeriods, workMinutes } from '@plantao365/shared';
+import type { WorkPeriod } from '@plantao365/shared';
 import { api } from '../api/client';
 import {
   EmptyState,
@@ -10,7 +10,7 @@ import {
   PageHeader,
   Pagination,
   usePagination,
-} from '@diovanibmotta/plantao365-web-sdk';
+} from '@plantao365/web-sdk';
 import { WORK_HOURS_NEW_PATH, workHoursPath } from './paths';
 import { describe } from './types';
 

@@ -22,7 +22,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: migrate
-          image: ghcr.io/diovanibmotta/plantao365-api
+          image: ghcr.io/plantao365/app-api
           command: [node, dist/migrate.js, up]
           envFrom:
             - configMapRef:

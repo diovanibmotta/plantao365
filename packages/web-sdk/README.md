@@ -1,4 +1,4 @@
-# @diovanibmotta/plantao365-web-sdk
+# @plantao365/web-sdk
 
 Design system compartilhado e SDK do front para plugins do Plantão365. O app e os plugins usam os mesmos tokens e componentes, então um plugin instalado parece nativo.
 
