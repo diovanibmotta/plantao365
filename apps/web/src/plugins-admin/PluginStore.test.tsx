@@ -7,6 +7,7 @@ import { PluginsPage } from '../pages/PluginsPage';
 import { ToastViewport } from '../toast/ToastViewport';
 import { toast } from '../toast/toast-store';
 import { KeyForm } from './KeyForm';
+import { PLUGIN_STORE_ENABLED } from './paths';
 import { PluginUploadForm } from './PluginUploadForm';
 import { StorePluginForm } from './StorePluginForm';
 import type { StoreItem, TrustedKey } from './types';
@@ -71,7 +72,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('loja de plugins', () => {
+describe.skipIf(PLUGIN_STORE_ENABLED)('loja desligada (até a v3)', () => {
+  it('não mostra a aba, nem consulta o catálogo pelo link antigo', async () => {
+    const fetchMock = mockApi(() => undefined);
+    renderApp('/plugins?tab=store');
+    expect(await screen.findByText(/^Nenhum plugin instalado\./)).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Loja' })).toBeNull();
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/plugins']);
+  });
+});
+
+describe.skipIf(!PLUGIN_STORE_ENABLED)('loja de plugins', () => {
   const catalog = (url: string) =>
     url === '/api/plugins/catalog' ? json({ plugins: [item()] }) : undefined;
 
@@ -115,7 +126,7 @@ describe('loja de plugins', () => {
 });
 
 describe('instalar de arquivo', () => {
-  it('exige os dois arquivos e envia em base64', async () => {
+  it('exige os dois arquivos, avisa do risco e só envia em base64 após confirmar', async () => {
     const fetchMock = mockApi(() => undefined);
     const user = userEvent.setup();
     renderApp('/plugins/upload');
@@ -123,7 +134,13 @@ describe('instalar de arquivo', () => {
     expect(screen.getByRole('alert').textContent).toBe('Escolha o pacote e a assinatura.');
     await user.upload(screen.getByLabelText('Pacote (.p365)'), new File(['abc'], 'a.p365'));
     await user.upload(screen.getByLabelText('Assinatura (.sig)'), new File(['xy'], 'a.p365.sig'));
+    expect(screen.getByText(/instalar um plugin executa código no servidor/)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Instalar' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(writes(fetchMock)).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Instalar' }));
+    await user.click(screen.getByRole('button', { name: 'Aceito o risco, instalar' }));
     await waitFor(() =>
       expect(writes(fetchMock)).toEqual([
         ['/api/plugins', 'POST', JSON.stringify({ archive: 'YWJj', signature: 'eHk=' })],

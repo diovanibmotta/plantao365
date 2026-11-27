@@ -12,7 +12,7 @@ import { keyPath, NEW_KEY_PATH } from './paths';
 import type { TrustedKey } from './types';
 import { useLoad } from './useLoad';
 
-/** Chaves de publicadores aceitas além da loja oficial. */
+/** Chaves de publicadores aceitas no install. */
 export function KeysList() {
   const navigate = useNavigate();
   const { data, error } = useLoad<{ keys: TrustedKey[] }>('/api/plugins/keys');
@@ -33,7 +33,7 @@ export function KeysList() {
     <section>
       <PageHeader
         title="Chaves confiáveis"
-        description="Quem, além da loja oficial, pode assinar os plugins instalados aqui."
+        description="Quem pode assinar os plugins instalados aqui."
         action={cta}
       />
       {error && (

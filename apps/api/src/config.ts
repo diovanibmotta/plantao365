@@ -90,7 +90,10 @@ const schema = z
     PLUGIN_PUBLIC_KEYS: optional(z.string()),
     /** Cache local onde os pacotes de plugin são extraídos; padrão: diretório temporário do SO. */
     PLUGINS_DIR: optional(z.string()),
-    /** Índice da loja de plugins; sem valor usa a loja oficial, `off` desliga. */
+    /**
+     * Índice da loja de plugins; sem valor usa a loja oficial, `off` desliga. Ignorado enquanto
+     * `PLUGIN_STORE_ENABLED` for falso (loja só na v3).
+     */
     PLUGIN_CATALOG_URL: optional(z.union([z.literal('off'), z.url({ protocol: /^https?$/ })])),
     /** Token da CLI (`plantao-plugin install --token`); vazio: só gestor logado instala. */
     PLUGIN_INSTALL_TOKEN: optional(z.string().min(32, 'use ao menos 32 caracteres')),

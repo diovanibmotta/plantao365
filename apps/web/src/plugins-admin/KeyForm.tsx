@@ -75,7 +75,7 @@ function Fields({
       <FormPage crumbs={crumbs} title={current?.name ?? 'Nova chave'} onSubmit={save}>
         <FormSection
           title="Publicador"
-          description="Só instalam aqui pacotes assinados por uma chave confiável. Cadastre a chave pública de quem publica o plugin; plugins da loja oficial usam a chave que já vem no aplicativo. Atenção: o que for assinado com esta chave executa código no servidor."
+          description="Só instalam aqui pacotes assinados por uma chave confiável. Cadastre a chave pública de quem publica o plugin. Atenção: o que for assinado com esta chave executa código no servidor."
         >
           <label className="ui-field ui-field--wide">
             Nome

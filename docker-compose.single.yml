@@ -49,7 +49,6 @@ services:
       PLUGIN_PUBLIC_KEYS: ${PLUGIN_PUBLIC_KEYS:-}
       PLUGIN_INSTALL_TOKEN: ${PLUGIN_INSTALL_TOKEN:-}
       PLUGINS_DIR: ${PLUGINS_DIR:-}
-      PLUGIN_CATALOG_URL: ${PLUGIN_CATALOG_URL:-}
     ports:
       - '${WEB_PORT:-8080}:3000'
     restart: unless-stopped

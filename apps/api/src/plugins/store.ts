@@ -2,6 +2,9 @@ import { z } from 'zod';
 import { MAX_ARCHIVE_BYTES, sha256 } from './package.js';
 import { packagePath, PluginError } from './types.js';
 
+/** Loja desligada até a v3 (#73): a 2.0.0 só instala plugin manualmente (tela ou CLI). */
+export const PLUGIN_STORE_ENABLED: boolean = false;
+
 /** Índice da loja oficial (CDN na frente de um bucket privado). */
 export const DEFAULT_CATALOG_URL = '';
 
