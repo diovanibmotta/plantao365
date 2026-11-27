@@ -65,6 +65,8 @@ const plugins = new PluginRegistry({
   scheduleImpactNotifier: createScheduleImpactNotifier(),
 });
 await plugins.loadEnabled();
+// Réplicas: install/enable/disable/settings feitos em outra réplica chegam por NOTIFY.
+const pluginSync = await plugins.startSync();
 const events = startEventWorker({
   sql: db,
   handlers: createEventHandlers({ appBaseUrl: config.APP_BASE_URL }),
@@ -80,6 +82,7 @@ const app = createApp({
   corsOrigins: config.CORS_ALLOWED_ORIGINS,
   configWarnings: computeConfigWarnings(config),
   plugins,
+  ...(config.PLUGIN_INSTALL_TOKEN && { pluginInstallToken: config.PLUGIN_INSTALL_TOKEN }),
   ...(config.WEB_DIST_DIR && { webDistDir: config.WEB_DIST_DIR }),
 });
 
@@ -95,7 +98,7 @@ const shutdown = (signal: string) => {
       worker.stop(),
       reminders.stop(),
       pluginDeliveries.stop(),
-      plugins.stopAll(),
+      pluginSync.stop().then(() => plugins.stopAll()),
     ])
       .then(() => mailer.close())
       .then(() => db.end())

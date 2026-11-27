@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { settingsSchemaSchema, type SettingsSchema } from './settings-schema.js';
 
 /** Versão do contrato do kernel (ver packages/plugin-sdk). Mude o major ao quebrar o contrato. */
 export const KERNEL_API_VERSION = '1.1.0';
@@ -34,6 +35,8 @@ export const pluginManifestSchema = z.object({
   web: z.object({ entry: packagePath }).optional(),
   /** Gravado pela CLI quando o CSS do pacote passou no lint de estilo; obrigatório com `web`. */
   styleCheck: z.literal('passed').optional(),
+  /** Campos da configuração (subconjunto de JSON Schema); gera o formulário em /plugins/:id. */
+  settingsSchema: settingsSchemaSchema.optional(),
 });
 export type PluginManifest = z.infer<typeof pluginManifestSchema>;
 
@@ -45,6 +48,7 @@ export interface PluginSummary {
   status: PluginStatus;
   error: string | null;
   settings: Record<string, unknown>;
+  settingsSchema: SettingsSchema | null;
   /** Carregado nesta instância da API. */
   active: boolean;
   installedAt: string;
@@ -58,9 +62,11 @@ export type PluginErrorCode =
   | 'incompatible_kernel'
   | 'version_conflict'
   | 'plugin_not_found'
-  | 'activation_failed';
+  | 'activation_failed'
+  | 'invalid_settings';
 
 const STATUS: Record<PluginErrorCode, 400 | 404 | 409 | 422 | 503> = {
+  invalid_settings: 422,
   plugins_disabled: 503,
   invalid_package: 400,
   invalid_signature: 422,

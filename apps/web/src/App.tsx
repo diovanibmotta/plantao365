@@ -24,6 +24,8 @@ import { MembersPage } from './pages/MembersPage';
 import { MySchedulePage } from './pages/MySchedulePage';
 import { NotFoundPage } from './pages/pages';
 import { PluginRoutes } from './plugins/PluginRoutes';
+import { PluginForm } from './plugins-admin/PluginForm';
+import { PluginsList } from './plugins-admin/PluginsList';
 import { ProfilePage } from './pages/ProfilePage';
 import { SwapsPage } from './pages/SwapsPage';
 import { TeamSchedulePage } from './pages/TeamSchedulePage';
@@ -59,8 +61,8 @@ export function App() {
         <Route element={<Layout />}>
           <Route index element={<HomeRedirect />} />
           <Route path="schedule" element={<TeamSchedulePage />} />
-          {/* Telas de plugins: o papel de cada rota é checado em PluginRoutes. */}
-          <Route path="plugins/:pluginId/*" element={<PluginRoutes />} />
+          {/* Telas dos plugins: o papel de cada rota é checado em PluginRoutes. */}
+          <Route path="ext/:pluginId/*" element={<PluginRoutes />} />
           <Route element={<RequireRole role="member" />}>
             <Route path="my-schedule" element={<MySchedulePage />} />
             <Route path="swaps" element={<SwapsPage />} />
@@ -100,6 +102,8 @@ export function App() {
             <Route path="holidays/new" element={<HolidayForm />} />
             <Route path="holidays/:id" element={<HolidayForm />} />
             <Route path="audit" element={<AuditPage />} />
+            <Route path="plugins" element={<PluginsList />} />
+            <Route path="plugins/:id" element={<PluginForm />} />
           </Route>
           {Object.entries(LEGACY_PATHS).map(([from, to]) => (
             <Route key={from} path={from} element={<Navigate to={to} replace />} />

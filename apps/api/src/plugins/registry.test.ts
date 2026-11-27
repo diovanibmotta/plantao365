@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import type { Hono } from 'hono';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { AuthEnv } from '../auth/index.js';
 import type { Sql } from '../db.js';
 import { processDomainEvents } from '../events/index.js';
@@ -63,11 +63,20 @@ const signed = (m: PluginManifest, files: Record<string, string>) => {
 };
 
 const demoPackage = (version = '1.0.0', label = 'v1') =>
-  signed(manifest('demo', version), {
-    'server/index.js': demoServer(label),
-    'migrations/0001_notes.up.sql': 'create table notes (id serial primary key, body text);',
-    'migrations/0001_notes.down.sql': 'drop table notes;',
-  });
+  signed(
+    {
+      ...manifest('demo', version),
+      settingsSchema: {
+        type: 'object',
+        properties: { color: { type: 'string', title: 'Cor', enum: ['azul', 'verde'] } },
+      },
+    },
+    {
+      'server/index.js': demoServer(label),
+      'migrations/0001_notes.up.sql': 'create table notes (id serial primary key, body text);',
+      'migrations/0001_notes.down.sql': 'drop table notes;',
+    },
+  );
 
 describe.skipIf(!TEST_DATABASE_URL)('kernel de plugins', () => {
   let t: TestDb;
@@ -120,6 +129,30 @@ describe.skipIf(!TEST_DATABASE_URL)('kernel de plugins', () => {
     const res = await call('POST', '/plugins', master, bad);
     expect(res.status).toBe(422);
     expect(await res.json()).toMatchObject({ error: 'invalid_signature' });
+  });
+
+  it('a CLI instala com o token; token errado ou não configurado é 401', async () => {
+    const token = 't'.repeat(40);
+    const cli = buildTestApp(sql, (a) =>
+      a.route('/', createPluginsRouter({ registry, installToken: token })),
+    );
+    const post = (target: Hono<AuthEnv>, bearer: string) =>
+      target.request('/plugins', {
+        method: 'POST',
+        headers: {
+          ...csrfHeaders,
+          authorization: `Bearer ${bearer}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(signed(manifest('cli-demo'), { 'server/index.js': '' })),
+      });
+    expect((await post(cli, 'errado')).status).toBe(401);
+    expect((await post(app, token)).status).toBe(401);
+    expect((await post(cli, token)).status).toBe(201);
+    const [audit] = await sql`
+      select actor_id from audit_log where action = 'plugin.install' and entity_id = 'cli-demo'`;
+    expect(audit).toMatchObject({ actor_id: null });
+    await call('DELETE', '/plugins/cli-demo', master);
   });
 
   it('recusa kernelApi incompatível', async () => {
@@ -190,6 +223,23 @@ describe.skipIf(!TEST_DATABASE_URL)('kernel de plugins', () => {
     expect(await (await call('GET', '/extensions/demo/notes', member)).json()).toMatchObject({
       settings: { color: 'azul' },
     });
+    // Configuração validada contra o settingsSchema do manifesto.
+    const invalid = await call('PUT', '/plugins/demo/settings', master, {
+      settings: { color: 'roxo', size: 1 },
+    });
+    expect(invalid.status).toBe(422);
+    expect(await invalid.json()).toEqual({
+      error: 'invalid_settings',
+      message: 'Campo desconhecido: size. Cor: valor fora das opções.',
+    });
+    const one = await (await call('GET', '/plugins/demo', manager)).json();
+    expect(one.plugin).toMatchObject({
+      id: 'demo',
+      version: '1.1.0',
+      settings: { color: 'azul' },
+      settingsSchema: { properties: { color: { title: 'Cor' } } },
+    });
+    expect((await call('GET', '/plugins/nope', manager)).status).toBe(404);
     // Mesma versão com outro conteúdo é conflito.
     expect((await call('POST', '/plugins', master, demoPackage('1.1.0', 'outro'))).status).toBe(
       409,
@@ -206,6 +256,31 @@ describe.skipIf(!TEST_DATABASE_URL)('kernel de plugins', () => {
     const [row] = await sql`select status, error from plugins where id = 'broken'`;
     expect(row).toMatchObject({ status: 'failed', error: 'quebrado' });
     expect((await call('GET', '/extensions/demo/notes', member)).status).toBe(200);
+  });
+
+  it('outra réplica recarrega o plugin pelo aviso NOTIFY', async () => {
+    const replicaDir = await mkdtemp(path.join(os.tmpdir(), 'plugins-replica-'));
+    const replica = new PluginRegistry({
+      sql,
+      logger: createLogger({ level: 'silent' }),
+      pluginsDir: replicaDir,
+      publicKeys,
+    });
+    const sync = await replica.startSync();
+    try {
+      await replica.loadEnabled();
+      expect(replica.activeIds()).toContain('demo');
+
+      await call('POST', '/plugins/demo/disable', master);
+      await vi.waitFor(() => expect(replica.activeIds()).not.toContain('demo'));
+
+      await call('POST', '/plugins/demo/enable', master);
+      await vi.waitFor(() => expect(replica.activeIds()).toContain('demo'));
+    } finally {
+      await sync.stop();
+      await replica.stopAll();
+      await rm(replicaDir, { recursive: true, force: true });
+    }
   });
 
   it('desabilitar tira as rotas; reabilitar no boot reativa', async () => {

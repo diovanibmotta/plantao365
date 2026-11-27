@@ -88,6 +88,8 @@ const schema = z
     PLUGIN_PUBLIC_KEYS: optional(z.string()),
     /** Cache local onde os pacotes de plugin são extraídos; padrão: diretório temporário do SO. */
     PLUGINS_DIR: optional(z.string()),
+    /** Token da CLI (`plantao-plugin install --token`); vazio: só a master key instala pela tela. */
+    PLUGIN_INSTALL_TOKEN: optional(z.string().min(32, 'use ao menos 32 caracteres')),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production') {

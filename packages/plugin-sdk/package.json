@@ -17,6 +17,9 @@
       "default": "./dist/index.js"
     }
   },
+  "bin": {
+    "plantao-plugin": "./dist/cli.js"
+  },
   "files": [
     "dist"
   ],
@@ -24,7 +27,13 @@
     "build": "tsc -p tsconfig.json"
   },
   "peerDependencies": {
+    "esbuild": ">=0.28.0",
     "hono": "^4.13.21",
     "postgres": "^4.1.1"
+  },
+  "peerDependenciesMeta": {
+    "esbuild": {
+      "optional": true
+    }
   }
 }
