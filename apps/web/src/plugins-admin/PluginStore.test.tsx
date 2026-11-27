@@ -126,7 +126,7 @@ describe.skipIf(!PLUGIN_STORE_ENABLED)('loja de plugins', () => {
 });
 
 describe('instalar de arquivo', () => {
-  it('exige os dois arquivos e envia em base64', async () => {
+  it('exige os dois arquivos, avisa do risco e só envia em base64 após confirmar', async () => {
     const fetchMock = mockApi(() => undefined);
     const user = userEvent.setup();
     renderApp('/plugins/upload');
@@ -134,7 +134,13 @@ describe('instalar de arquivo', () => {
     expect(screen.getByRole('alert').textContent).toBe('Escolha o pacote e a assinatura.');
     await user.upload(screen.getByLabelText('Pacote (.p365)'), new File(['abc'], 'a.p365'));
     await user.upload(screen.getByLabelText('Assinatura (.sig)'), new File(['xy'], 'a.p365.sig'));
+    expect(screen.getByText(/instalar um plugin executa código no servidor/)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Instalar' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(writes(fetchMock)).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Instalar' }));
+    await user.click(screen.getByRole('button', { name: 'Aceito o risco, instalar' }));
     await waitFor(() =>
       expect(writes(fetchMock)).toEqual([
         ['/api/plugins', 'POST', JSON.stringify({ archive: 'YWJj', signature: 'eHk=' })],

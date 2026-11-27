@@ -24,7 +24,7 @@ O `plugin-sdk` e o `web-sdk` são publicados no GitHub Packages a cada release (
 
 ## Instalação
 
-Nesta versão a instalação é só manual: pela CLI ou em **Instalar de arquivo**. A tela **Configuração › Plugins** tem as abas **Instalados** e **Chaves**. Qualquer gestor instala, habilita, configura e remove; cadastrar uma chave pública permite instalar pacotes daquele publicador. Todo gestor, portanto, consegue executar código no servidor.
+Nesta versão a instalação é só manual: pela CLI ou em **Instalar de arquivo**, que avisa do risco e pede confirmação (a CLI e a API não pedem; ver [#88](https://github.com/plantao365/app/issues/88)). A tela **Configuração › Plugins** tem as abas **Instalados** e **Chaves**. Qualquer gestor instala, habilita, configura e remove; cadastrar uma chave pública permite instalar pacotes daquele publicador. Todo gestor, portanto, consegue executar código no servidor.
 
 ## Loja (desligada até a v3)
 

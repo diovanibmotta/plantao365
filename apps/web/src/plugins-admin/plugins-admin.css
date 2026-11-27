@@ -1,0 +1,7 @@
+.plugins-warning {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in oklch, var(--warning) 45%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in oklch, var(--warning) 9%, var(--surface));
+  text-align: left;
+}
