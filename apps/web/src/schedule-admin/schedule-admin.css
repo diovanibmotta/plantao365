@@ -224,6 +224,111 @@
   color: var(--warning);
 }
 
+.sad-summary {
+  margin: 0 0 var(--space);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.sad-summary > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+
+.sad-summary > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sad-summary > summary::before {
+  content: '▸';
+  margin-right: 8px;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.sad-summary[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.sad-summary-title {
+  flex: 1;
+}
+
+.sad-summary-count {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.sad-summary .sad-table-wrap {
+  margin: 0;
+  padding: 0 14px 12px;
+}
+
+.sad-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.sad-summary-table th,
+.sad-summary-table td {
+  padding: 8px 12px 8px 0;
+  border-top: 1px solid var(--border);
+  text-align: left;
+}
+
+.sad-summary-table thead th {
+  border-top: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sad-summary-table tbody th {
+  font-weight: 500;
+}
+
+.sad-summary-table .sad-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sad-load {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 140px;
+}
+
+.sad-load-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in oklch, var(--muted) 20%, transparent);
+  overflow: hidden;
+}
+
+.sad-load-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent, var(--success));
+}
+
+.sad-load-value {
+  min-width: 36px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .sad-editor-head {
   display: flex;
   flex-wrap: wrap;
@@ -380,4 +485,11 @@
 
 .sad-conflict-reasons li + li {
   margin-top: 6px;
+}
+
+.sad-load-percent {
+  min-width: 48px;
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }

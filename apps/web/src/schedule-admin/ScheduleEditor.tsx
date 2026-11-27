@@ -341,6 +341,19 @@ export function ScheduleEditor({
         {!published && (
           <button
             type="button"
+            className="btn"
+            disabled={busy}
+            onClick={() => {
+              toast.success('Rascunho salvo. Publique quando quiser.');
+              onBack();
+            }}
+          >
+            Salvar rascunho
+          </button>
+        )}
+        {!published && (
+          <button
+            type="button"
             className="btn primary"
             disabled={busy}
             onClick={() => void publish(false)}

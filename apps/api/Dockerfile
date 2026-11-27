@@ -41,5 +41,5 @@ WORKDIR /repo/apps/api
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-# Migrações não rodam automaticamente: docker compose run --rm api node dist/migrate.js up
+# A API aplica migrações pendentes ao subir (AUTO_MIGRATE=false desliga; manual: node dist/migrate.js up)
 CMD ["node", "dist/index.js"]

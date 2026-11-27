@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api } from '../api/client';
 import { describe, errorCode, VIOLATION_LABEL, formatDate } from './types';
-import type { GenerateResult } from './types';
+import type { GenerateResult, ScheduleDetail } from './types';
+import { summarizeShifts } from './schedule-summary';
 
 interface GenerateFormProps {
   onGenerated: (result: GenerateResult) => void;
@@ -65,51 +66,61 @@ export function GenerateForm({ onGenerated, onCancel }: GenerateFormProps) {
   );
 }
 
-interface GenerateReportProps {
+interface ScheduleSummaryProps {
   names: Map<string, string>;
-  result: GenerateResult;
+  schedule: ScheduleDetail;
+  /** Presente só logo após a geração: preferências violadas não ficam gravadas na base. */
+  result?: GenerateResult;
 }
 
-export function GenerateReport({ names, result }: GenerateReportProps) {
+/** Cobertura e totais por membro, calculados dos plantões gravados; vale para rascunho e publicada. */
+export function GenerateReport({ names, schedule, result }: ScheduleSummaryProps) {
   const nameOf = (id: string) => names.get(id) ?? 'Membro';
-  const unassigned = result.unassignedDates.length;
-  const violations = result.preferenceViolations.length;
-  const totalDays = result.shifts.filter((s) => s.dayType !== 'collective_vacation').length;
-  const hours = result.summary.map((s) => s.hours);
-  const spread = hours.length > 0 ? Math.max(...hours) - Math.min(...hours) : 0;
-  const average =
-    hours.length > 0 ? Math.round(hours.reduce((sum, h) => sum + h, 0) / hours.length) : 0;
+  const totals = useMemo(() => summarizeShifts(schedule.shifts, names), [schedule.shifts, names]);
+  const unassigned = totals.unassignedDates.length;
+  const violations = result?.preferenceViolations.length ?? 0;
+  const maxHours = totals.members.reduce((max, m) => Math.max(max, m.hours), 0);
+  const totalHours = totals.members.reduce((sum, m) => sum + m.hours, 0);
+  const percentOf = (hours: number) =>
+    totalHours > 0 ? `${((hours / totalHours) * 100).toFixed(1).replace('.', ',')}%` : '0%';
   const tone = unassigned > 0 ? 'bad' : violations > 0 ? 'warn' : 'ok';
   return (
-    <div className="sad-report" role="status" aria-label="Resultado da geração">
-      <p>
-        Rascunho gerado para {formatDate(result.schedule.startDate)} a{' '}
-        {formatDate(result.schedule.endDate)}.
-      </p>
+    <div
+      className="sad-report"
+      role={result ? 'status' : undefined}
+      aria-label={result ? 'Resultado da geração' : undefined}
+    >
+      {result && (
+        <p>
+          Rascunho gerado para {formatDate(schedule.startDate)} a {formatDate(schedule.endDate)}.
+        </p>
+      )}
       <p className={`sad-banner sad-banner--${tone}`}>
         {unassigned === 0
           ? 'Todos os dias têm responsável.'
-          : `Dias sem responsável: ${result.unassignedDates.map(formatDate).join(', ')}.`}
+          : `Dias sem responsável: ${totals.unassignedDates.map(formatDate).join(', ')}.`}
       </p>
       <dl className="sad-kpis">
         <div className={`sad-kpi${unassigned > 0 ? ' sad-kpi--bad' : ''}`}>
           <dt>Dias cobertos</dt>
-          <dd>{`${Math.max(totalDays - unassigned, 0)}/${totalDays}`}</dd>
+          <dd>{`${Math.max(totals.totalDays - unassigned, 0)}/${totals.totalDays}`}</dd>
         </div>
-        <div className={`sad-kpi${violations > 0 ? ' sad-kpi--warn' : ''}`}>
-          <dt>Preferências não atendidas</dt>
-          <dd>{violations}</dd>
-        </div>
+        {result && (
+          <div className={`sad-kpi${violations > 0 ? ' sad-kpi--warn' : ''}`}>
+            <dt>Preferências não atendidas</dt>
+            <dd>{violations}</dd>
+          </div>
+        )}
         <div className="sad-kpi">
           <dt>Diferença entre maior e menor carga</dt>
-          <dd>{spread}h</dd>
+          <dd>{totals.spread}h</dd>
         </div>
         <div className="sad-kpi">
           <dt>Carga média por membro</dt>
-          <dd>{average}h</dd>
+          <dd>{totals.average}h</dd>
         </div>
       </dl>
-      {result.preferenceViolations.length > 0 && (
+      {result && result.preferenceViolations.length > 0 && (
         <>
           <p>Preferências não atendidas:</p>
           <ul>
@@ -121,27 +132,49 @@ export function GenerateReport({ names, result }: GenerateReportProps) {
           </ul>
         </>
       )}
-      <table className="sad-table">
-        <caption>Resumo por membro</caption>
-        <thead>
-          <tr>
-            <th scope="col">Membro</th>
-            <th scope="col">Plantões</th>
-            <th scope="col">Horas</th>
-            <th scope="col">Fins de semana e feriados</th>
-          </tr>
-        </thead>
-        <tbody>
-          {result.summary.map((s) => (
-            <tr key={s.userId}>
-              <th scope="row">{nameOf(s.userId)}</th>
-              <td>{s.shifts}</td>
-              <td>{s.hours}h</td>
-              <td>{s.weekendHolidayShifts}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <details className="sad-summary" open>
+        <summary>
+          <span className="sad-summary-title">Resumo por membro</span>
+          <span className="sad-summary-count">{totals.members.length} membros</span>
+        </summary>
+        <div className="sad-table-wrap">
+          <table className="sad-summary-table" aria-label="Resumo por membro">
+            <thead>
+              <tr>
+                <th scope="col">Membro</th>
+                <th scope="col" className="sad-num">
+                  Plantões
+                </th>
+                <th scope="col">Horas</th>
+                <th scope="col" className="sad-num">
+                  Fins de semana e feriados
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {totals.members.map((s) => (
+                <tr key={s.userId}>
+                  <th scope="row">{s.name}</th>
+                  <td className="sad-num">{s.shifts}</td>
+                  <td>
+                    <div className="sad-load">
+                      <span className="sad-load-bar" aria-hidden="true">
+                        <span
+                          className="sad-load-fill"
+                          style={{ width: `${maxHours > 0 ? (s.hours / maxHours) * 100 : 0}%` }}
+                        />
+                      </span>
+                      <span className="sad-load-value">{s.hours}h</span>
+                      <span className="sad-load-percent">{percentOf(s.hours)}</span>
+                    </div>
+                  </td>
+                  <td className="sad-num">{s.weekendHolidayShifts}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
     </div>
   );
 }
