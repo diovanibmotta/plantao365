@@ -16,7 +16,7 @@ npx plantao-plugin install contacts-0.1.0.p365 --url https://plantao.exemplo --t
 
 - `build` grava `dist/plantao365.plugin.json` com `styleCheck: "passed"` só se o CSS gerado passar no lint (seletor sob `.plg-<id>`, só tokens semânticos). Sem isso o kernel recusa o install.
 - `catalog <arquivo> --dir <pasta>` adiciona o pacote assinado ao índice da loja.
-- `install` usa `Authorization: Bearer`; o token vem de `--token` ou da env `PLANTAO365_PLUGIN_TOKEN`. Depois do install, habilite e configure em **Gestão › Plugins** (`/plugins`).
+- `install` usa `Authorization: Bearer`; o token vem de `--token` ou da env `PLANTAO365_PLUGIN_TOKEN`. Depois do install, habilite e configure em **Configuração › Plugins** (`/plugins`).
 
 ## Projeto do plugin
 
