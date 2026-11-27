@@ -4,7 +4,13 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Sql } from './db.js';
 import { createTestDb, type TestDb } from './test-utils.js';
-import { appliedMigrations, loadMigrations, migrateDown, migrateUp } from './migrator.js';
+import {
+  appliedMigrations,
+  loadMigrations,
+  migrateDown,
+  migrateUp,
+  migrateUpLocked,
+} from './migrator.js';
 
 const migrationsDir = path.resolve(import.meta.dirname, '../migrations');
 
@@ -51,5 +57,16 @@ describe.skipIf(!testUrl)('migrator against PostgreSQL (TEST_DATABASE_URL)', () 
       migrations.map((m) => m.name).reverse(),
     );
     expect(await appliedMigrations(sql)).toEqual([]);
+  });
+
+  it('applies pending migrations once when called concurrently under the lock', async () => {
+    const migrations = await loadMigrations(migrationsDir);
+    const results = await Promise.all([
+      migrateUpLocked(sql, migrations),
+      migrateUpLocked(sql, migrations),
+    ]);
+    expect(results.flat().sort()).toEqual(migrations.map((m) => m.name).sort());
+    expect(await migrateUpLocked(sql, migrations)).toEqual([]);
+    await migrateDown(sql, migrations, 'all');
   });
 });
