@@ -49,7 +49,7 @@ Sem SSO configurado, defina `MASTER_USERNAME`/`MASTER_PASSWORD` no `.env` e entr
 
 ### Migrações
 
-Novo par numerado `NNNN_nome.up.sql` / `.down.sql` em `apps/api/migrations`; nunca edite migração já aplicada.
+Novo par numerado `NNNN_nome.up.sql` / `.down.sql` em `apps/api/migrations`; nunca edite migração já aplicada. A API aplica as pendentes ao subir (com lock entre réplicas); `AUTO_MIGRATE=false` desliga.
 
 ```bash
 npm run migrate -w @diovanibmotta/plantao365-api -- status
