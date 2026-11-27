@@ -5,8 +5,7 @@
   "type": "module",
   "workspaces": [
     "apps/*",
-    "packages/*",
-    "plugins/*"
+    "packages/*"
   ],
   "engines": {
     "node": ">=22"
@@ -15,11 +14,11 @@
     "dev": "npm-run-all2 --parallel dev:api dev:web",
     "dev:api": "npm run dev -w @diovanibmotta/plantao365-api",
     "dev:web": "npm run dev -w @diovanibmotta/plantao365-web",
-    "build": "npm run build -w @diovanibmotta/plantao365-shared && npm run build -w @diovanibmotta/plantao365-plugin-sdk && npm run build -w @diovanibmotta/plantao365-web-sdk && npm run build -w @diovanibmotta/plantao365-api && npm run build -w @diovanibmotta/plantao365-web && npm run build -w @diovanibmotta/plantao365-plugin-emergency-contacts",
+    "build": "npm run build -w @diovanibmotta/plantao365-shared && npm run build -w @diovanibmotta/plantao365-plugin-sdk && npm run build -w @diovanibmotta/plantao365-web-sdk && npm run build -w @diovanibmotta/plantao365-api && npm run build -w @diovanibmotta/plantao365-web",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tsc -b && tsc -p plugins/emergency-contacts",
+    "typecheck": "tsc -b",
     "test": "vitest run"
   },
   "devDependencies": {
@@ -29,6 +28,7 @@
     "@semantic-release/github": "^12.0.11",
     "@semantic-release/npm": "^13.2.0",
     "@types/node": "^26.6.6",
+    "esbuild": "^0.28.0",
     "eslint": "^10.15.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",

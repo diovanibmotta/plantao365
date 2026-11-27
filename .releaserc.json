@@ -26,14 +26,14 @@
       "@semantic-release/npm",
       {
         "pkgRoot": "packages/plugin-sdk",
-        "npmPublish": false
+        "npmPublish": true
       }
     ],
     [
       "@semantic-release/npm",
       {
         "pkgRoot": "packages/web-sdk",
-        "npmPublish": false
+        "npmPublish": true
       }
     ],
     [

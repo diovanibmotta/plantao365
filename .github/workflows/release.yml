@@ -60,7 +60,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run build -w @diovanibmotta/plantao365-shared
+      # Pacotes publicados pelo semantic-release precisam do dist: shared e os SDKs de plugin.
+      - run: npm run build -w @diovanibmotta/plantao365-shared -w @diovanibmotta/plantao365-plugin-sdk -w @diovanibmotta/plantao365-web-sdk
       - run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,7 +2,7 @@
   "name": "@diovanibmotta/plantao365-plugin-sdk",
   "version": "1.30.0",
   "description": "Contrato (tipos e helpers) para escrever plugins do Plantão365",
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/diovanibmotta/plantao365.git",
@@ -40,5 +40,9 @@
     "esbuild": {
       "optional": true
     }
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
   }
 }

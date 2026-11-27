@@ -1,6 +1,6 @@
 # Plugins
 
-Guia do autor de plugins do Plantão365: como criar, o que o kernel oferece e como o contrato evolui. A decisão de arquitetura está na [ADR 0001](adr/0001-microkernel-plugins.md). O plugin de referência é [`plugins/emergency-contacts`](../plugins/emergency-contacts).
+Guia do autor de plugins do Plantão365: como criar, o que o kernel oferece e como o contrato evolui. A decisão de arquitetura está na [ADR 0001](adr/0001-microkernel-plugins.md). O plugin de referência fica em repositório próprio: [plantao365-plugin-emergency-contacts](https://github.com/diovanibmotta/plantao365-plugin-emergency-contacts).
 
 ## Quando é plugin
 
@@ -18,7 +18,9 @@ npx plantao-plugin install meu-plugin-0.1.0.p365 --url https://plantao.exemplo -
 
 Depois do install, a master key habilita e configura em **Gestão › Plugins** (`/plugins`). Detalhes da CLI, do projeto e das variáveis do servidor no [README do plugin-sdk](../packages/plugin-sdk/README.md).
 
-No monorepo, o plugin de referência é um workspace: `npm run build` da raiz compila e empacota, e `apps/api/src/plugins/reference-plugin.test.ts` faz o caminho inteiro (build → pack → sign → install por token → enable → CRUD → evento → e-mail → job) contra o Postgres do CI.
+Plugins não moram neste repositório: cada um tem o seu e é instalado como pacote. No core, `apps/api/src/plugins/scaffold-plugin.test.ts` testa o caminho do autor sobre o projeto que a CLI gera (create → build → pack → sign → install por token → enable → rota, migração e front) contra o Postgres do CI.
+
+O `plugin-sdk` e o `web-sdk` são publicados no GitHub Packages a cada release (a instalação pede um token com `read:packages` no `.npmrc`).
 
 ## Pontos de extensão
 

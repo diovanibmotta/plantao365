@@ -4,8 +4,8 @@ Convenções do Plantão365 para agentes e pessoas. Visão geral e setup no [REA
 
 ## Monorepo
 
-- npm workspaces: `apps/api` (Hono), `apps/web` (React 19 + Vite + React Router), `packages/shared` (domínio puro), `packages/plugin-sdk` e `packages/web-sdk` (contrato e design system dos plugins) e `plugins/*` (plugins mantidos no repo; `emergency-contacts` é a referência).
-- **Funcionalidade opcional ou de cliente vai como plugin**, não no core. Falta ponto de extensão? Ele entra no kernel (`apps/api/src/plugins`, `packages/*-sdk`) e a funcionalidade vira plugin. Guia em [docs/plugins.md](docs/plugins.md).
+- npm workspaces: `apps/api` (Hono), `apps/web` (React 19 + Vite + React Router), `packages/shared` (domínio puro), `packages/plugin-sdk` e `packages/web-sdk` (contrato e design system dos plugins).
+- **Funcionalidade opcional ou de cliente vai como plugin, em repositório próprio**, não no core nem neste monorepo (referência: [plantao365-plugin-emergency-contacts](https://github.com/diovanibmotta/plantao365-plugin-emergency-contacts)). Falta ponto de extensão? Ele entra no kernel (`apps/api/src/plugins`, `packages/*-sdk`) e a funcionalidade vira plugin. Guia em [docs/plugins.md](docs/plugins.md).
 - Node >= 22, ESM (`"type": "module"`). Na API, imports relativos levam extensão `.js`.
 - Em worktree/clone novo, rode `npm ci` e `npm run build -w @diovanibmotta/plantao365-shared` antes dos testes; web e API importam o `dist` do shared.
 

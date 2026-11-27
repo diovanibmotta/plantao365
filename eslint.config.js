@@ -4,7 +4,16 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/dist-types/**', '**/node_modules/**', '.ai/**', 'spikes/**'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/dist-types/**',
+      '**/node_modules/**',
+      '.ai/**',
+      'spikes/**',
+      '**/.local/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -14,14 +23,11 @@ export default tseslint.config(
       'packages/*/bin/*.js',
       '*.config.{js,ts}',
       'apps/web/vite.config.ts',
-      'plugins/*/server/**/*.ts',
-      'plugins/*/test/**/*.ts',
-      'plugins/*/web/vite.config.ts',
     ],
     languageOptions: { globals: globals.node },
   },
   {
-    files: ['apps/web/src/**/*.{ts,tsx}', 'plugins/*/web/**/*.tsx'],
+    files: ['apps/web/src/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,
