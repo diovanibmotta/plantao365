@@ -1,15 +1,16 @@
 import { spawnSync } from 'node:child_process';
-import { createPrivateKey, generateKeyPairSync, sign } from 'node:crypto';
+import { createHash, createPrivateKey, generateKeyPairSync, sign } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
+import { gunzipSync } from 'node:zlib';
 import { encodePackage } from './package.js';
 import { checkPluginStyles } from './style-check.js';
 import { scaffold } from './templates.js';
 
 /*
- * plantao-plugin: create, build, pack, keygen, sign e install de plugins do Plantão365.
+ * plantao-plugin: create, build, pack, keygen, sign, catalog e install de plugins do Plantão365.
  * Projeto do plugin: `plantao365.plugin.json` (manifesto), `server/index.ts`, `web/` (Vite + Module
  * Federation) e `migrations/`. O build sai em `dist/`; o pack gera `<id>-<versão>.p365`.
  */
@@ -165,6 +166,70 @@ export async function signFile(file: string, keyPem: string): Promise<string> {
   return sigFile;
 }
 
+interface CatalogEntry {
+  id: string;
+  name: string;
+  description?: string;
+  repository?: string;
+  versions: {
+    version: string;
+    kernelApi: string;
+    url: string;
+    sha256: string;
+    signature: string;
+  }[];
+}
+
+/**
+ * Publica um pacote assinado na pasta da loja: copia para `packages/<id>/<versão>/` e atualiza o
+ * `catalog.json`. A pasta é depois enviada ao bucket. Versão publicada não muda de conteúdo.
+ */
+export async function addToCatalog(
+  file: string,
+  dir: string,
+  repository?: string,
+): Promise<string> {
+  const sigFile = `${file}.sig`;
+  if (!existsSync(sigFile)) throw new CliError(`Assinatura ${sigFile} não encontrada; rode sign.`);
+  const archive = await readFile(file);
+  const { manifest } = JSON.parse(gunzipSync(archive).toString('utf8')) as {
+    manifest: {
+      id: string;
+      name: string;
+      version: string;
+      kernelApi: string;
+      description?: string;
+    };
+  };
+  const { id, name, version, kernelApi, description } = manifest;
+  const index = path.join(dir, 'catalog.json');
+  const catalog = existsSync(index)
+    ? (JSON.parse(await readFile(index, 'utf8')) as { format: 1; plugins: CatalogEntry[] })
+    : { format: 1 as const, plugins: [] as CatalogEntry[] };
+  let entry = catalog.plugins.find((p) => p.id === id);
+  if (!entry) catalog.plugins.push((entry = { id, name, versions: [] }));
+  const sha256 = createHash('sha256').update(archive).digest('hex');
+  const published = entry.versions.find((v) => v.version === version);
+  if (published && published.sha256 !== sha256) {
+    throw new CliError(`A versão ${version} de ${id} já foi publicada com outro conteúdo.`);
+  }
+  Object.assign(entry, { name, ...(description && { description }) });
+  if (repository) entry.repository = repository;
+  const url = `packages/${id}/${version}/${id}-${version}.p365`;
+  const release = {
+    version,
+    kernelApi,
+    url,
+    sha256,
+    signature: (await readFile(sigFile)).toString('base64'),
+  };
+  entry.versions = [...entry.versions.filter((v) => v.version !== version), release];
+  await mkdir(path.dirname(path.join(dir, url)), { recursive: true });
+  await writeFile(path.join(dir, url), archive);
+  await writeFile(index, `${JSON.stringify(catalog, null, 2)}\n`);
+  return index;
+}
+
 async function install(file: string, url: string, token: string): Promise<string> {
   const sigFile = `${file}.sig`;
   if (!existsSync(sigFile)) throw new CliError(`Assinatura ${sigFile} não encontrada; rode sign.`);
@@ -196,6 +261,8 @@ const USAGE = `Uso: plantao-plugin <comando>
   pack [pasta] [--out <arquivo>]        gera <id>-<versão>.p365 a partir do dist
   keygen [--out <pasta>]                gera par Ed25519 (imprime a chave pública)
   sign <arquivo> --key <pem>            grava <arquivo>.sig
+  catalog <arquivo> --dir <pasta> [--repository <url>]
+                                        adiciona o pacote assinado ao catálogo da loja
   install <arquivo> --url <base> [--token <t>]
                                         envia para a API (token ou env PLANTAO365_PLUGIN_TOKEN)`;
 
@@ -209,6 +276,7 @@ export async function main(argv: string[]): Promise<number> {
       key: { type: 'string' },
       url: { type: 'string' },
       token: { type: 'string' },
+      repository: { type: 'string' },
     },
   });
   const [command, arg] = positionals;
@@ -232,6 +300,10 @@ export async function main(argv: string[]): Promise<number> {
       case 'sign':
         if (!arg || !values.key) throw new CliError('Uso: sign <arquivo> --key <pem>');
         console.log(`Assinatura: ${await signFile(arg, await readFile(values.key, 'utf8'))}`);
+        return 0;
+      case 'catalog':
+        if (!arg || !values.dir) throw new CliError('Uso: catalog <arquivo> --dir <pasta>');
+        console.log(`Catálogo: ${await addToCatalog(arg, values.dir, values.repository)}`);
         return 0;
       case 'install': {
         const token = values.token ?? process.env.PLANTAO365_PLUGIN_TOKEN;

@@ -29,6 +29,7 @@ import { publishEvent } from '../events/index.js';
 import type { Logger } from '../logger.js';
 import { loadMigrations, migrateUp, type MigrationScope } from '../migrator.js';
 import type { DeliveryTarget } from './deliveries.js';
+import { databaseKeys } from './keys.js';
 import { startLoop, type Loop } from './loop.js';
 import { validateSettings } from './settings-schema.js';
 import {
@@ -341,11 +342,24 @@ export class PluginRegistry implements DeliveryTarget {
    * Valida assinatura, formato e compatibilidade e grava o pacote. Reinstalar a mesma versão só é
    * aceito com o mesmo conteúdo. Se o plugin estiver habilitado, a nova versão é ativada na hora.
    */
-  install(archive: Buffer, signature: Buffer, actorId: string | null): Promise<PluginManifest> {
+  install(
+    archive: Buffer,
+    signature: Buffer,
+    actorId: string | null,
+    /** Install pela loja: o pacote tem de ser o plugin e a versão escolhidos. */
+    expected?: { id: string; version: string },
+  ): Promise<PluginManifest> {
     return this.exclusive(async () => {
-      verifySignature(archive, signature, this.deps.publicKeys);
+      const keys = [...this.deps.publicKeys, ...(await databaseKeys(this.deps.sql))];
+      verifySignature(archive, signature, keys);
       const pkg = decodePackage(archive);
       const { manifest } = pkg;
+      if (expected && (manifest.id !== expected.id || manifest.version !== expected.version)) {
+        throw new PluginError(
+          'invalid_package',
+          'O pacote não é o plugin e a versão escolhidos no catálogo.',
+        );
+      }
       assertStyleCheck(pkg);
       if (!isKernelCompatible(manifest.kernelApi)) {
         throw new PluginError(

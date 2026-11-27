@@ -17,7 +17,11 @@ export const packagePath = z
   .refine((p) => p.split('/').every((s) => s !== '.' && s !== '..'), 'caminho inválido');
 
 export const pluginManifestSchema = z.object({
-  id: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/),
+  id: z
+    .string()
+    .regex(/^[a-z][a-z0-9-]{1,39}$/)
+    // Colidiriam com rotas de /api/plugins e do front.
+    .refine((id) => !['catalog', 'keys', 'manifest', 'store', 'upload'].includes(id), 'reservado'),
   name: z.string().trim().min(1).max(100),
   version: z.string().regex(SEMVER),
   description: z.string().trim().max(500).optional(),
@@ -63,9 +67,14 @@ export type PluginErrorCode =
   | 'version_conflict'
   | 'plugin_not_found'
   | 'activation_failed'
-  | 'invalid_settings';
+  | 'invalid_settings'
+  | 'store_disabled'
+  | 'store_unavailable'
+  | 'invalid_key'
+  | 'key_conflict'
+  | 'key_not_found';
 
-const STATUS: Record<PluginErrorCode, 400 | 404 | 409 | 422 | 503> = {
+const STATUS: Record<PluginErrorCode, 400 | 404 | 409 | 422 | 502 | 503> = {
   invalid_settings: 422,
   plugins_disabled: 503,
   invalid_package: 400,
@@ -74,6 +83,11 @@ const STATUS: Record<PluginErrorCode, 400 | 404 | 409 | 422 | 503> = {
   version_conflict: 409,
   plugin_not_found: 404,
   activation_failed: 422,
+  store_disabled: 503,
+  store_unavailable: 502,
+  invalid_key: 422,
+  key_conflict: 409,
+  key_not_found: 404,
 };
 
 /** Erro de regra do kernel, devolvido pela API como `{ error, message }`. */

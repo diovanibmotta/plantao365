@@ -46,7 +46,7 @@ describe.skipIf(!TEST_DATABASE_URL)('front dos plugins (/plugins-assets)', () =>
       ),
     });
     app = buildTestApp(t.sql, (a) => {
-      a.route('/api', createPluginsRouter({ registry }));
+      a.route('/api', createPluginsRouter({ registry, db: t.sql }));
       a.route('/', createPluginAssetsRouter({ registry }));
     });
     master = await loginAs(t.sql, { email: 'master@example.com', role: 'manager' });

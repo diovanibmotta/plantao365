@@ -32,6 +32,39 @@ export interface PluginSummary {
   updatedAt: string;
 }
 
+export interface StoreItem {
+  id: string;
+  name: string;
+  description: string | null;
+  repository: string | null;
+  versions: { version: string; compatible: boolean }[];
+  latest: string | null;
+  installedVersion: string | null;
+  updateAvailable: boolean;
+}
+
+export type StoreState = 'available' | 'installed' | 'update' | 'incompatible';
+
+export const STORE_LABELS: Record<StoreState, string> = {
+  available: 'Não instalado',
+  installed: 'Instalado',
+  update: 'Atualização disponível',
+  incompatible: 'Incompatível',
+};
+
+export function storeState(item: StoreItem): StoreState {
+  if (item.updateAvailable) return 'update';
+  if (item.installedVersion) return 'installed';
+  return item.latest ? 'available' : 'incompatible';
+}
+
+export interface TrustedKey {
+  id: string;
+  name: string;
+  publicKey: string;
+  createdAt: string;
+}
+
 export const STATUS_LABELS: Record<PluginStatus, string> = {
   installed: 'Instalado',
   enabled: 'Habilitado',
