@@ -7,7 +7,7 @@ import {
   PageHeader,
   Pagination,
   usePagination,
-} from '@diovanibmotta/plantao365-web-sdk';
+} from '@plantao365/web-sdk';
 import { storePluginPath } from './paths';
 import { STORE_LABELS, storeState, type StoreItem, type StoreState } from './types';
 import { useLoad } from './useLoad';

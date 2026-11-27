@@ -11,7 +11,7 @@ import {
   PageHeader,
   Pagination,
   usePagination,
-} from '@diovanibmotta/plantao365-web-sdk';
+} from '@plantao365/web-sdk';
 
 type Outcome = { error: string } | { items: Holiday[] };
 

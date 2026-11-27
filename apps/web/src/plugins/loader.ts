@@ -1,5 +1,5 @@
 import { loadRemote, registerRemotes } from '@module-federation/runtime';
-import type { PluginWebModule } from '@diovanibmotta/plantao365-web-sdk';
+import type { PluginWebModule } from '@plantao365/web-sdk';
 import type { LoadedPlugin, PluginLoader } from './types';
 
 /**

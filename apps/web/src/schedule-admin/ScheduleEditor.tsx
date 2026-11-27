@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { dayOfWeek } from '@diovanibmotta/plantao365-shared';
-import type { DayType } from '@diovanibmotta/plantao365-shared';
+import { dayOfWeek } from '@plantao365/shared';
+import type { DayType } from '@plantao365/shared';
 import { api, describeApiError } from '../api/client';
 import type { ApiError } from '../api/client';
 import { toast } from '../toast/toast-store';
@@ -15,7 +15,7 @@ import {
   normalizeSearch,
   Pagination,
   usePagination,
-} from '@diovanibmotta/plantao365-web-sdk';
+} from '@plantao365/web-sdk';
 import { SCHEDULE_ADMIN_PATH, scheduleExportPath, shiftEditPath, tabPath } from './paths';
 import { downloadSchedulePdf } from './schedule-pdf';
 import { WEEKDAYS } from './schedule-report';

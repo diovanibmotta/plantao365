@@ -5,8 +5,8 @@ kind: Kustomization
 resources:
   - ../
 images:
-  - name: ghcr.io/diovanibmotta/plantao365-api
-    newName: ghcr.io/diovanibmotta/plantao365
+  - name: ghcr.io/plantao365/app-api
+    newName: ghcr.io/plantao365/app
     newTag: latest
 patches:
   - target:

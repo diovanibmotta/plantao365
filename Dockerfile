@@ -14,9 +14,9 @@ COPY packages/plugin-sdk packages/plugin-sdk
 COPY packages/web-sdk packages/web-sdk
 COPY apps/api apps/api
 COPY apps/web apps/web
-RUN npm run build -w @diovanibmotta/plantao365-shared && npm run build -w @diovanibmotta/plantao365-plugin-sdk && npm run build -w @diovanibmotta/plantao365-web-sdk \
-  && npm run build -w @diovanibmotta/plantao365-api \
-  && npm run build -w @diovanibmotta/plantao365-web
+RUN npm run build -w @plantao365/shared && npm run build -w @plantao365/plugin-sdk && npm run build -w @plantao365/web-sdk \
+  && npm run build -w @plantao365/api \
+  && npm run build -w @plantao365/web
 
 FROM node:22-alpine AS deps
 WORKDIR /repo
@@ -26,7 +26,7 @@ COPY packages/plugin-sdk/package.json packages/plugin-sdk/
 COPY packages/web-sdk/package.json packages/web-sdk/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-RUN npm ci --omit=dev --ignore-scripts -w @diovanibmotta/plantao365-api -w @diovanibmotta/plantao365-shared
+RUN npm ci --omit=dev --ignore-scripts -w @plantao365/api -w @plantao365/shared
 
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production \
@@ -42,9 +42,9 @@ COPY --from=build /repo/apps/api/package.json apps/api/package.json
 COPY --from=build /repo/apps/api/dist apps/api/dist
 COPY --from=build /repo/apps/web/dist web
 COPY apps/api/migrations apps/api/migrations
-RUN mkdir -p node_modules/@diovanibmotta \
-  && { test -e node_modules/@diovanibmotta/plantao365-shared || ln -s ../../packages/shared node_modules/@diovanibmotta/plantao365-shared; } \
-  && { test -e node_modules/@diovanibmotta/plantao365-plugin-sdk || ln -s ../../packages/plugin-sdk node_modules/@diovanibmotta/plantao365-plugin-sdk; }
+RUN mkdir -p node_modules/@plantao365 \
+  && { test -e node_modules/@plantao365/shared || ln -s ../../packages/shared node_modules/@plantao365/shared; } \
+  && { test -e node_modules/@plantao365/plugin-sdk || ln -s ../../packages/plugin-sdk node_modules/@plantao365/plugin-sdk; }
 USER node
 WORKDIR /repo/apps/api
 EXPOSE 3000

@@ -8,7 +8,7 @@ import {
   PageHeader,
   Pagination,
   usePagination,
-} from '@diovanibmotta/plantao365-web-sdk';
+} from '@plantao365/web-sdk';
 import { SCHEDULE_NEW_PATH, schedulePath } from './paths';
 import { ConflictBadge } from './ConflictBadge';
 import { StatusPill } from './StatusPill';

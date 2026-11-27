@@ -1,4 +1,4 @@
-import type { PluginNavItem } from '@diovanibmotta/plantao365-web-sdk';
+import type { PluginNavItem } from '@plantao365/web-sdk';
 import type { Role } from '../auth/AuthContext';
 
 export type NavIcon =

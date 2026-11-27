@@ -2,7 +2,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { PageHeader, definePluginWeb } from '@diovanibmotta/plantao365-web-sdk';
+import { PageHeader, definePluginWeb } from '@plantao365/web-sdk';
 import { App } from '../App';
 import { AuthProvider } from '../auth/AuthContext';
 import { PluginProvider } from './PluginContext';

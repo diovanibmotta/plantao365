@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { FormActions, FormPage, FormSection } from '@diovanibmotta/plantao365-web-sdk';
+import { FormActions, FormPage, FormSection } from '@plantao365/web-sdk';
 import { api } from '../api/client';
 import { PLUGINS_PATH } from './paths';
 

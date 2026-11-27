@@ -1,6 +1,6 @@
 # Plugins
 
-Guia do autor de plugins do Plantão365: como criar, o que o kernel oferece e como o contrato evolui. A decisão de arquitetura está na [ADR 0001](adr/0001-microkernel-plugins.md). O plugin de referência fica em repositório próprio: [plantao365-plugin-emergency-contacts](https://github.com/diovanibmotta/plantao365-plugin-emergency-contacts).
+Guia do autor de plugins do Plantão365: como criar, o que o kernel oferece e como o contrato evolui. A decisão de arquitetura está na [ADR 0001](adr/0001-microkernel-plugins.md). O plugin de referência fica em repositório próprio: [plugin-emergency-contacts](https://github.com/plantao365/plugin-emergency-contacts).
 
 ## Quando é plugin
 

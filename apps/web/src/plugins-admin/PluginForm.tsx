@@ -1,11 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import {
-  ConfirmDialog,
-  FormActions,
-  FormPage,
-  FormSection,
-} from '@diovanibmotta/plantao365-web-sdk';
+import { ConfirmDialog, FormActions, FormPage, FormSection } from '@plantao365/web-sdk';
 import { api } from '../api/client';
 import { PLUGINS_PATH } from './paths';
 import {

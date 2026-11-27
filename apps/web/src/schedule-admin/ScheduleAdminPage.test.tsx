@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { DEFAULT_SHIFT_TIMES } from '@diovanibmotta/plantao365-shared';
+import { DEFAULT_SHIFT_TIMES } from '@plantao365/shared';
 import { ScheduleAdminPage } from '../pages/ScheduleAdminPage';
 import type { ShiftDto } from '../schedule/types';
 import { ToastViewport } from '../toast/ToastViewport';
