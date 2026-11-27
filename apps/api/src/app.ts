@@ -55,6 +55,8 @@ export interface AppDeps {
   configWarnings?: ConfigWarning[];
   /** Kernel de plugins: administração em /api/plugins e rotas em /api/extensions/<id>. */
   plugins?: PluginRegistry;
+  /** Token aceito pela CLI no install de plugins. */
+  pluginInstallToken?: string;
 }
 
 export function createApp({
@@ -67,6 +69,7 @@ export function createApp({
   oidcProvider,
   configWarnings = [],
   plugins,
+  pluginInstallToken,
 }: AppDeps): Hono {
   const app = new Hono();
 
@@ -185,7 +188,13 @@ export function createApp({
     app.route('/api', createPreferencesRouter({ db }));
     app.route('/api', createBalanceRouter({ db }));
     if (plugins) {
-      app.route('/api', createPluginsRouter({ registry: plugins }));
+      app.route(
+        '/api',
+        createPluginsRouter({
+          registry: plugins,
+          ...(pluginInstallToken && { installToken: pluginInstallToken }),
+        }),
+      );
       app.route('/', createPluginAssetsRouter({ registry: plugins }));
     }
   }

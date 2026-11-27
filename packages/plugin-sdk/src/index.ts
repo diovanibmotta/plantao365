@@ -4,9 +4,11 @@ import type postgres from 'postgres';
 /*
  * Contrato v1.1.0 do kernel (KERNEL_API_VERSION em apps/api/src/plugins/types.ts). O manifesto
  * declara `kernelApi: "^MAJOR.MINOR.PATCH"`; o kernel recusa outro major ou minor/patch mais novo.
- * Quase só tipos; em runtime a API usa apenas o lint de estilo (`checkPluginStyles`).
+ * Quase só tipos; em runtime a API usa o lint de estilo e o formato do pacote. A CLI
+ * (`plantao-plugin`, em cli.ts) não é exportada aqui.
  */
 
+export { encodePackage, PACKAGE_FORMAT } from './package.js';
 export { checkPluginStyles, type StyleViolation } from './style-check.js';
 
 export type PluginSql = postgres.Sql;

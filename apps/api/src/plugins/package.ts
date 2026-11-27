@@ -1,6 +1,10 @@
 import { createHash, createPublicKey, verify, type KeyObject } from 'node:crypto';
-import { gunzipSync, gzipSync } from 'node:zlib';
-import { checkPluginStyles } from '@diovanibmotta/plantao365-plugin-sdk';
+import { gunzipSync } from 'node:zlib';
+import {
+  checkPluginStyles,
+  encodePackage as encode,
+  PACKAGE_FORMAT,
+} from '@diovanibmotta/plantao365-plugin-sdk';
 import { z } from 'zod';
 import {
   KERNEL_API_VERSION,
@@ -10,11 +14,8 @@ import {
   type PluginManifest,
 } from './types.js';
 
-/**
- * Pacote de plugin: gzip de um JSON `{ format, manifest, files: { caminho: base64 } }`.
- * A assinatura Ed25519 cobre os bytes do arquivo compactado (o que é gravado no banco).
- */
-export const PACKAGE_FORMAT = 'plantao365-plugin@1';
+// Formato do pacote definido no plugin-sdk (a CLI gera, o kernel lê).
+export { PACKAGE_FORMAT };
 export const MAX_ARCHIVE_BYTES = 10 * 1024 * 1024;
 const MAX_UNPACKED_BYTES = 50 * 1024 * 1024;
 
@@ -29,13 +30,9 @@ export interface PluginPackage {
   files: Map<string, Buffer>;
 }
 
-/** Monta o arquivo do pacote (usado pela CLI e pelos testes). */
-export function encodePackage(manifest: PluginManifest, files: Record<string, string | Buffer>) {
-  const encoded = Object.fromEntries(
-    Object.entries(files).map(([p, c]) => [p, Buffer.from(c).toString('base64')]),
-  );
-  return gzipSync(JSON.stringify({ format: PACKAGE_FORMAT, manifest, files: encoded }));
-}
+/** Monta o arquivo do pacote com o manifesto tipado (testes). */
+export const encodePackage = (manifest: PluginManifest, files: Record<string, string | Buffer>) =>
+  encode(manifest, files);
 
 export function decodePackage(archive: Buffer): PluginPackage {
   if (archive.length > MAX_ARCHIVE_BYTES) {

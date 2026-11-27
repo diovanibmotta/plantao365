@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import type { KeyObject } from 'node:crypto';
+import { randomUUID, type KeyObject } from 'node:crypto';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Hono, type MiddlewareHandler } from 'hono';
@@ -30,6 +30,7 @@ import type { Logger } from '../logger.js';
 import { loadMigrations, migrateUp, type MigrationScope } from '../migrator.js';
 import type { DeliveryTarget } from './deliveries.js';
 import { startLoop, type Loop } from './loop.js';
+import { validateSettings } from './settings-schema.js';
 import {
   assertStyleCheck,
   decodePackage,
@@ -91,6 +92,7 @@ interface PackageRow {
 }
 
 const MIN_JOB_INTERVAL_MS = 1000;
+const SYNC_CHANNEL = 'plugins_changed';
 
 export const pluginSchema = (id: string) => `plugin_${id.replaceAll('-', '_')}`;
 /** Nome do container Module Federation do plugin (o build do front do plugin usa o mesmo). */
@@ -123,6 +125,8 @@ export class PluginRegistry implements DeliveryTarget {
   private readonly active = new Map<string, ActivePlugin>();
   /** Serializa as mutações (install/enable/disable…) desta instância. */
   private queue: Promise<unknown> = Promise.resolve();
+  /** Identifica esta réplica nos avisos de `plugins_changed`. */
+  private readonly instanceId = randomUUID();
 
   constructor(private readonly deps: PluginRegistryDeps) {}
 
@@ -274,10 +278,59 @@ export class PluginRegistry implements DeliveryTarget {
       status: r.status,
       error: r.error,
       settings: r.settings,
+      settingsSchema: r.manifest.settingsSchema ?? null,
       active: this.active.has(r.id),
       installedAt: r.installed_at.toISOString(),
       updatedAt: r.updated_at.toISOString(),
     }));
+  }
+
+  async get(id: string): Promise<PluginSummary> {
+    const plugin = (await this.list()).find((p) => p.id === id);
+    if (!plugin) throw new PluginError('plugin_not_found', 'Plugin não encontrado.');
+    return plugin;
+  }
+
+  // ---- sincronização entre réplicas ----
+
+  /**
+   * Cada réplica escuta `plugins_changed`; quem muda um plugin avisa as outras, que recarregam o
+   * plugin a partir do banco. A réplica que originou ignora o próprio aviso (já aplicou).
+   */
+  async startSync(): Promise<{ stop(): Promise<void> }> {
+    const { unlisten } = await this.deps.sql.listen(SYNC_CHANNEL, (payload) => {
+      let msg: { id?: unknown; from?: unknown };
+      try {
+        msg = JSON.parse(payload) as typeof msg;
+      } catch {
+        return;
+      }
+      if (msg.from === this.instanceId || typeof msg.id !== 'string') return;
+      void this.reload(msg.id);
+    });
+    return { stop: unlisten };
+  }
+
+  private async notifyChanged(id: string): Promise<void> {
+    const payload = JSON.stringify({ id, from: this.instanceId });
+    await this.deps.sql`select pg_notify(${SYNC_CHANNEL}, ${payload})`;
+  }
+
+  /** Recarrega o plugin conforme o banco (aviso de outra réplica). */
+  reload(id: string): Promise<void> {
+    return this.exclusive(async () => {
+      await this.deactivate(id);
+      const [row] = await this.deps.sql<{ status: PluginStatus }[]>`
+        select status from plugins where id = ${id}`;
+      if (row?.status !== 'enabled') return;
+      // Não marca `failed`: a réplica de origem já gravou o status; aqui só registra a falha local.
+      await this.activate(id).catch((err) =>
+        this.deps.logger.error(
+          { pluginId: id, err: errorMessage(err) },
+          'Falha ao recarregar plugin',
+        ),
+      );
+    });
   }
 
   // ---- ciclo de vida ----
@@ -286,7 +339,7 @@ export class PluginRegistry implements DeliveryTarget {
    * Valida assinatura, formato e compatibilidade e grava o pacote. Reinstalar a mesma versão só é
    * aceito com o mesmo conteúdo. Se o plugin estiver habilitado, a nova versão é ativada na hora.
    */
-  install(archive: Buffer, signature: Buffer, actorId: string): Promise<PluginManifest> {
+  install(archive: Buffer, signature: Buffer, actorId: string | null): Promise<PluginManifest> {
     return this.exclusive(async () => {
       verifySignature(archive, signature, this.deps.publicKeys);
       const pkg = decodePackage(archive);
@@ -333,6 +386,7 @@ export class PluginRegistry implements DeliveryTarget {
         await this.deactivate(manifest.id);
         await this.activateOrFail(manifest.id);
       }
+      await this.notifyChanged(manifest.id);
       return manifest;
     });
   }
@@ -342,6 +396,7 @@ export class PluginRegistry implements DeliveryTarget {
       await this.requireExists(id);
       if (!this.active.has(id)) await this.activateOrFail(id);
       await this.setStatus(id, 'enabled', null, actorId, 'plugin.enable');
+      await this.notifyChanged(id);
     });
   }
 
@@ -350,6 +405,7 @@ export class PluginRegistry implements DeliveryTarget {
       await this.requireExists(id);
       await this.deactivate(id);
       await this.setStatus(id, 'disabled', null, actorId, 'plugin.disable');
+      await this.notifyChanged(id);
     });
   }
 
@@ -358,8 +414,14 @@ export class PluginRegistry implements DeliveryTarget {
       await this.requireExists(id);
       await this.deps.sql.begin(async (txRaw) => {
         const tx = txRaw as unknown as Sql;
-        const [before] = await tx<{ settings: Record<string, unknown> }[]>`
-          select settings from plugins where id = ${id} for update`;
+        const [before] = await tx<
+          { settings: Record<string, unknown>; manifest: PluginManifest }[]
+        >`
+          select p.settings, k.manifest from plugins p
+          join plugin_packages k on k.plugin_id = p.id and k.version = p.version
+          where p.id = ${id} for update of p`;
+        const errors = validateSettings(before!.manifest.settingsSchema, settings);
+        if (errors.length > 0) throw new PluginError('invalid_settings', errors.join(' '));
         await tx`
           update plugins set settings = ${tx.json(JSON.parse(JSON.stringify(settings)))},
             updated_at = now()
@@ -377,6 +439,7 @@ export class PluginRegistry implements DeliveryTarget {
         await this.deactivate(id);
         await this.activateOrFail(id);
       }
+      await this.notifyChanged(id);
     });
   }
 
@@ -402,6 +465,7 @@ export class PluginRegistry implements DeliveryTarget {
           after: { purge },
         });
       });
+      await this.notifyChanged(id);
     });
   }
 

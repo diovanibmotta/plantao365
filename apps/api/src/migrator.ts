@@ -78,13 +78,19 @@ export async function migrateUp(
   const applied: string[] = [];
   for (const m of migrations) {
     if (done.has(m.name)) continue;
-    await sql.begin(async (txRaw) => {
+    const name = stored(opts, m.name);
+    const ran = await sql.begin(async (txRaw) => {
       const tx = txRaw as unknown as Sql;
+      // Réplicas ativando o mesmo plugin ao mesmo tempo: só uma aplica, as outras esperam e pulam.
+      await tx`select pg_advisory_xact_lock(hashtext(${`migrate:${name}`}))`;
+      const [already] = await tx`select 1 from public.schema_migrations where name = ${name}`;
+      if (already) return false;
       await useScope(tx, opts);
       await tx.unsafe(m.up);
-      await tx`insert into public.schema_migrations (name) values (${stored(opts, m.name)})`;
+      await tx`insert into public.schema_migrations (name) values (${name})`;
+      return true;
     });
-    applied.push(m.name);
+    if (ran) applied.push(m.name);
   }
   return applied;
 }

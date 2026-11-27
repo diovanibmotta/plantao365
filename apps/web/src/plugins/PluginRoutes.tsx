@@ -26,7 +26,7 @@ function Gate({ route }: { route: PluginRoute }) {
   return <Page />;
 }
 
-/** `/plugins/:pluginId/*`: rotas declaradas pelo plugin, com papel e isolamento de erro. */
+/** `/ext/:pluginId/*`: rotas declaradas pelo plugin, com papel e isolamento de erro. */
 export function PluginRoutes() {
   const { pluginId } = useParams();
   const { plugins, loading } = usePlugins();

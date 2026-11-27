@@ -12,6 +12,7 @@ export type NavIcon =
   | 'calendar-star'
   | 'plane'
   | 'shield'
+  | 'puzzle'
   | 'user';
 
 export type NavGroup = 'schedule' | 'admin';
@@ -54,6 +55,7 @@ export const NAV_ITEMS: NavItem[] = [
     role: 'manager',
   },
   { to: '/audit', label: 'Auditoria', icon: 'shield', group: 'admin', role: 'manager' },
+  { to: '/plugins', label: 'Plugins', icon: 'puzzle', group: 'admin', role: 'manager' },
 ];
 
 /** Perfil não tem item no menu: abre pela foto/nome do usuário no rodapé. */
@@ -65,13 +67,13 @@ const RANK: Record<Role, number> = { guest: 0, member: 1, manager: 2 };
 export const navItemsFor = (role: Role, extra: NavItem[] = []): NavItem[] =>
   [...NAV_ITEMS, ...extra].filter((item) => RANK[role] >= RANK[item.role ?? 'member']);
 
-/** Itens de menu declarados pelos plugins, em `/plugins/<id>/<path>`. */
+/** Itens de menu declarados pelos plugins, em `/ext/<id>/<path>`. */
 export const pluginNavItems = (
   plugins: { id: string; module: { nav?: PluginNavItem[] } | null }[],
 ): NavItem[] =>
   plugins.flatMap((p) =>
     (p.module?.nav ?? []).map((item) => ({
-      to: `/plugins/${p.id}${item.path ? `/${item.path}` : ''}`,
+      to: `/ext/${p.id}${item.path ? `/${item.path}` : ''}`,
       label: item.label,
       icon: 'layers' as const,
       ...(item.icon && { iconPaths: item.icon }),

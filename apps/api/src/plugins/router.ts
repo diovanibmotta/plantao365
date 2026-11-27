@@ -1,5 +1,7 @@
-import { Hono, type Context } from 'hono';
+import { createHash, timingSafeEqual } from 'node:crypto';
+import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
+import { every } from 'hono/combine';
 import { createMiddleware } from 'hono/factory';
 import { z } from 'zod';
 import { requireAuth, requireRole, type AuthEnv } from '../auth/index.js';
@@ -8,6 +10,8 @@ import { PluginError } from './types.js';
 
 export interface PluginsRouterDeps {
   registry: PluginRegistry;
+  /** Token da CLI (`plantao-plugin install --token`); sem valor, só a master key instala. */
+  installToken?: string;
 }
 
 /** Instalar e mudar plugins executa código no servidor: só a master key. */
@@ -16,6 +20,12 @@ const requireMaster = () =>
     if (!c.get('user')?.isMaster) return c.json({ error: 'forbidden' }, 403);
     await next();
   });
+
+const sameSecret = (a: string, b: string) => {
+  const x = createHash('sha256').update(a).digest();
+  const y = createHash('sha256').update(b).digest();
+  return timingSafeEqual(x, y);
+};
 
 const base64 = z
   .string()
@@ -34,8 +44,21 @@ const fail = (c: Context, err: unknown) => {
  * Administração (`/plugins`) e rotas dos plugins (`/extensions/<id>/...`). Montado sob /api,
  * depois de sessão, CSRF, guestGuard e equipe: as rotas do plugin já recebem o usuário resolvido.
  */
-export function createPluginsRouter({ registry }: PluginsRouterDeps): Hono<AuthEnv> {
+export function createPluginsRouter({ registry, installToken }: PluginsRouterDeps): Hono<AuthEnv> {
   const router = new Hono<AuthEnv>();
+
+  /** Install: master key logada ou `Authorization: Bearer <PLUGIN_INSTALL_TOKEN>` (CLI). */
+  const canInstall: MiddlewareHandler<AuthEnv> = async (c, next) => {
+    const auth = c.req.header('authorization');
+    if (auth?.startsWith('Bearer ')) {
+      if (!installToken || !sameSecret(auth.slice(7), installToken)) {
+        return c.json({ error: 'unauthenticated' }, 401);
+      }
+      return next();
+    }
+    return masterOnly(c, next);
+  };
+  const masterOnly = every(requireRole('manager'), requireMaster());
 
   router.get('/plugins/manifest', requireAuth(), (c) =>
     c.json({ plugins: registry.activeManifests() }),
@@ -45,10 +68,17 @@ export function createPluginsRouter({ registry }: PluginsRouterDeps): Hono<AuthE
     c.json({ plugins: await registry.list() }),
   );
 
+  router.get('/plugins/:id', requireRole('manager'), async (c) => {
+    try {
+      return c.json({ plugin: await registry.get(c.req.param('id')) });
+    } catch (err) {
+      return fail(c, err);
+    }
+  });
+
   router.post(
     '/plugins',
-    requireRole('manager'),
-    requireMaster(),
+    canInstall,
     bodyLimit({
       maxSize: 15 * 1024 * 1024,
       onError: (c) => c.json({ error: 'payload_too_large', message: 'Pacote grande demais.' }, 413),
@@ -65,7 +95,8 @@ export function createPluginsRouter({ registry }: PluginsRouterDeps): Hono<AuthE
         const manifest = await registry.install(
           Buffer.from(body.data.archive, 'base64'),
           Buffer.from(body.data.signature, 'base64'),
-          c.get('user')!.id,
+          // Via token da CLI não há usuário: a auditoria fica sem ator (sistema).
+          c.get('user')?.id ?? null,
         );
         return c.json(
           { plugin: manifest, message: `Plugin ${manifest.name} ${manifest.version} instalado.` },

@@ -27,7 +27,7 @@ export type Role = 'manager' | 'member' | 'guest';
 
 // ---- contrato de contribuições do plugin ----
 
-/** Rota servida em `/plugins/<id>/<path>` (path relativo: '' é a raiz do plugin). */
+/** Rota servida em `/ext/<id>/<path>` (path relativo: '' é a raiz do plugin). */
 export interface PluginRoute {
   path: string;
   component: ComponentType;

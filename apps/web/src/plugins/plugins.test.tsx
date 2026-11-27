@@ -91,20 +91,20 @@ describe('kernel de plugins no front', () => {
   it('mostra o item de menu e a tela do plugin com os componentes nativos do web-sdk', async () => {
     plugins = [loaded()];
     stubApi('member');
-    renderApp('/plugins/demo');
+    renderApp('/ext/demo');
     expect(await screen.findByRole('heading', { name: 'Contatos de emergência' })).toBeTruthy();
     expect(screen.getByText('Quem acionar').closest('.ui-header')).not.toBeNull();
     // escopo do CSS do plugin
     expect(screen.getByText('Quem acionar').closest('.plg-demo')).not.toBeNull();
     const link = screen.getByRole('link', { name: /Contatos/ });
-    expect(link.getAttribute('href')).toBe('/plugins/demo');
+    expect(link.getAttribute('href')).toBe('/ext/demo');
     expect(link.querySelector('svg path')?.getAttribute('d')).toBe('M3 12h18');
   });
 
   it('respeita o papel da rota do plugin', async () => {
     plugins = [loaded()];
     stubApi('member');
-    renderApp('/plugins/demo/admin');
+    renderApp('/ext/demo/admin');
     expect(await screen.findByText('Acesso restrito')).toBeTruthy();
     expect(screen.queryByText('Configuração dos contatos')).toBeNull();
   });
@@ -112,17 +112,17 @@ describe('kernel de plugins no front', () => {
   it('gestor acessa a rota restrita', async () => {
     plugins = [loaded()];
     stubApi('manager');
-    renderApp('/plugins/demo/admin');
+    renderApp('/ext/demo/admin');
     expect(await screen.findByText('Configuração dos contatos')).toBeTruthy();
   });
 
   it('plugin inexistente é página não encontrada; front que falhou mostra aviso', async () => {
     plugins = [loaded({ module: null, error: 'falhou' })];
     stubApi('member');
-    renderApp('/plugins/nope');
+    renderApp('/ext/nope');
     expect(await screen.findByText('Página não encontrada')).toBeTruthy();
     cleanup();
-    renderApp('/plugins/demo');
+    renderApp('/ext/demo');
     expect((await screen.findByRole('alert')).textContent).toContain(
       'Não foi possível carregar a extensão Demo.',
     );
@@ -131,7 +131,7 @@ describe('kernel de plugins no front', () => {
   it('sem manifesto (erro na API) o app segue sem itens de plugin', async () => {
     plugins = [loaded()];
     stubApi('member', 500);
-    renderApp('/plugins/demo');
+    renderApp('/ext/demo');
     expect(await screen.findByText('Página não encontrada')).toBeTruthy();
     expect(screen.queryByRole('link', { name: /Contatos/ })).toBeNull();
   });
