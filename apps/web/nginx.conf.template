@@ -15,6 +15,8 @@ server {
   }
 
   location /api/ {
+    # Instalação de plugin envia até 15 MB; acima disso a própria API responde 413.
+    client_max_body_size 16m;
     proxy_pass ${API_UPSTREAM};
     proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
