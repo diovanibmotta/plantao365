@@ -10,7 +10,7 @@ import { BrandMark, Icon } from './icons';
 import { NAV_GROUP_LABELS, PROFILE_PATH, navItemsFor, pluginNavItems, type NavGroup } from './nav';
 import { PluginProvider, usePlugins } from '../plugins/PluginContext';
 
-const GROUP_ORDER: NavGroup[] = ['schedule', 'admin'];
+const GROUP_ORDER: NavGroup[] = ['schedule', 'admin', 'settings'];
 
 function ThemeToggle() {
   const [theme, setCurrent] = useState<Theme>(effectiveTheme);

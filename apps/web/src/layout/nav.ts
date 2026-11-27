@@ -15,7 +15,7 @@ export type NavIcon =
   | 'puzzle'
   | 'user';
 
-export type NavGroup = 'schedule' | 'admin';
+export type NavGroup = 'schedule' | 'admin' | 'settings';
 
 export interface NavItem {
   to: string;
@@ -30,6 +30,7 @@ export interface NavItem {
 export const NAV_GROUP_LABELS: Record<NavGroup, string> = {
   schedule: 'Plantão',
   admin: 'Gestão',
+  settings: 'Configuração',
 };
 
 export const NAV_ITEMS: NavItem[] = [
@@ -55,7 +56,7 @@ export const NAV_ITEMS: NavItem[] = [
     role: 'manager',
   },
   { to: '/audit', label: 'Auditoria', icon: 'shield', group: 'admin', role: 'manager' },
-  { to: '/plugins', label: 'Plugins', icon: 'puzzle', group: 'admin', role: 'manager' },
+  { to: '/plugins', label: 'Plugins', icon: 'puzzle', group: 'settings', role: 'manager' },
 ];
 
 /** Perfil não tem item no menu: abre pela foto/nome do usuário no rodapé. */
