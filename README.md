@@ -4,17 +4,12 @@
 
 Gestão de escala de plantão (sobreaviso) para equipes: rodízio automático com revisão do gestor, preferências e exceções dos membros, saldo de horas previsto x realizado e avisos por e-mail.
 
-## Funcionalidades
+Este README é para quem desenvolve. Uso, implantação, configuração e SSO estão na **[wiki](https://github.com/diovanibmotta/plantao365/wiki)**:
 
-- Login corporativo via SSO Microsoft Entra ID (OIDC), com acesso master (master key) para o primeiro acesso.
-- Papéis **gestor** e **membro** (e participação no rodízio) definidos por equipe; acesso apenas para e-mails pré-cadastrados.
-- Calendário de feriados e férias coletivas cadastrados no sistema.
-- Regras de turno: dia útil 14h (18h–08h); fim de semana e feriado 24h (08h–08h); férias coletivas 0h. Fuso `America/Sao_Paulo`.
-- Exceções (férias, folga, outro) e preferências brandas (dias a evitar, máximo de plantões consecutivos).
-- Geração automática do rodízio em rascunho, determinística e equilibrada pela disponibilidade de cada membro.
-- Saldo de horas por mês e acumulado do ano, com detalhe por plantão e ajustes do gestor.
-- Lembretes e avisos por e-mail (SMTP) com fila e retentativas.
-- Trilha de auditoria imutável das ações do gestor.
+- [Primeiro acesso](https://github.com/diovanibmotta/plantao365/wiki/Primeiro-Acesso) · [Guia do gestor](https://github.com/diovanibmotta/plantao365/wiki/Guia-do-Gestor) · [Guia do membro](https://github.com/diovanibmotta/plantao365/wiki/Guia-do-Membro)
+- [Configuração (variáveis de ambiente)](https://github.com/diovanibmotta/plantao365/wiki/Configuracao) · [SSO Entra ID](https://github.com/diovanibmotta/plantao365/wiki/SSO-Entra-ID)
+- [Implantação](https://github.com/diovanibmotta/plantao365/wiki/Implantacao): [Kubernetes](https://github.com/diovanibmotta/plantao365/wiki/Implantacao-Kubernetes), [imagem única](https://github.com/diovanibmotta/plantao365/wiki/Implantacao-Imagem-Unica), [Docker Compose](https://github.com/diovanibmotta/plantao365/wiki/Implantacao-Docker-Compose)
+- [Solução de problemas](https://github.com/diovanibmotta/plantao365/wiki/Solucao-de-Problemas)
 
 ## Stack
 
@@ -34,148 +29,33 @@ apps/
   web/            SPA React
 packages/
   shared/         regras de domínio compartilhadas (@diovanibmotta/plantao365-shared)
+deploy/k8s/       manifests Kubernetes (Kustomize)
 ```
+
+Convenções de código, rotas e padrão de telas: [CLAUDE.md](CLAUDE.md).
 
 ## Começando
 
 Pré-requisitos: Node >= 22, npm >= 10 e um PostgreSQL acessível.
 
 ```bash
-npm install
+npm ci
 cp .env.example .env        # ajuste DATABASE_URL e MANAGER_EMAILS
 npm run migrate -w @diovanibmotta/plantao365-api -- up
 npm run dev                 # API em :3000 e web em :5173
 ```
 
-Em desenvolvimento sem SSO, defina `MASTER_USERNAME`/`MASTER_PASSWORD` e entre por "Acesso master" na tela de login; os e-mails de `MANAGER_EMAILS` são criados como gestores na subida da API e passam a entrar quando o SSO estiver configurado.
-
-### Variáveis de ambiente
-
-Veja [`.env.example`](.env.example) e a seção [Configuração](#configuração).
+Sem SSO configurado, defina `MASTER_USERNAME`/`MASTER_PASSWORD` no `.env` e entre por "Acesso master" na tela de login. Demais variáveis em [`.env.example`](.env.example) e na [wiki](https://github.com/diovanibmotta/plantao365/wiki/Configuracao).
 
 ### Migrações
+
+Novo par numerado `NNNN_nome.up.sql` / `.down.sql` em `apps/api/migrations`; nunca edite migração já aplicada.
 
 ```bash
 npm run migrate -w @diovanibmotta/plantao365-api -- status
 npm run migrate -w @diovanibmotta/plantao365-api -- up
 npm run migrate -w @diovanibmotta/plantao365-api -- down 1     # reverte N migrações (ou "all")
 ```
-
-## Implantação
-
-| Ambiente                | Como                                                            |
-| ----------------------- | --------------------------------------------------------------- |
-| Desenvolvimento / teste | Docker Compose (abaixo)                                         |
-| Produção                | Manifests Kubernetes em [`deploy/k8s`](#kubernetes-produção)    |
-| Produção (simples)      | [Imagem única](#imagem-única-api--front) (API + front), sem CDN |
-
-### Kubernetes (produção)
-
-Em produção use os manifests de [`deploy/k8s`](deploy/k8s) (Kustomize): Deployment da API, Service, Ingress, PodDisruptionBudget e Job de migração. O frontend não roda no cluster: os arquivos estáticos vão para um CDN (exemplos na [wiki](https://github.com/diovanibmotta/plantao365/wiki/Implantacao-Kubernetes)). O PostgreSQL é externo ao cluster (gerenciado ou operador) e informado em `DATABASE_URL`.
-
-```bash
-kubectl apply -f deploy/k8s/namespace.yaml
-kubectl -n plantao365 create secret generic plantao365-secret \
-  --from-literal=DATABASE_URL='postgres://USUARIO:SENHA@HOST:5432/plantao360' \
-  --from-literal=OIDC_CLIENT_SECRET='...'          # modelo em deploy/k8s/secret.example.yaml
-# ajuste configmap.yaml (APP_BASE_URL, OIDC_*, MANAGER_EMAILS), ingress.yaml (host/TLS) e as tags em kustomization.yaml
-kubectl delete job plantao365-migrate -n plantao365 --ignore-not-found
-kubectl apply -k deploy/k8s
-kubectl -n plantao365 wait --for=condition=complete job/plantao365-migrate --timeout=300s
-```
-
-A imagem da API é publicada em `ghcr.io/diovanibmotta/plantao365-api`. O frontend (`npm run build -w @diovanibmotta/plantao365-web`, saída em `apps/web/dist`) é publicado em um CDN que serve a SPA e encaminha `/api/*` e `/auth/*` para o Ingress da API, mantendo tudo no mesmo domínio (padrão: o front usa URLs relativas). Alternativa: front e API em subdomínios distintos, com `VITE_API_BASE_URL` no build do front e `CORS_ALLOWED_ORIGINS` na API (veja [API em outro domínio](#api-em-outro-domínio)).
-
-### Imagem única (API + front)
-
-Alternativa sem CDN: o `Dockerfile` da raiz gera uma imagem que contém a API **e** o front buildado; a API serve a SPA e as rotas `/api`, `/auth` e `/health` na mesma porta (`3000`) e no mesmo domínio. A imagem é publicada a cada release em `ghcr.io/diovanibmotta/plantao365` (tags `X.Y.Z`, `X.Y`, `latest`). Funciona com qualquer orquestrador; basta apontar um proxy/balanceador com TLS para a porta 3000.
-
-```bash
-docker run --rm --env-file .env ghcr.io/diovanibmotta/plantao365:latest node dist/migrate.js up   # migrações
-docker run -d --env-file .env -p 8080:3000 ghcr.io/diovanibmotta/plantao365:latest
-```
-
-- **Compose:** [`docker-compose.single.yml`](docker-compose.single.yml) sobe PostgreSQL e a imagem única (`docker compose -f docker-compose.single.yml up -d`, após `build` e migrações).
-- **Kubernetes:** `kubectl apply -k deploy/k8s/single` usa os mesmos manifests da API trocando a imagem e expondo o Ingress no domínio público (ajuste o host em `deploy/k8s/single/kustomization.yaml`).
-- Variável `WEB_DIST_DIR` (já definida na imagem): pasta do build do front. Sem ela a API não serve o front (modo com CDN ou nginx).
-
-### Docker Compose (somente desenvolvimento)
-
-Imagens da API (`apps/api/Dockerfile`) e do web (`apps/web/Dockerfile`, nginx), ambas construídas a partir da raiz do repositório. O `docker-compose.yml` sobe PostgreSQL, API e web em uma única máquina, sem alta disponibilidade, e não é recomendado para produção:
-
-```bash
-cp .env.example .env     # defina POSTGRES_PASSWORD, APP_BASE_URL, MANAGER_EMAILS e OIDC_*
-docker compose build
-docker compose run --rm api node dist/migrate.js up   # migrações (não rodam sozinhas)
-docker compose up -d
-```
-
-A aplicação responde em `http://localhost:8080` (`WEB_PORT`). O nginx serve a SPA e repassa `/api` e `/auth` para a API (`API_UPSTREAM`, padrão `http://api:3000`). Healthchecks: API em `/health`, web em `/healthz`. Para atualizar, rode o `build` e as migrações novamente.
-
-Em `NODE_ENV=production` o cookie de sessão é `Secure`: publique o web atrás de HTTPS (proxy reverso ou balanceador com TLS) e use `APP_BASE_URL` com `https://`. Se a senha do banco tiver caracteres especiais, aplique URL-encode, pois ela compõe a `DATABASE_URL` montada no compose.
-
-> Imagens e compose validados com Docker Compose v2: build, migrações, subida dos três serviços, `/healthz` do web e login master. Os manifests Kubernetes ainda não foram aplicados em cluster. Guia completo na [wiki](https://github.com/diovanibmotta/plantao365/wiki).
-
-## Configuração
-
-| Variável                              | Obrigatória      | Padrão                  | Descrição                                                                                                         |
-| ------------------------------------- | ---------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`                            | não              | `development`           | `development`, `test` ou `production`                                                                             |
-| `PORT`                                | não              | `3000`                  | porta da API                                                                                                      |
-| `LOG_LEVEL`                           | não              | `info`                  | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`                                                      |
-| `APP_BASE_URL`                        | não              | `http://localhost:5173` | URL pública do web (redirecionamentos e links dos e-mails)                                                        |
-| `DATABASE_URL`                        | sim              | -                       | `postgres://usuario:senha@host:5432/banco`                                                                        |
-| `MANAGER_EMAILS`                      | sim em produção¹ | vazio                   | gestores iniciais, e-mails separados por vírgula                                                                  |
-| `MASTER_USERNAME` / `MASTER_PASSWORD` | não¹             | vazio                   | master key: usuário e senha (12+ caracteres) do primeiro acesso                                                   |
-| `SESSION_TTL_SECONDS`                 | não              | `28800`                 | duração da sessão em segundos (mínimo 60)                                                                         |
-| `COOKIE_SECURE`                       | não              | produção: `true`        | força o atributo Secure do cookie de sessão (use `true` em staging com HTTPS)                                     |
-| `CORS_ALLOWED_ORIGINS`                | não              | vazio                   | origens do front quando servido em outro domínio que a API, separadas por vírgula (habilita CORS com credenciais) |
-| `OIDC_ISSUER`                         | sim em produção  | -                       | `https://login.microsoftonline.com/<tenant-id>/v2.0`                                                              |
-| `OIDC_CLIENT_ID`                      | sim em produção  | -                       | ID do aplicativo (cliente) no Entra ID                                                                            |
-| `OIDC_CLIENT_SECRET`                  | sim em produção  | -                       | segredo do cliente                                                                                                |
-| `OIDC_REDIRECT_URI`                   | sim em produção  | -                       | `<URL pública>/auth/callback`                                                                                     |
-| `SMTP_HOST`                           | não              | -                       | habilita o envio de e-mails                                                                                       |
-| `SMTP_PORT`                           | não              | `587`                   | porta SMTP                                                                                                        |
-| `SMTP_SECURE`                         | não              | `false`                 | `true` para TLS implícito (normalmente porta 465)                                                                 |
-| `SMTP_USER`                           | não              | -                       | usuário SMTP                                                                                                      |
-| `SMTP_PASSWORD`                       | não              | -                       | senha SMTP                                                                                                        |
-| `SMTP_FROM`                           | com `SMTP_HOST`  | -                       | remetente dos e-mails                                                                                             |
-
-Variável de build do front: `VITE_API_BASE_URL` (opcional, ex.: `https://api.suaempresa.com`). Vazia, o front chama `/api` e `/auth` no mesmo domínio.
-
-### API em outro domínio
-
-Por padrão o front e a API respondem no mesmo domínio (CDN com roteamento de `/api/*` e `/auth/*`). Para servir o front em `https://plantao.suaempresa.com` e a API em `https://api.suaempresa.com`:
-
-1. Build do front: `VITE_API_BASE_URL=https://api.suaempresa.com npm run build -w @diovanibmotta/plantao365-web`.
-2. API: `APP_BASE_URL=https://plantao.suaempresa.com` (domínio do front), `CORS_ALLOWED_ORIGINS=https://plantao.suaempresa.com` e `OIDC_REDIRECT_URI=https://api.suaempresa.com/auth/callback` (o callback é tratado pela API; registre esse URI no Entra ID).
-3. Os dois domínios precisam ser **do mesmo site** (subdomínios do mesmo domínio registrável, como acima): o cookie de sessão é `SameSite=Lax` e só acompanha as chamadas entre origens quando o site é o mesmo. Domínios totalmente distintos não são suportados.
-
-Somente no compose: `POSTGRES_USER`, `POSTGRES_PASSWORD` (obrigatória), `POSTGRES_DB` e `WEB_PORT`.
-
-### Registrar o app no Entra ID
-
-1. No portal Azure, abra **Microsoft Entra ID > Registros de aplicativo > Novo registro**.
-2. Tipo de conta: apenas este diretório (locatário único).
-3. Em **URI de redirecionamento**, plataforma **Web**, informe `https://<seu-dominio>/auth/callback` (o mesmo valor de `OIDC_REDIRECT_URI`). Para testes locais: `http://localhost:8080/auth/callback` (compose) ou `http://localhost:5173/auth/callback` (`npm run dev`).
-4. Em **Certificados e segredos**, crie um segredo do cliente e use o valor em `OIDC_CLIENT_SECRET`.
-5. Em **Visão geral**, copie o ID do aplicativo (`OIDC_CLIENT_ID`) e o ID do diretório (locatário) para montar `OIDC_ISSUER`.
-
-Escopos solicitados: `openid`, `profile`, `email` e `User.Read` (Microsoft Graph). Só entra quem tem o e-mail pré-cadastrado no sistema.
-
-`User.Read` é usado para baixar a foto do usuário (`/me/photos/96x96/$value`) a cada login; ela aparece no menu lateral e na escala. Em **Permissões de API**, confirme que **Microsoft Graph > User.Read (delegada)** está concedida (vem por padrão em novos registros). Sem a permissão ou sem foto no diretório, o sistema mostra as iniciais.
-
-### SMTP e gestores iniciais
-
-- Sem `SMTP_HOST` os e-mails são apenas registrados em log. Com ele, `SMTP_FROM` é obrigatório.
-- A cada subida, a API cria como gestores os e-mails de `MANAGER_EMAILS` que ainda não existem (usuários já cadastrados não são alterados). Os demais usuários são cadastrados por um gestor.
-- ¹ Em produção é preciso `MANAGER_EMAILS` **ou** a master key.
-
-### Master key, convites e convidados
-
-- **Master key**: com `MASTER_USERNAME` e `MASTER_PASSWORD` definidos, a tela de login ganha "Acesso master". O usuário master é gestor, fica fora do rodízio e não aparece na Equipe; suas ações são auditadas. Gere a senha aleatória, como se faz com a master key do LiteLLM (ex.: `sk-$(openssl rand -hex 24)`; no PowerShell, `"sk-" + -join ((1..24) | % { '{0:x2}' -f (Get-Random -Max 256) })`), guarde-a em um cofre e não a reutilize. A partir dele, cadastre os demais (convites) e configure o restante. Remover as variáveis desativa o acesso e encerra as sessões master. Após 5 falhas em 15 minutos o login master é bloqueado (429) até a janela esvaziar. Use senha forte e HTTPS.
-- **Convite**: pré-cadastrar um membro (nome e e-mail, em Membros) é o convite e envia um e-mail (fila `email_outbox`). O membro não entra em nenhuma equipe sozinho: o gestor o vincula em Equipes › Membros, onde define o papel (gestor/membro) e a participação no rodízio daquela equipe.
-- **Convidado**: quem entra via SSO sem convite vira usuário `guest` e só lê o calendário de escala publicada e feriados; qualquer outra rota ou alteração responde 403. Ao ser vinculado a uma equipe, ele deixa de ser convidado.
 
 ## Scripts
 
@@ -188,7 +68,9 @@ Escopos solicitados: `openid`, `profile`, `email` e `User.Read` (Microsoft Graph
 | `npm run typecheck`               | `tsc -b`                          |
 | `npm test`                        | Vitest                            |
 
-Os testes de API criam bancos temporários e exigem um usuário PostgreSQL com permissão de criar bancos:
+Antes de abrir PR: `npm run format:check && npm run lint && npm run typecheck && npm test && npm run build`.
+
+Os testes de API que usam banco pulam sem `TEST_DATABASE_URL`; com ela, criam bancos temporários (o usuário precisa poder criar bancos):
 
 ```bash
 TEST_DATABASE_URL=postgres://usuario:senha@localhost:5432/postgres npm test
@@ -196,26 +78,12 @@ TEST_DATABASE_URL=postgres://usuario:senha@localhost:5432/postgres npm test
 
 ## Releases
 
-Versionamento automático com [semantic-release](https://semantic-release.gitbook.io) e [Gitmoji](https://gitmoji.dev) a cada push em `main`: tag `vX.Y.Z`, `CHANGELOG.md` e GitHub Release. Veja as regras de commit em [CONTRIBUTING.md](CONTRIBUTING.md).
+Versionamento automático com [semantic-release](https://semantic-release.gitbook.io) e [Gitmoji](https://gitmoji.dev) a cada push em `main`: tag `vX.Y.Z`, `CHANGELOG.md` e GitHub Release. Cada release publica:
 
-### Artefatos publicados
+- `@diovanibmotta/plantao365-shared` e `@diovanibmotta/plantao365-api` no GitHub Packages (npm);
+- imagens `ghcr.io/diovanibmotta/plantao365-api` e `ghcr.io/diovanibmotta/plantao365` (API + front), tags `X.Y.Z`, `X.Y` e `latest`.
 
-A cada release o workflow publica:
-
-- **Pacote TypeScript** `@diovanibmotta/plantao365-shared` (regras de domínio com tipos `.d.ts`) no GitHub Packages (npm).
-- **Pacote Node da API** `@diovanibmotta/plantao365-api` (`dist/` compilado + `migrations/`) no GitHub Packages (npm).
-- **Imagem da API** `ghcr.io/diovanibmotta/plantao365-api`, com as tags `X.Y.Z`, `X.Y` e `latest`.
-
-```bash
-# .npmrc: @diovanibmotta:registry=https://npm.pkg.github.com
-npm install @diovanibmotta/plantao365-shared @diovanibmotta/plantao365-api
-node node_modules/@diovanibmotta/plantao365-api/dist/index.js   # sobe a API (variáveis em .env.example)
-docker pull ghcr.io/diovanibmotta/plantao365-api:latest
-```
-
-## Contribuindo
-
-Leia o [CONTRIBUTING.md](CONTRIBUTING.md).
+Regras de commit em [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licença
 
