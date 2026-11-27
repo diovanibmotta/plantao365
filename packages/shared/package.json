@@ -1,6 +1,6 @@
 {
   "name": "@diovanibmotta/plantao365-shared",
-  "version": "1.30.0",
+  "version": "1.31.0",
   "description": "Regras de domínio compartilhadas do Plantão365: datas, turnos e motor de rodízio",
   "license": "AGPL-3.0-only",
   "repository": {

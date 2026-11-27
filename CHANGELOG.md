@@ -1,3 +1,8 @@
+# [v1.31.0](https://github.com/diovanibmotta/plantao365/compare/v1.30.0...v1.31.0) (2026-11-27)
+
+## ✨ New Features
+- [`3fbd1a7`](https://github.com/diovanibmotta/plantao365/commit/3fbd1a7)  feat(api): aplica migrações pendentes no warmup
+
 # [v1.30.0](https://github.com/diovanibmotta/plantao365/compare/v1.29.1...v1.30.0) (2026-11-26)
 
 ## ✨ New Features
