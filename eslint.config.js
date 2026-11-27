@@ -8,11 +8,20 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['apps/api/**/*.ts', 'packages/**/*.ts', '*.config.{js,ts}', 'apps/web/vite.config.ts'],
+    files: [
+      'apps/api/**/*.ts',
+      'packages/**/*.ts',
+      'packages/*/bin/*.js',
+      '*.config.{js,ts}',
+      'apps/web/vite.config.ts',
+      'plugins/*/server/**/*.ts',
+      'plugins/*/test/**/*.ts',
+      'plugins/*/web/vite.config.ts',
+    ],
     languageOptions: { globals: globals.node },
   },
   {
-    files: ['apps/web/src/**/*.{ts,tsx}'],
+    files: ['apps/web/src/**/*.{ts,tsx}', 'plugins/*/web/**/*.tsx'],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,

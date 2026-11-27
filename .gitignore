@@ -7,3 +7,7 @@ dist-types
 !.env.example
 .local
 .ai
+# Pacotes e assinaturas de plugin gerados pela CLI
+*.p365
+*.p365.sig
+*.pem

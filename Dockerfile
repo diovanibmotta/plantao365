@@ -8,6 +8,7 @@ COPY packages/plugin-sdk/package.json packages/plugin-sdk/
 COPY packages/web-sdk/package.json packages/web-sdk/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY plugins/emergency-contacts/package.json plugins/emergency-contacts/
 RUN npm ci --ignore-scripts
 COPY packages/shared packages/shared
 COPY packages/plugin-sdk packages/plugin-sdk
@@ -26,6 +27,7 @@ COPY packages/plugin-sdk/package.json packages/plugin-sdk/
 COPY packages/web-sdk/package.json packages/web-sdk/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY plugins/emergency-contacts/package.json plugins/emergency-contacts/
 RUN npm ci --omit=dev --ignore-scripts -w @diovanibmotta/plantao365-api -w @diovanibmotta/plantao365-shared
 
 FROM node:22-alpine AS runtime

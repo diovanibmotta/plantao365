@@ -77,6 +77,7 @@ export default definePluginWeb({
     'web/vite.config.ts': `import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { federation } from '@module-federation/vite';
+import { fileURLToPath } from 'node:url';
 
 // PLUGIN_ID e PLUGIN_VERSION vêm do \`plantao-plugin build\`; os assets são servidos pela API.
 const id = process.env.PLUGIN_ID ?? '${id}';
@@ -101,7 +102,17 @@ export default defineConfig({
       dts: false,
     }),
   ],
-  build: { target: 'esnext', outDir: '../dist/web', emptyOutDir: true },
+  build: {
+    target: 'esnext',
+    outDir: '../dist/web',
+    emptyOutDir: true,
+    rollupOptions: {
+      // Remote sem página: a entrada é o módulo exposto (sem isso o Vite procura web/index.html).
+      input: fileURLToPath(new URL('./index.tsx', import.meta.url)),
+      // Nomes curtos: os chunks do MF repetem o id e os shared e o kernel limita o caminho a 200.
+      output: { chunkFileNames: 'assets/[hash].js', assetFileNames: 'assets/[hash][extname]' },
+    },
+  },
 });
 `,
     // Rodam no schema plugin_<id>, uma vez (advisory lock entre réplicas).
@@ -117,6 +128,8 @@ export default defineConfig({
         strict: true,
         noEmit: true,
         skipLibCheck: true,
+        // import de CSS nos componentes
+        types: ['vite/client'],
       },
       include: ['server', 'web'],
     }),

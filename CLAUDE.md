@@ -4,7 +4,8 @@ Convenções do Plantão365 para agentes e pessoas. Visão geral e setup no [REA
 
 ## Monorepo
 
-- npm workspaces: `apps/api` (Hono), `apps/web` (React 19 + Vite + React Router), `packages/shared` (domínio puro).
+- npm workspaces: `apps/api` (Hono), `apps/web` (React 19 + Vite + React Router), `packages/shared` (domínio puro), `packages/plugin-sdk` e `packages/web-sdk` (contrato e design system dos plugins) e `plugins/*` (plugins mantidos no repo; `emergency-contacts` é a referência).
+- **Funcionalidade opcional ou de cliente vai como plugin**, não no core. Falta ponto de extensão? Ele entra no kernel (`apps/api/src/plugins`, `packages/*-sdk`) e a funcionalidade vira plugin. Guia em [docs/plugins.md](docs/plugins.md).
 - Node >= 22, ESM (`"type": "module"`). Na API, imports relativos levam extensão `.js`.
 - Em worktree/clone novo, rode `npm ci` e `npm run build -w @diovanibmotta/plantao365-shared` antes dos testes; web e API importam o `dist` do shared.
 
@@ -17,7 +18,7 @@ Convenções do Plantão365 para agentes e pessoas. Visão geral e setup no [REA
 ## Rotas e endpoints
 
 - Sempre em inglês, kebab-case, substantivos no plural para coleções.
-- **Front** (`apps/web/src/App.tsx`, menu em `apps/web/src/layout/nav.ts`): `/my-schedule`, `/schedule`, `/swaps`, `/balance`, `/profile`, e de gestor `/members`, `/vacations`, `/schedule-admin`, `/holidays`, `/audit`.
+- **Front** (`apps/web/src/App.tsx`, menu em `apps/web/src/layout/nav.ts`): `/my-schedule`, `/schedule`, `/swaps`, `/balance`, `/profile`, e de gestor `/members`, `/vacations`, `/schedule-admin`, `/holidays`, `/audit`, `/plugins`. Telas dos plugins em `/ext/<id>/...`.
   - Ao renomear uma rota, adicione a antiga em `LEGACY_PATHS` (App.tsx) para não quebrar links de e-mails já enviados e favoritos.
   - Links do front gerados pela API (e-mails em `apps/api/src/notifications`) usam os mesmos paths; mude os dois juntos.
 - **API**: tudo sob `/api` (`app.route('/api', ...)` em `apps/api/src/app.ts`), exceto `/auth/*` e `/health`. Ex.: `/api/schedules/:id/publish`, `/api/me/preferences`, `/api/users/:id/balance`. Recursos do usuário logado ficam em `/api/me/...`.

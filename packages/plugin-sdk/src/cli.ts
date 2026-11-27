@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
 import { createPrivateKey, generateKeyPairSync, sign } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -94,10 +93,11 @@ async function build(dir: string): Promise<void> {
   }
 
   if (existsSync(path.join(dir, 'web/vite.config.ts'))) {
-    const res = spawnSync('npx', ['vite', 'build', '--config', 'web/vite.config.ts'], {
+    // Comando fixo (sem entrada do usuário); shell para achar o npx.cmd no Windows.
+    const res = spawnSync('npx vite build --config web/vite.config.ts', {
       cwd: dir,
       stdio: 'inherit',
-      shell: process.platform === 'win32',
+      shell: true,
       env: { ...process.env, PLUGIN_ID: manifest.id, PLUGIN_VERSION: manifest.version },
     });
     if (res.status !== 0) throw new CliError('vite build falhou.');
@@ -230,9 +230,4 @@ export async function main(argv: string[]): Promise<number> {
     console.error(err.message);
     return 1;
   }
-}
-
-// Executado como binário (não quando importado pelos testes).
-if (process.argv[1] && /plantao-plugin|cli\.js$/.test(process.argv[1])) {
-  main(process.argv.slice(2)).then((code) => process.exit(code));
 }
