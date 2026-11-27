@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { create, lintStyles, main, MANIFEST_FILE, pack, signFile } from './cli.js';
+import { buildEnv, create, lintStyles, main, MANIFEST_FILE, pack, signFile } from './cli.js';
 import { PACKAGE_FORMAT } from './package.js';
 
 describe('CLI plantao-plugin', () => {
@@ -72,6 +72,15 @@ describe('CLI plantao-plugin', () => {
       privateKey.export({ format: 'pem', type: 'pkcs8' }) as string,
     );
     expect(verify(null, await readFile(file), publicKey, await readFile(sigFile))).toBe(true);
+  });
+
+  it('build roda o vite como produção, sem o env do vitest (senão o MF não gera remoteEntry)', () => {
+    vi.stubEnv('NODE_ENV', 'test');
+    vi.stubEnv('VITEST', 'true');
+    const env = buildEnv({ id: 'x', version: '1.0.0' });
+    vi.unstubAllEnvs();
+    expect(env).toMatchObject({ NODE_ENV: 'production', PLUGIN_ID: 'x', PLUGIN_VERSION: '1.0.0' });
+    expect(Object.keys(env).filter((k) => k.startsWith('VITEST'))).toEqual([]);
   });
 
   it('pack sem build e install sem argumentos falham com mensagem', async () => {

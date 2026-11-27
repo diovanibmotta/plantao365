@@ -69,6 +69,22 @@ export async function lintStyles(dir: string, id: string): Promise<string[]> {
   return violations.flat().map((v) => `${v.file}:${v.line} ${v.message}`);
 }
 
+/**
+ * Env do `vite build`: herdado, mas sempre de produção. Com NODE_ENV=test ou VITEST (build
+ * chamado de dentro de testes/CI) o Module Federation não gera o remoteEntry.js.
+ */
+export function buildEnv(manifest: { id: string; version: string }): NodeJS.ProcessEnv {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST')),
+  );
+  return {
+    ...env,
+    NODE_ENV: 'production',
+    PLUGIN_ID: manifest.id,
+    PLUGIN_VERSION: manifest.version,
+  };
+}
+
 async function build(dir: string): Promise<void> {
   const manifest = await readManifest(dir);
   const dist = path.join(dir, 'dist');
@@ -98,7 +114,7 @@ async function build(dir: string): Promise<void> {
       cwd: dir,
       stdio: 'inherit',
       shell: true,
-      env: { ...process.env, PLUGIN_ID: manifest.id, PLUGIN_VERSION: manifest.version },
+      env: buildEnv(manifest),
     });
     if (res.status !== 0) throw new CliError('vite build falhou.');
     out.web = { entry: 'web/remoteEntry.js' };
