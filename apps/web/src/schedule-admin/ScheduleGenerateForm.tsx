@@ -7,10 +7,16 @@ import { SCHEDULE_ADMIN_PATH, schedulePath, tabPath } from './paths';
 import { errorCode } from './types';
 import type { GenerateResult } from './types';
 
-const generateError = (err: ApiError): string =>
-  errorCode(err) === 'schedule_overlap'
-    ? 'O período se sobrepõe a um rascunho existente. Descarte-o ou escolha outro período.'
-    : describeApiError(err);
+const generateError = (err: ApiError): string => {
+  const code = errorCode(err);
+  if (code === 'schedule_overlap') {
+    return 'O período se sobrepõe a um rascunho existente. Descarte-o ou escolha outro período.';
+  }
+  if (code === 'no_eligible_members') {
+    return 'A equipe não tem membros ativos na rotação. Cadastre ou ative membros que participam da rotação antes de gerar a escala.';
+  }
+  return describeApiError(err);
+};
 
 /** Geração de um rascunho para um período; ao concluir, abre o editor com o relatório. */
 export function ScheduleGenerateForm() {

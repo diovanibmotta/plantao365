@@ -244,3 +244,42 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('POST /schedules/generate (Po
     });
   });
 });
+
+describe.skipIf(!process.env['TEST_DATABASE_URL'])(
+  'POST /schedules/generate sem membros elegíveis',
+  () => {
+    let t: TestDb;
+    let sql: Sql;
+    let app: ReturnType<typeof buildTestApp>;
+    let manager: TestUser;
+
+    beforeAll(async () => {
+      t = await createTestDb();
+      sql = t.sql;
+      app = buildTestApp(sql, (a) =>
+        a.route(
+          '/',
+          createSchedulesRouter({ db: sql, now: () => new Date('2027-06-01T12:00:00Z') }),
+        ),
+      );
+      manager = await loginAs(sql, { email: 'g@x.com', role: 'manager', name: 'Gestor' });
+      await sql`update team_members set participates_in_rotation = false where user_id = ${manager.id}`;
+    });
+
+    afterAll(async () => {
+      await t.drop();
+    });
+
+    it('recusa com 422 e não cria rascunho', async () => {
+      const res = await app.request('/schedules/generate', {
+        method: 'POST',
+        headers: { ...csrfHeaders, 'content-type': 'application/json', cookie: manager.cookie },
+        body: JSON.stringify({ from: FROM, to: TO }),
+      });
+      expect(res.status).toBe(422);
+      expect(((await res.json()) as { error: string }).error).toBe('no_eligible_members');
+      const [n] = await sql<{ n: number }[]>`select count(*)::int as n from schedules`;
+      expect(n!.n).toBe(0);
+    });
+  },
+);
