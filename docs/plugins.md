@@ -18,7 +18,7 @@ npx plantao-plugin install meu-plugin-0.1.0.p365 --url https://plantao.exemplo -
 
 Depois do install, a master key habilita e configura em **Gestão › Plugins** (`/plugins`). Detalhes da CLI, do projeto e das variáveis do servidor no [README do plugin-sdk](../packages/plugin-sdk/README.md).
 
-Plugins não moram neste repositório: cada um tem o seu e é instalado como pacote. No core, `apps/api/src/plugins/scaffold-plugin.test.ts` testa o caminho do autor sobre o projeto que a CLI gera (create → build → pack → sign → install por token → enable → rota, migração e front) contra o Postgres do CI.
+Plugins não moram neste repositório: cada um tem o seu e é instalado como pacote. No core, `apps/api/src/plugins/scaffold-plugin.test.ts` testa o caminho do autor sobre o projeto que a CLI gera (create → build → pack → sign → install por token → enable → rota, migração e front) contra o Postgres do CI. O navegador fica com o job `e2e`, a regressão visual do plugin de referência (ver [CONTRIBUTING](../CONTRIBUTING.md#e2e-de-navegador-playwright)).
 
 O `plugin-sdk` e o `web-sdk` são publicados no GitHub Packages a cada release (a instalação pede um token com `read:packages` no `.npmrc`).
 
