@@ -1,5 +1,6 @@
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
 import { createApp } from './app.js';
 import { bootstrapManagers, syncMasterUser, type AuthOptions } from './auth/index.js';
@@ -8,6 +9,7 @@ import { createDb } from './db.js';
 import { createMailer, startOutboxWorker, type SmtpOptions } from './email/index.js';
 import { startEventWorker } from './events/index.js';
 import { createLogger } from './logger.js';
+import { loadMigrations, migrateUpLocked } from './migrator.js';
 import { createEventHandlers } from './notifications/handlers.js';
 import { parsePublicKeys, PluginRegistry, startPluginDeliveryWorker } from './plugins/index.js';
 import { startReminderJob } from './reminders/index.js';
@@ -52,6 +54,17 @@ const smtp: SmtpOptions | undefined =
         secure: config.SMTP_SECURE,
       }
     : undefined;
+
+if (config.AUTO_MIGRATE) {
+  const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../migrations');
+  try {
+    const applied = await migrateUpLocked(db, await loadMigrations(dir));
+    logger.info({ applied }, applied.length ? 'migrações aplicadas' : 'migrações em dia');
+  } catch (err) {
+    logger.error({ err }, 'falha ao aplicar migrações');
+    process.exit(1);
+  }
+}
 
 await bootstrapManagers(db, config.MANAGER_EMAILS);
 await syncMasterUser(db, authOptions.master);

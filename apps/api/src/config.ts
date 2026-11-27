@@ -77,6 +77,8 @@ const schema = z
     CORS_ALLOWED_ORIGINS: originList,
     /** Força o atributo Secure do cookie de sessão; sem valor, vale true só em produção. */
     COOKIE_SECURE: optional(strictBool),
+    /** Aplica as migrações pendentes na subida da API (com lock entre réplicas); false desliga. */
+    AUTO_MIGRATE: z.preprocess(emptyToUndefined, strictBool.default(true)),
     /** Master key: usuário/senha de bootstrap para o primeiro acesso (ambos ou nenhum). */
     MASTER_USERNAME: optional(z.string().min(3).max(64)),
     MASTER_PASSWORD: optional(z.string().min(12, 'use ao menos 12 caracteres').max(256)),

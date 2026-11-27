@@ -118,3 +118,24 @@ export async function migrateDown(
   }
   return reverted;
 }
+
+/** Chave do advisory lock que serializa a execução de migrações entre réplicas. */
+const MIGRATION_LOCK_KEY = 7_365_001;
+
+/**
+ * Aplica as migrações pendentes sob advisory lock de sessão: com várias réplicas subindo juntas,
+ * uma migra e as demais esperam e encontram tudo aplicado. Retorna os nomes aplicados.
+ */
+export async function migrateUpLocked(sql: Sql, migrations: Migration[]): Promise<string[]> {
+  const lock = await sql.reserve();
+  try {
+    await lock`select pg_advisory_lock(${MIGRATION_LOCK_KEY})`;
+    try {
+      return await migrateUp(sql, migrations);
+    } finally {
+      await lock`select pg_advisory_unlock(${MIGRATION_LOCK_KEY})`;
+    }
+  } finally {
+    lock.release();
+  }
+}

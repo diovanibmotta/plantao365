@@ -68,9 +68,11 @@ export function ScheduleEditorPage() {
 
   return (
     <>
-      {result && result.schedule.id === detail.id && (
-        <GenerateReport names={names} result={result} />
-      )}
+      <GenerateReport
+        names={names}
+        schedule={detail}
+        result={result && result.schedule.id === detail.id ? result : undefined}
+      />
       <ScheduleEditor
         key={detail.id}
         schedule={detail}

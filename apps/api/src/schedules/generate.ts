@@ -67,6 +67,12 @@ export class ScheduleOverlapError extends Error {
   }
 }
 
+export class NoEligibleMembersError extends Error {
+  constructor() {
+    super('A equipe não tem membros ativos que participam da rotação');
+  }
+}
+
 /**
  * Histórico para o equilíbrio: horas realizadas (plantões encerrados + ajustes, via balance) e
  * contagem de plantões encerrados de fim de semana/feriado (day_type 'weekend' | 'holiday').
@@ -133,12 +139,14 @@ export async function generateDraft(
     limit 1`;
   if (overlap) throw new ScheduleOverlapError(overlap.id);
 
-  const holidays = await listHolidayDates(tx, from, to);
-  const unavailable = await listUnavailableByDate(tx, from, to, teamId);
   const users = await tx<{ id: string; name: string; active: boolean; participates: boolean }[]>`
     select u.id, u.name, u.active, m.participates_in_rotation as participates
     from users u join team_members m on m.user_id = u.id and m.team_id = ${teamId}
     where u.active and m.participates_in_rotation order by u.id`;
+  if (users.length === 0) throw new NoEligibleMembersError();
+
+  const holidays = await listHolidayDates(tx, from, to);
+  const unavailable = await listUnavailableByDate(tx, from, to, teamId);
   const history = await loadHistory(tx, from, input.now);
   const lastAssignments = await loadLastAssignments(tx, from, teamId);
   const preferences = await listPreferences(
@@ -286,6 +294,16 @@ export function registerGenerateRoute(
             scheduleId: err.scheduleId,
           },
           409,
+        );
+      }
+      if (err instanceof NoEligibleMembersError) {
+        return c.json(
+          {
+            error: 'no_eligible_members',
+            message:
+              'A equipe não tem membros ativos na rotação. Cadastre ou ative membros que participam da rotação antes de gerar a escala.',
+          },
+          422,
         );
       }
       throw err;
