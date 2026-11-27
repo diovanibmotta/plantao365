@@ -10,6 +10,7 @@ Este README é para quem desenvolve. Uso, implantação, configuração e SSO es
 - [Configuração (variáveis de ambiente)](https://github.com/diovanibmotta/plantao365/wiki/Configuracao) · [SSO Entra ID](https://github.com/diovanibmotta/plantao365/wiki/SSO-Entra-ID)
 - [Implantação](https://github.com/diovanibmotta/plantao365/wiki/Implantacao): [Kubernetes](https://github.com/diovanibmotta/plantao365/wiki/Implantacao-Kubernetes), [imagem única](https://github.com/diovanibmotta/plantao365/wiki/Implantacao-Imagem-Unica), [Docker Compose](https://github.com/diovanibmotta/plantao365/wiki/Implantacao-Docker-Compose)
 - [Solução de problemas](https://github.com/diovanibmotta/plantao365/wiki/Solucao-de-Problemas)
+- [Plugins](https://github.com/diovanibmotta/plantao365/wiki/Plugins) (a partir da 2.0.0): [guia do autor](https://github.com/diovanibmotta/plantao365/wiki/Plugins-Guia-do-Autor), [contrato](https://github.com/diovanibmotta/plantao365/wiki/Plugins-Contrato), [operação](https://github.com/diovanibmotta/plantao365/wiki/Plugins-Operacao)
 
 ## Stack
 

@@ -2,6 +2,7 @@
 
 - **Status:** aceito (Fase 0 do milestone "Microkernel / Plugins", issue #53, feature #52)
 - **Data:** 2026-11-26
+- **Documentação técnica:** [wiki, Plugins](https://github.com/diovanibmotta/plantao365/wiki/Plugins), com as [diferenças entre esta decisão e o que foi entregue](https://github.com/diovanibmotta/plantao365/wiki/Plugins#diferenças-em-relação-à-adr-e-ao-plano-original)
 
 ## Contexto
 
