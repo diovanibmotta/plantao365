@@ -1,5 +1,4 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import './ui.css';
 
 /** Confirmação de ação destrutiva; o texto diz o efeito da exclusão. */
 export function ConfirmDialog({

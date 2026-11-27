@@ -1,6 +1,5 @@
 import type { FormEvent, ReactNode } from 'react';
 import { Link } from 'react-router';
-import './ui.css';
 
 export interface Crumb {
   label: string;

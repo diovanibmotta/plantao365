@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import './ui.css';
 
 /** Barra de filtros da listagem: busca textual sempre presente, filtros da tela e "Limpar filtros". */
 export function FilterBar({

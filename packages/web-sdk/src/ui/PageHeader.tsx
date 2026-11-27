@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import './ui.css';
 
 /** Cabeçalho da listagem: título, descrição de uma linha e o CTA principal (único botão de destaque). */
 export function PageHeader({

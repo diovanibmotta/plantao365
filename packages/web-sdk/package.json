@@ -16,16 +16,18 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./tokens.css": "./dist/tokens.css"
+    "./tokens.css": "./src/tokens.css",
+    "./ui.css": "./src/ui/ui.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "src/**/*.css"
   ],
   "sideEffects": [
     "*.css"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && node -e \"require('fs').cpSync('src','dist',{recursive:true,filter:f=>!/\\.tsx?$/.test(f)})\""
+    "build": "tsc -p tsconfig.json"
   },
   "peerDependencies": {
     "react": "^19.3.1",

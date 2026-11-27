@@ -10,7 +10,7 @@ Design system compartilhado e SDK do front para plugins do Plantão365. O app e 
 - Componentes "dumb" (só props → visual, sem estado de app nem HTTP): `PageHeader`, `FilterBar` (+ `normalizeSearch`), `EmptyState`, `FormPage`/`FormSection`/`FormActions`, `Breadcrumb`, `ConfirmDialog`, `InfoDialog`, `Pagination` (+ `usePagination`) e `PluginPage`. Tabela: classes `ui-table-wrap` / `ui-table`.
 - Serviços do host (registrados pelo app com `registerWebSdk`): `api`, `toast`, `useActiveTeam`, `useRole`.
 
-O host carrega `tokens.css` e os estilos globais (botões `.btn`, campos de formulário). O plugin não importa nem redefine nada disso.
+O host carrega `tokens.css`, `ui.css` (estilos dos componentes) e os estilos globais (botões `.btn`, campos de formulário). O plugin não importa nem redefine nada disso.
 
 ## Checklist visual do plugin
 
