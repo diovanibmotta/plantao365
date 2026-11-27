@@ -2,7 +2,7 @@
   "name": "@diovanibmotta/plantao365-api",
   "version": "1.30.0",
   "description": "API do Plantão365 (Hono + PostgreSQL), distribuída como pacote Node",
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/diovanibmotta/plantao365.git",
