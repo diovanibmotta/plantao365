@@ -22,6 +22,12 @@ server {
     proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
   }
 
+  # Front dos plugins (Module Federation), servido pela API na mesma origem.
+  location /plugins-assets/ {
+    proxy_pass ${API_UPSTREAM};
+    proxy_set_header Host $http_host;
+  }
+
   location /auth/ {
     proxy_pass ${API_UPSTREAM};
     proxy_set_header Host $http_host;

@@ -1,3 +1,4 @@
+import { Slot } from '../plugins/Slot';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { api } from '../api/client';
@@ -79,6 +80,7 @@ export function ProfilePage() {
             {tab === 'preferences' && <PreferencesSection />}
             {tab === 'exceptions' && <ExceptionsSection />}
           </div>
+          <Slot name="profile.sections" />
         </>
       )}
     </section>

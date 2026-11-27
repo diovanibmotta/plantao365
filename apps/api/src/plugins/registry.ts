@@ -32,6 +32,7 @@ import { startLoop, type Loop } from './loop.js';
 import { decodePackage, isKernelCompatible, sha256, verifySignature } from './package.js';
 import {
   KERNEL_API_VERSION,
+  packagePath,
   PluginError,
   type PluginManifest,
   type PluginStatus,
@@ -55,6 +56,8 @@ export interface PluginRegistryDeps {
 interface ActivePlugin {
   manifest: PluginManifest;
   sha256: string;
+  /** Diretório onde o pacote foi extraído. */
+  dir: string;
   definition: PluginDefinition | undefined;
   router: Hono<PluginEnv>;
   subscribers: Map<string, PluginEventHandler>;
@@ -83,6 +86,9 @@ interface PackageRow {
 const MIN_JOB_INTERVAL_MS = 1000;
 
 export const pluginSchema = (id: string) => `plugin_${id.replaceAll('-', '_')}`;
+/** Nome do container Module Federation do plugin (o build do front do plugin usa o mesmo). */
+export const remoteName = (id: string) => `plugin_${id.replaceAll('-', '_')}`;
+export const PLUGIN_ASSETS_PREFIX = '/plugins-assets';
 const migrationScope = (id: string): MigrationScope => ({
   scope: `plugin:${id}`,
   schema: pluginSchema(id),
@@ -209,12 +215,30 @@ export class PluginRegistry implements DeliveryTarget {
 
   /** Plugins ativos, para o front montar telas e menus (Fase 3). */
   activeManifests() {
-    return [...this.active.values()].map(({ manifest, sha256: sha }) => ({
+    return [...this.active.values()].map(({ manifest }) => ({
       id: manifest.id,
       name: manifest.name,
       version: manifest.version,
-      web: manifest.web ? { entry: manifest.web.entry, build: sha.slice(0, 16) } : null,
+      web: manifest.web
+        ? {
+            entry: `${PLUGIN_ASSETS_PREFIX}/${manifest.id}/${manifest.version}/${manifest.web.entry}`,
+            remote: remoteName(manifest.id),
+          }
+        : null,
     }));
+  }
+
+  /**
+   * Caminho no disco de um arquivo do front do plugin ativo, ou `null`. Só serve arquivos da pasta
+   * do `web.entry` (nunca o código do servidor nem as migrações) e da versão ativa.
+   */
+  webAssetPath(id: string, version: string, rel: string): string | null {
+    const plugin = this.active.get(id);
+    if (!plugin?.manifest.web || plugin.manifest.version !== version) return null;
+    if (!packagePath.safeParse(rel).success) return null;
+    const webRoot = path.posix.dirname(plugin.manifest.web.entry);
+    if (webRoot !== '.' && !rel.startsWith(`${webRoot}/`)) return null;
+    return path.join(plugin.dir, rel);
   }
 
   async list(): Promise<PluginSummary[]> {
@@ -448,6 +472,7 @@ export class PluginRegistry implements DeliveryTarget {
       definition: undefined,
       router: this.createRouter(logger),
       subscribers: new Map(),
+      dir,
       jobs: [],
       rotationPrepare: [],
       swapGuards: [],

@@ -1,0 +1,29 @@
+{
+  "name": "@diovanibmotta/plantao365-web-sdk",
+  "version": "1.30.0",
+  "description": "SDK do front para plugins do Plantão365: componentes, API e contrato de telas, menus e slots",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/diovanibmotta/plantao365.git",
+    "directory": "packages/web-sdk"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "react": "^19.3.1"
+  }
+}

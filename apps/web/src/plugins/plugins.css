@@ -1,0 +1,4 @@
+/* Moldura dos slots de plugin: só espaçamento; o visual vem dos componentes do web-sdk. */
+.plugin-slot {
+  margin-block: var(--space);
+}

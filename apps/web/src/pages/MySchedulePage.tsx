@@ -1,3 +1,4 @@
+import { Slot } from '../plugins/Slot';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { addDays } from '@diovanibmotta/plantao365-shared';
@@ -88,6 +89,7 @@ export function MySchedulePage({ today: todayProp, renderActions }: MySchedulePa
           currentYear={Number(today.slice(0, 4))}
         />
       )}
+      <Slot name="my-schedule.aside" />
     </section>
   );
 }

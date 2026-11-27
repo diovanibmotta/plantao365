@@ -23,6 +23,7 @@ import { MemberForm } from './members/MemberForm';
 import { MembersPage } from './pages/MembersPage';
 import { MySchedulePage } from './pages/MySchedulePage';
 import { NotFoundPage } from './pages/pages';
+import { PluginRoutes } from './plugins/PluginRoutes';
 import { ProfilePage } from './pages/ProfilePage';
 import { SwapsPage } from './pages/SwapsPage';
 import { TeamSchedulePage } from './pages/TeamSchedulePage';
@@ -58,6 +59,8 @@ export function App() {
         <Route element={<Layout />}>
           <Route index element={<HomeRedirect />} />
           <Route path="schedule" element={<TeamSchedulePage />} />
+          {/* Telas de plugins: o papel de cada rota é checado em PluginRoutes. */}
+          <Route path="plugins/:pluginId/*" element={<PluginRoutes />} />
           <Route element={<RequireRole role="member" />}>
             <Route path="my-schedule" element={<MySchedulePage />} />
             <Route path="swaps" element={<SwapsPage />} />

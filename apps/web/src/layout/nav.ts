@@ -1,3 +1,4 @@
+import type { PluginNavItem } from '@diovanibmotta/plantao365-web-sdk';
 import type { Role } from '../auth/AuthContext';
 
 export type NavIcon =
@@ -19,6 +20,8 @@ export interface NavItem {
   to: string;
   label: string;
   icon: NavIcon;
+  /** Ícone de plugin: dados `d` de paths SVG, desenhados na mesma moldura dos nativos. */
+  iconPaths?: string[];
   group: NavGroup;
   role?: Role;
 }
@@ -59,5 +62,20 @@ export const PROFILE_PATH = '/profile';
 const RANK: Record<Role, number> = { guest: 0, member: 1, manager: 2 };
 
 /** Itens visíveis: sem `role` = membro ou acima; convidado só vê os marcados como 'guest'. */
-export const navItemsFor = (role: Role): NavItem[] =>
-  NAV_ITEMS.filter((item) => RANK[role] >= RANK[item.role ?? 'member']);
+export const navItemsFor = (role: Role, extra: NavItem[] = []): NavItem[] =>
+  [...NAV_ITEMS, ...extra].filter((item) => RANK[role] >= RANK[item.role ?? 'member']);
+
+/** Itens de menu declarados pelos plugins, em `/plugins/<id>/<path>`. */
+export const pluginNavItems = (
+  plugins: { id: string; module: { nav?: PluginNavItem[] } | null }[],
+): NavItem[] =>
+  plugins.flatMap((p) =>
+    (p.module?.nav ?? []).map((item) => ({
+      to: `/plugins/${p.id}${item.path ? `/${item.path}` : ''}`,
+      label: item.label,
+      icon: 'layers' as const,
+      ...(item.icon && { iconPaths: item.icon }),
+      group: item.group,
+      ...(item.role && { role: item.role }),
+    })),
+  );

@@ -9,6 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@module-federation/runtime": "2.9.3",
+    "@module-federation/vite": "1.23.11",
+    "@diovanibmotta/plantao365-web-sdk": "*",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",
     "react": "^19.3.1",

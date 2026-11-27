@@ -4,13 +4,15 @@ WORKDIR /repo
 COPY package.json package-lock.json tsconfig.base.json tsconfig.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/plugin-sdk/package.json packages/plugin-sdk/
+COPY packages/web-sdk/package.json packages/web-sdk/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 RUN npm ci --ignore-scripts
 COPY packages/shared packages/shared
 COPY packages/plugin-sdk packages/plugin-sdk
+COPY packages/web-sdk packages/web-sdk
 COPY apps/web apps/web
-RUN npm run build -w @diovanibmotta/plantao365-shared && npm run build -w @diovanibmotta/plantao365-plugin-sdk && npm run build -w @diovanibmotta/plantao365-web
+RUN npm run build -w @diovanibmotta/plantao365-shared && npm run build -w @diovanibmotta/plantao365-plugin-sdk && npm run build -w @diovanibmotta/plantao365-web-sdk && npm run build -w @diovanibmotta/plantao365-web
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
 ENV API_UPSTREAM=http://api:3000
