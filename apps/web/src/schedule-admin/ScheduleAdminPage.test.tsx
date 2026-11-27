@@ -725,6 +725,14 @@ describe('escalas: editor', () => {
     expect(await screen.findByRole('table', { name: 'Escalas' })).toBeTruthy();
   });
 
+  it('salva o rascunho sem publicar e volta à listagem', async () => {
+    const fetchMock = mockApi('draft');
+    const user = await openEditor();
+    await user.click(screen.getByRole('button', { name: 'Salvar rascunho' }));
+    expect(await screen.findByRole('table', { name: 'Escalas' })).toBeTruthy();
+    expect(called(fetchMock, '/api/schedules/s1/publish', 'POST')).toBe(false);
+  });
+
   it('exige motivo em escala publicada e avisa que o membro será notificado', async () => {
     const fetchMock = mockApi('published', (url, init) =>
       url === '/api/schedules/s1/shifts/sh-2026-03-02' && init.method === 'PATCH'
