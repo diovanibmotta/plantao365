@@ -7,7 +7,8 @@ import { effectiveTheme, setTheme, type Theme } from '../theme';
 import { Avatar } from './Avatar';
 import { ConfigWarningsBanner } from './ConfigWarningsBanner';
 import { BrandMark, Icon } from './icons';
-import { NAV_GROUP_LABELS, PROFILE_PATH, navItemsFor, type NavGroup } from './nav';
+import { NAV_GROUP_LABELS, PROFILE_PATH, navItemsFor, pluginNavItems, type NavGroup } from './nav';
+import { PluginProvider, usePlugins } from '../plugins/PluginContext';
 
 const GROUP_ORDER: NavGroup[] = ['schedule', 'admin'];
 
@@ -69,7 +70,9 @@ function TeamSwitcher() {
 export function Layout() {
   return (
     <TeamProvider>
-      <LayoutShell />
+      <PluginProvider>
+        <LayoutShell />
+      </PluginProvider>
     </TeamProvider>
   );
 }
@@ -78,6 +81,7 @@ function LayoutShell() {
   const { user, logout } = useAuth();
   const { activeTeam, loading } = useTeam();
   const role = useRole();
+  const { plugins } = usePlugins();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
 
@@ -90,7 +94,7 @@ function LayoutShell() {
   }, [open]);
 
   if (!user || !role) return null;
-  const items = navItemsFor(role);
+  const items = navItemsFor(role, pluginNavItems(plugins));
   const roleLabel = user.isMaster
     ? 'Master'
     : { manager: 'Gestor', member: 'Membro', guest: 'Convidado' }[role];
@@ -133,7 +137,7 @@ function LayoutShell() {
                     {groupItems.map((item) => (
                       <li key={item.to}>
                         <NavLink to={item.to}>
-                          <Icon name={item.icon} />
+                          <Icon name={item.icon} paths={item.iconPaths} />
                           {item.label}
                         </NavLink>
                       </li>

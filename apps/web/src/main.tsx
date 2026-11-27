@@ -6,9 +6,11 @@ import { AuthProvider } from './auth/AuthContext';
 import { ImpactConfirmDialog } from './api/ImpactConfirmDialog';
 import { ToastViewport } from './toast/ToastViewport';
 import { initTheme } from './theme';
+import { registerPluginSdk } from './plugins/sdk-host';
 import './styles.css';
 
 initTheme();
+registerPluginSdk();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Elemento #root não encontrado');

@@ -15,7 +15,11 @@ import {
 import { createAuditRouter } from './audit/index.js';
 import { createBalanceRouter } from './balance/index.js';
 import { createOnPublished, createOnShiftChanged } from './notifications/schedule-events.js';
-import { createPluginsRouter, type PluginRegistry } from './plugins/index.js';
+import {
+  createPluginAssetsRouter,
+  createPluginsRouter,
+  type PluginRegistry,
+} from './plugins/index.js';
 import { createPreferencesRouter } from './preferences/index.js';
 import { createHolidaysRouter, createOnShiftsRecalculated } from './holidays/index.js';
 import {
@@ -180,7 +184,10 @@ export function createApp({
     );
     app.route('/api', createPreferencesRouter({ db }));
     app.route('/api', createBalanceRouter({ db }));
-    if (plugins) app.route('/api', createPluginsRouter({ registry: plugins }));
+    if (plugins) {
+      app.route('/api', createPluginsRouter({ registry: plugins }));
+      app.route('/', createPluginAssetsRouter({ registry: plugins }));
+    }
   }
 
   app.get('/health', (c) => {

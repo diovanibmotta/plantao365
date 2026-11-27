@@ -90,7 +90,16 @@ const PATHS: Record<
   ),
 };
 
-export function Icon({ name, size = 16 }: { name: keyof typeof PATHS; size?: number }) {
+export function Icon({
+  name,
+  paths,
+  size = 16,
+}: {
+  name: keyof typeof PATHS;
+  /** Ícone de plugin (só dados `d`): substitui `name`, herda moldura, traço e cor. */
+  paths?: string[] | undefined;
+  size?: number;
+}) {
   return (
     <svg
       width={size}
@@ -105,7 +114,7 @@ export function Icon({ name, size = 16 }: { name: keyof typeof PATHS; size?: num
       focusable="false"
       className="icon"
     >
-      {PATHS[name]}
+      {paths ? paths.map((d) => <path key={d} d={d} />) : PATHS[name]}
     </svg>
   );
 }

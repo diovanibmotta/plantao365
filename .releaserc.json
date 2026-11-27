@@ -32,6 +32,13 @@
     [
       "@semantic-release/npm",
       {
+        "pkgRoot": "packages/web-sdk",
+        "npmPublish": false
+      }
+    ],
+    [
+      "@semantic-release/npm",
+      {
         "pkgRoot": "apps/api",
         "npmPublish": true
       }
@@ -44,6 +51,7 @@
           "package.json",
           "packages/shared/package.json",
           "packages/plugin-sdk/package.json",
+          "packages/web-sdk/package.json",
           "apps/api/package.json",
           "package-lock.json"
         ],

@@ -1,3 +1,4 @@
+import { Slot } from '../plugins/Slot';
 import { useEffect, useMemo, useState } from 'react';
 import {
   DEFAULT_WORK_PERIODS,
@@ -199,6 +200,7 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
   return (
     <section>
       <PageTitle>Calendário</PageTitle>
+      <Slot name="schedule.toolbar" />
       <div className="sched-toolbar">
         <div className="sched-nav">
           <button
