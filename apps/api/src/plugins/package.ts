@@ -58,16 +58,24 @@ export function decodePackage(archive: Buffer): PluginPackage {
       throw new PluginError('invalid_package', `Arquivo ${entry} do manifesto não está no pacote.`);
     }
   }
+  return { manifest, files: map };
+}
+
+/**
+ * Gate de identidade visual, só no install: pacote com front precisa de `styleCheck: "passed"`
+ * (gravado pela CLI) e o kernel confere o CSS de novo. Não roda na ativação, para que um lint
+ * mais rígido num kernel futuro não derrube plugins já instalados.
+ */
+export function assertStyleCheck({ manifest, files }: PluginPackage): void {
   if (manifest.web && manifest.styleCheck !== 'passed') {
     throw new PluginError(
       'invalid_package',
       'O pacote não passou pelo lint de estilo da CLI (styleCheck ausente no manifesto).',
     );
   }
-  // A CLI já rodou o lint; o kernel confere de novo para não depender só do manifesto.
-  const violations = [...map]
+  const violations = [...files]
     .filter(([p]) => p.endsWith('.css'))
-    .flatMap(([p, content]) => checkPluginStyles(content.toString('utf8'), p));
+    .flatMap(([p, content]) => checkPluginStyles(content.toString('utf8'), manifest.id, p));
   if (violations.length > 0) {
     const first = violations
       .slice(0, 3)
@@ -75,7 +83,6 @@ export function decodePackage(archive: Buffer): PluginPackage {
       .join(' ');
     throw new PluginError('invalid_package', `Estilo do plugin reprovado: ${first}`);
   }
-  return { manifest, files: map };
 }
 
 /** Chaves públicas Ed25519 em base64 (DER/SPKI), separadas por vírgula. */

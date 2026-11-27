@@ -30,7 +30,13 @@ import type { Logger } from '../logger.js';
 import { loadMigrations, migrateUp, type MigrationScope } from '../migrator.js';
 import type { DeliveryTarget } from './deliveries.js';
 import { startLoop, type Loop } from './loop.js';
-import { decodePackage, isKernelCompatible, sha256, verifySignature } from './package.js';
+import {
+  assertStyleCheck,
+  decodePackage,
+  isKernelCompatible,
+  sha256,
+  verifySignature,
+} from './package.js';
 import {
   KERNEL_API_VERSION,
   packagePath,
@@ -283,7 +289,9 @@ export class PluginRegistry implements DeliveryTarget {
   install(archive: Buffer, signature: Buffer, actorId: string): Promise<PluginManifest> {
     return this.exclusive(async () => {
       verifySignature(archive, signature, this.deps.publicKeys);
-      const { manifest } = decodePackage(archive);
+      const pkg = decodePackage(archive);
+      const { manifest } = pkg;
+      assertStyleCheck(pkg);
       if (!isKernelCompatible(manifest.kernelApi)) {
         throw new PluginError(
           'incompatible_kernel',

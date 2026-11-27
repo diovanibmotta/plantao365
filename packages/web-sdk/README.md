@@ -17,7 +17,7 @@ O host carrega `tokens.css`, `ui.css` (estilos dos componentes) e os estilos glo
 - [ ] Telas montadas com os componentes acima, no padrão de telas do app: listagem com `PageHeader` + `FilterBar` + `ui-table` + "N de M registros" + `EmptyState`; formulário em rota própria com `FormPage`, `FormActions` e Excluir só com `ConfirmDialog`.
 - [ ] Tela sem formulário começa por `PluginPage` (título, descrição, breadcrumb).
 - [ ] Feedback de mutação pelo toast do `api` (`successMessage`); sem mensagem inline de sucesso.
-- [ ] CSS escopado: todo seletor começa por classe do plugin (`.plg-<id>` ou CSS Modules). Nada de `body`, `html`, `:root`, `*` ou tag solta.
+- [ ] CSS escopado: todo seletor de topo começa por `.plg-<id>`, classe que o host põe no container das rotas e de cada slot do plugin (regras aninhadas herdam o escopo). Nada de `body`, `:root`, tag solta nem classe do host (`.btn`, `.ui-table`…) fora desse escopo.
 - [ ] Cores só por `var(--…)` semântico; sem hex, `rgb()`, `oklch()` etc. Sem `!important`.
 - [ ] Sem `@import`, `@font-face` ou `url()` remoto: a fonte é a do host.
 - [ ] Propriedades customizadas próprias com prefixo `--plg-`.

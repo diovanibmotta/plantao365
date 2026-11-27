@@ -34,11 +34,14 @@ function splitSelectors(prelude: string): string[] {
 }
 
 /**
- * Regras: seletor começa por classe (CSS Modules ou prefixo `.plg-<id>`) ou `&`; sem `!important`;
- * sem `@import`, `@font-face` nem `url()` remoto; cores só via `var(--…)` dos tokens; propriedades
- * customizadas próprias só com prefixo `--plg-` (nunca redefinir tokens do host).
+ * Regras: todo seletor de topo começa por `.plg-<id>` (classe que o host põe no container do
+ * plugin), então nem classe do host (`.btn`, `.ui-table`) é atingida; regras aninhadas herdam o
+ * escopo. Sem `!important`; sem `@import`, `@font-face` nem `url()` remoto; cores só via `var(--…)`
+ * dos tokens; propriedades customizadas próprias só com prefixo `--plg-`.
  */
-export function checkPluginStyles(css: string, file = 'style.css'): StyleViolation[] {
+export function checkPluginStyles(css: string, id: string, file = 'style.css'): StyleViolation[] {
+  const scope = `.plg-${id}`;
+  const scoped = (sel: string) => sel.startsWith(scope) && !/[\w-]/.test(sel.charAt(scope.length));
   // Comentários viram espaços para manter o número das linhas.
   const src = css.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' '));
   const violations: StyleViolation[] = [];
@@ -84,9 +87,10 @@ export function checkPluginStyles(css: string, file = 'style.css'): StyleViolati
       } else if (top === 'keyframes') {
         stack.push('frame');
       } else {
-        for (const sel of splitSelectors(text)) {
-          if (!sel.startsWith('.') && !sel.startsWith('&')) {
-            report(at, `Seletor global "${sel}"; comece por uma classe do plugin (.plg-<id>).`);
+        // Dentro de outra regra o seletor já é relativo a ela (CSS nesting).
+        if (!stack.includes('rule')) {
+          for (const sel of splitSelectors(text)) {
+            if (!scoped(sel)) report(at, `Seletor fora do escopo "${sel}"; comece por ${scope}.`);
           }
         }
         stack.push('rule');

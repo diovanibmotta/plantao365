@@ -65,7 +65,7 @@ describe.skipIf(!TEST_DATABASE_URL)('front dos plugins (/plugins-assets)', () =>
       {
         'server/index.js': 'export default { setup() {} };',
         'web/remoteEntry.js': 'export const x = 1;',
-        'web/assets/app.css': '.a{}',
+        'web/assets/app.css': '.plg-web-demo{}',
       },
     );
     await call('POST', '/api/plugins', {
