@@ -2,15 +2,24 @@ import { loadRemote, registerRemotes } from '@module-federation/runtime';
 import type { PluginWebModule } from '@plantao365/web-sdk';
 import type { LoadedPlugin, PluginLoader } from './types';
 
+/** `entry` já registrada por remote nesta página. */
+const registered = new Map<string, string>();
+
 /**
  * Registra os remotes do manifesto e carrega o módulo `./web` de cada plugin. Falha de um plugin
  * vira `error` só dele; os outros e o app seguem.
  */
 export const loadFederatedPlugins: PluginLoader = async (plugins) => {
   const withWeb = plugins.filter((p) => p.web);
-  registerRemotes(
-    withWeb.map((p) => ({ name: p.web!.remote, entry: p.web!.entry, type: 'module' })),
-  );
+  for (const { web } of withWeb) {
+    const { remote: name, entry } = web!;
+    const previous = registered.get(name);
+    // Sem `force` o runtime ignora o novo registro e segue com o módulo da versão anterior.
+    registerRemotes([{ name, entry, type: 'module' }], {
+      force: previous !== undefined && previous !== entry,
+    });
+    registered.set(name, entry);
+  }
   return Promise.all(
     withWeb.map(async (p): Promise<LoadedPlugin> => {
       try {

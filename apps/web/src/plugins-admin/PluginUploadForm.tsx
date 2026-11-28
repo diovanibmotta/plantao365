@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ConfirmDialog, FormActions, FormPage, FormSection } from '@plantao365/web-sdk';
 import { api } from '../api/client';
+import { usePlugins } from '../plugins/PluginContext';
 import { PLUGINS_PATH } from './paths';
 import './plugins-admin.css';
 
@@ -23,6 +24,7 @@ export function PluginUploadForm() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const { reload } = usePlugins();
   const back = () => void navigate(PLUGINS_PATH);
 
   const askToInstall = () => {
@@ -44,6 +46,7 @@ export function PluginUploadForm() {
       // erro exibido pelo toast do interceptor
       setConfirming(false);
     } finally {
+      reload();
       setBusy(false);
     }
   };

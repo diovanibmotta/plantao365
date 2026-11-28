@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ConfirmDialog, FormActions, FormPage, FormSection } from '@plantao365/web-sdk';
 import { api } from '../api/client';
+import { usePlugins } from '../plugins/PluginContext';
 import { PLUGINS_PATH } from './paths';
 import {
   STATUS_LABELS,
@@ -20,6 +21,7 @@ export function PluginForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const fieldId = useId();
+  const { reload } = usePlugins();
   const [plugin, setPlugin] = useState<PluginSummary | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(false);
@@ -104,6 +106,7 @@ export function PluginForm() {
     } catch {
       // erro exibido pelo toast do interceptor
     } finally {
+      reload();
       setBusy(false);
     }
   };
@@ -117,6 +120,7 @@ export function PluginForm() {
     } catch {
       setConfirmingDelete(false);
     } finally {
+      reload();
       setBusy(false);
     }
   };
