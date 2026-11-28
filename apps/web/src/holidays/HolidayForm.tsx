@@ -3,8 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { api } from '../api/client';
 import type { ApiError } from '../api/client';
 import { toast } from '../toast/toast-store';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { FormActions, FormPage, FormSection } from '../ui/FormPage';
+import { ConfirmDialog, FormActions, FormPage, FormSection } from '@plantao365/web-sdk';
 import { HolidayWarnings } from './HolidayWarnings';
 import { HOLIDAYS_PATH } from './paths';
 import {

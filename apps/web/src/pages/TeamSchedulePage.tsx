@@ -1,3 +1,4 @@
+import { Slot } from '../plugins/Slot';
 import { useEffect, useMemo, useState } from 'react';
 import {
   DEFAULT_WORK_PERIODS,
@@ -5,13 +6,8 @@ import {
   addDays,
   isWeekend,
   shiftDuration,
-} from '@diovanibmotta/plantao365-shared';
-import type {
-  LocalDate,
-  ShiftException,
-  ShiftTimes,
-  WorkPeriod,
-} from '@diovanibmotta/plantao365-shared';
+} from '@plantao365/shared';
+import type { LocalDate, ShiftException, ShiftTimes, WorkPeriod } from '@plantao365/shared';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useRole } from '../team/TeamContext';
@@ -199,6 +195,7 @@ export function TeamSchedulePage({ today: todayProp }: TeamSchedulePageProps) {
   return (
     <section>
       <PageTitle>Calendário</PageTitle>
+      <Slot name="schedule.toolbar" />
       <div className="sched-toolbar">
         <div className="sched-nav">
           <button

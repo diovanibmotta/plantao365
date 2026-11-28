@@ -1,5 +1,5 @@
-import { addDays, dayOfWeek } from '@diovanibmotta/plantao365-shared';
-import type { LocalDate } from '@diovanibmotta/plantao365-shared';
+import { addDays, dayOfWeek } from '@plantao365/shared';
+import type { LocalDate } from '@plantao365/shared';
 
 /** Mês no formato AAAA-MM. */
 export type MonthKey = string;

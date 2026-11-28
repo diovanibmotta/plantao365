@@ -1,4 +1,4 @@
-import type { DayType, LocalDate } from '@diovanibmotta/plantao365-shared';
+import type { DayType, LocalDate } from '@plantao365/shared';
 
 export type ScheduleStatus = 'draft' | 'published';
 export type ShiftStatusFilter = ScheduleStatus | 'all';

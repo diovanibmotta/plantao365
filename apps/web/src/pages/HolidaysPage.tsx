@@ -4,10 +4,14 @@ import { api } from '../api/client';
 import { HOLIDAYS_NEW_PATH, holidayPath } from '../holidays/paths';
 import { errorMessage, formatHolidayDate, scopeLabel, SCOPES } from '../holidays/types';
 import type { Holiday, HolidayScope } from '../holidays/types';
-import { EmptyState } from '../ui/EmptyState';
-import { FilterBar, normalizeSearch } from '../ui/FilterBar';
-import { PageHeader } from '../ui/PageHeader';
-import { Pagination, usePagination } from '../ui/Pagination';
+import {
+  EmptyState,
+  FilterBar,
+  normalizeSearch,
+  PageHeader,
+  Pagination,
+  usePagination,
+} from '@plantao365/web-sdk';
 
 type Outcome = { error: string } | { items: Holiday[] };
 

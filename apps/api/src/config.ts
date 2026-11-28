@@ -67,7 +67,7 @@ const schema = z
     SMTP_FROM: optional(z.email()),
     SMTP_SECURE: optional(bool),
     /** Documentação de implantação (wiki), linkada nos avisos de recurso não configurado. */
-    DOCS_URL: z.url().default('https://github.com/diovanibmotta/plantao365/wiki'),
+    DOCS_URL: z.url().default('https://github.com/plantao365/app/wiki'),
     /** Pasta do build do front (imagem única): a API serve a SPA no mesmo domínio. */
     WEB_DIST_DIR: optional(z.string()),
     /**
@@ -83,6 +83,20 @@ const schema = z
     MASTER_USERNAME: optional(z.string().min(3).max(64)),
     MASTER_PASSWORD: optional(z.string().min(12, 'use ao menos 12 caracteres').max(256)),
     SESSION_TTL_SECONDS: z.coerce.number().int().min(60).default(28800),
+    /**
+     * Chaves públicas Ed25519 (base64 DER/SPKI, separadas por vírgula) confiáveis além da loja
+     * oficial e das cadastradas pela tela. Opcional.
+     */
+    PLUGIN_PUBLIC_KEYS: optional(z.string()),
+    /** Cache local onde os pacotes de plugin são extraídos; padrão: diretório temporário do SO. */
+    PLUGINS_DIR: optional(z.string()),
+    /**
+     * Índice da loja de plugins; sem valor usa a loja oficial, `off` desliga. Ignorado enquanto
+     * `PLUGIN_STORE_ENABLED` for falso (loja só na v3).
+     */
+    PLUGIN_CATALOG_URL: optional(z.union([z.literal('off'), z.url({ protocol: /^https?$/ })])),
+    /** Token da CLI (`plantao-plugin install --token`); vazio: só gestor logado instala. */
+    PLUGIN_INSTALL_TOKEN: optional(z.string().min(32, 'use ao menos 32 caracteres')),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production') {

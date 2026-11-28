@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { DEFAULT_SHIFT_TIMES, shiftDuration } from '@diovanibmotta/plantao365-shared';
-import type { ShiftTimes, WeekdayShiftTime } from '@diovanibmotta/plantao365-shared';
+import { DEFAULT_SHIFT_TIMES, shiftDuration } from '@plantao365/shared';
+import type { ShiftTimes, WeekdayShiftTime } from '@plantao365/shared';
 import { api } from '../api/client';
 import { formatHours } from '../schedule/format';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { FormActions, FormPage, FormSection } from '../ui/FormPage';
+import { ConfirmDialog, FormActions, FormPage, FormSection } from '@plantao365/web-sdk';
 import { SCHEDULE_ADMIN_PATH, tabPath } from './paths';
 import { describe } from './types';
 import { HOLIDAY_KEY, SHIFT_TARGETS, effectiveTime, parseTarget, targetLabel } from './weekdays';

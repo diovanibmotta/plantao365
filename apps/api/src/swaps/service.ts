@@ -1,4 +1,4 @@
-import type { LocalDate } from '@diovanibmotta/plantao365-shared';
+import type { LocalDate } from '@plantao365/shared';
 import { recordAudit, type AuditJson, type SqlOrTx } from '../audit/index.js';
 import type { Sql } from '../db.js';
 import { lockSchedulesThenShifts } from '../schedules/service.js';

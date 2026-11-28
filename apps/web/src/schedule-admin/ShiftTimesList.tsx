@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { shiftDuration } from '@diovanibmotta/plantao365-shared';
-import type { ShiftTimes, WeekdayShiftTime } from '@diovanibmotta/plantao365-shared';
+import { shiftDuration } from '@plantao365/shared';
+import type { ShiftTimes, WeekdayShiftTime } from '@plantao365/shared';
 import { api } from '../api/client';
 import { formatHours } from '../schedule/format';
-import { FilterBar, normalizeSearch } from '../ui/FilterBar';
-import { PageHeader } from '../ui/PageHeader';
-import { Pagination, usePagination } from '../ui/Pagination';
+import {
+  FilterBar,
+  normalizeSearch,
+  PageHeader,
+  Pagination,
+  usePagination,
+} from '@plantao365/web-sdk';
 import { SHIFT_TIMES_NEW_PATH, shiftTimePath } from './paths';
 import { describe } from './types';
 import { HOLIDAY_KEY, SHIFT_TARGETS, effectiveTime, targetLabel } from './weekdays';

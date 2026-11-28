@@ -43,6 +43,17 @@ export interface RotationMember {
   history: { hoursDone: number; weekendHolidayShiftsDone: number };
 }
 
+/**
+ * Ajuste de regra vindo de plugin. As funções devem ser puras e determinísticas (os dados já
+ * carregados antes da geração), como o resto do motor.
+ */
+export interface RotationAdjuster {
+  /** `false` = membro não pode ser escalado na data (regra rígida, como uma exceção). */
+  eligible?(userId: string, date: LocalDate): boolean;
+  /** Penalidade branda (>= 0), na mesma unidade das preferências (plantões de equilíbrio). */
+  penalty?(userId: string, date: LocalDate): number;
+}
+
 export interface RotationInput {
   from: LocalDate;
   to: LocalDate;
@@ -50,6 +61,7 @@ export interface RotationInput {
   members: readonly RotationMember[];
   /** Plantões imediatamente anteriores ao período, para contar consecutivos. */
   lastAssignments?: readonly { date: LocalDate; userId: string }[];
+  adjusters?: readonly RotationAdjuster[];
 }
 
 export interface RotationShift {
@@ -117,8 +129,21 @@ export function generateRotation(input: RotationInput): RotationOutput {
     dayType: classifyDay(date, ctx),
   }));
 
+  const adjusters = input.adjusters ?? [];
+  const blocks = adjusters.filter((a) => a.eligible);
+  const penalties = adjusters.filter((a) => a.penalty);
+  const extraPenalty = (userId: string, date: LocalDate) =>
+    penalties.reduce((sum, a) => {
+      const p = a.penalty!(userId, date);
+      return sum + (Number.isFinite(p) && p > 0 ? p : 0);
+    }, 0);
+
   const states: MemberState[] = [...input.members].sort(byId).map((member) => {
     const unavailable = new Set(member.unavailableDates);
+    // Bloqueio de plugin conta como exceção: sai dos elegíveis e da disponibilidade.
+    for (const { date } of days) {
+      if (blocks.some((a) => !a.eligible!(member.id, date))) unavailable.add(date);
+    }
     const eligibleMember = member.active && member.participatesInRotation;
     const availableDays = eligibleMember
       ? days.filter((d) => d.dayType !== 'collective_vacation' && !unavailable.has(d.date)).length
@@ -178,10 +203,10 @@ export function generateRotation(input: RotationInput): RotationOutput {
       const avoid = state.avoid.has(dow);
       const max = member.preferences.maxConsecutiveShifts;
       const consecutive = max !== null && consecutiveRun(assigned, member.id, date) + 1 > max;
-      const penalty =
-        (avoid ? 1 : 0) + (consecutive ? 1 : 0) > 0
-          ? PREFERENCE_PENALTY_SHIFTS * (after - before) * ((avoid ? 1 : 0) + (consecutive ? 1 : 0))
-          : 0;
+      const weight =
+        PREFERENCE_PENALTY_SHIFTS * ((avoid ? 1 : 0) + (consecutive ? 1 : 0)) +
+        extraPenalty(member.id, date);
+      const penalty = weight > 0 ? weight * (after - before) : 0;
       const score = after + penalty;
       if (best === null || score < best.score - EPSILON)
         best = { state, score, avoid, consecutive };

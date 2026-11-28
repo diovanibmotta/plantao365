@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { api } from '../api/client';
-import { EmptyState } from '../ui/EmptyState';
-import { FilterBar, normalizeSearch } from '../ui/FilterBar';
-import { PageHeader } from '../ui/PageHeader';
-import { Pagination, usePagination } from '../ui/Pagination';
+import {
+  EmptyState,
+  FilterBar,
+  normalizeSearch,
+  PageHeader,
+  Pagination,
+  usePagination,
+} from '@plantao365/web-sdk';
 import { Diff } from './Diff';
 import { formatDate } from './format';
 import { ADJUSTMENTS_NEW_PATH, adjustmentPath } from './paths';

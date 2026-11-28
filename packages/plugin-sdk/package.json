@@ -1,0 +1,48 @@
+{
+  "name": "@plantao365/plugin-sdk",
+  "version": "1.30.0",
+  "description": "Contrato (tipos e helpers) para escrever plugins do Plantão365",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/plantao365/app.git",
+    "directory": "packages/plugin-sdk"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "default": "./dist/cli.js"
+    }
+  },
+  "bin": {
+    "plantao-plugin": "./bin/plantao-plugin.js"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "esbuild": ">=0.28.0",
+    "hono": "^4.13.21",
+    "postgres": "^4.1.1"
+  },
+  "peerDependenciesMeta": {
+    "esbuild": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  }
+}

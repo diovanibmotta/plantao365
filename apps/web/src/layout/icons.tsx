@@ -62,6 +62,9 @@ const PATHS: Record<
   shield: (
     <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
   ),
+  puzzle: (
+    <path d="M19.44 7.85c-.05.32.06.65.29.88l1.57 1.57a2.41 2.41 0 0 1 0 3.41l-1.61 1.61a.98.98 0 0 1-.84.28c-.47-.07-.8-.48-.97-.93a2.5 2.5 0 1 0-3.21 3.21c.45.17.86.5.93.97a.98.98 0 0 1-.28.84l-1.61 1.61a2.4 2.4 0 0 1-3.41 0l-1.57-1.57a1.03 1.03 0 0 0-.88-.29c-.49.07-.84.5-1.02.97a2.5 2.5 0 1 1-3.24-3.24c.46-.18.9-.53.97-1.02a1.03 1.03 0 0 0-.29-.88L2.7 13.7a2.4 2.4 0 0 1 0-3.41l1.53-1.53c.24-.24.58-.35.92-.3.51.08.88.53 1.07 1.01a2.5 2.5 0 1 0 3.26-3.26c-.48-.2-.93-.56-1.01-1.07-.05-.34.06-.68.3-.92L10.3 2.7a2.4 2.4 0 0 1 3.41 0l1.57 1.57c.23.23.56.34.88.29.49-.07.84-.5 1.02-.97a2.5 2.5 0 1 1 3.24 3.24c-.46.18-.9.53-.97 1.02Z" />
+  ),
   user: (
     <>
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
@@ -90,7 +93,16 @@ const PATHS: Record<
   ),
 };
 
-export function Icon({ name, size = 16 }: { name: keyof typeof PATHS; size?: number }) {
+export function Icon({
+  name,
+  paths,
+  size = 16,
+}: {
+  name: keyof typeof PATHS;
+  /** Ícone de plugin (só dados `d`): substitui `name`, herda moldura, traço e cor. */
+  paths?: string[] | undefined;
+  size?: number;
+}) {
   return (
     <svg
       width={size}
@@ -105,7 +117,7 @@ export function Icon({ name, size = 16 }: { name: keyof typeof PATHS; size?: num
       focusable="false"
       className="icon"
     >
-      {PATHS[name]}
+      {paths ? paths.map((d) => <path key={d} d={d} />) : PATHS[name]}
     </svg>
   );
 }

@@ -59,6 +59,30 @@ describe.skipIf(!testUrl)('migrator against PostgreSQL (TEST_DATABASE_URL)', () 
     expect(await appliedMigrations(sql)).toEqual([]);
   });
 
+  it('isola migrações de plugin por escopo e schema', async () => {
+    const core = await loadMigrations(migrationsDir);
+    await migrateUp(sql, core);
+    const plugin = [
+      {
+        name: '0001_init',
+        up: 'create table notes (id serial primary key, body text);',
+        down: 'drop table notes;',
+      },
+    ];
+    const scope = { scope: 'plugin:demo', schema: 'plugin_demo' };
+
+    expect(await migrateUp(sql, plugin, scope)).toEqual(['0001_init']);
+    expect(await appliedMigrations(sql, scope)).toEqual(['0001_init']);
+    // O core não enxerga as migrações do plugin (nem o down do core as reverte).
+    expect(await appliedMigrations(sql)).toEqual(core.map((m) => m.name));
+    await sql`insert into plugin_demo.notes (body) values ('ok')`;
+    await expect(sql`select 1 from public.notes`).rejects.toThrow();
+
+    expect(await migrateDown(sql, plugin, 'all', scope)).toEqual(['0001_init']);
+    expect(await appliedMigrations(sql, scope)).toEqual([]);
+    await migrateDown(sql, core, 'all');
+  });
+
   it('applies pending migrations once when called concurrently under the lock', async () => {
     const migrations = await loadMigrations(migrationsDir);
     const results = await Promise.all([

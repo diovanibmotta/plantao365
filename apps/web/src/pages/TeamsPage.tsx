@@ -3,10 +3,14 @@ import { Link, useNavigate } from 'react-router';
 import { useTeam } from '../team/TeamContext';
 import { TeamAvatar } from '../team/TeamAvatar';
 import { TEAMS_NEW_PATH, teamMembersPath, teamPath } from '../team/paths';
-import { EmptyState } from '../ui/EmptyState';
-import { FilterBar, normalizeSearch } from '../ui/FilterBar';
-import { PageHeader } from '../ui/PageHeader';
-import { Pagination, usePagination } from '../ui/Pagination';
+import {
+  EmptyState,
+  FilterBar,
+  normalizeSearch,
+  PageHeader,
+  Pagination,
+  usePagination,
+} from '@plantao365/web-sdk';
 import '../team/teams.css';
 
 type DashboardFilter = '' | 'with' | 'without';

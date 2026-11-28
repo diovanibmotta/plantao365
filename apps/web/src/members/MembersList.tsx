@@ -2,10 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { api } from '../api/client';
 import { useManageableTeams } from '../team/TeamContext';
-import { EmptyState } from '../ui/EmptyState';
-import { FilterBar, normalizeSearch } from '../ui/FilterBar';
-import { PageHeader } from '../ui/PageHeader';
-import { Pagination, usePagination } from '../ui/Pagination';
+import {
+  EmptyState,
+  FilterBar,
+  normalizeSearch,
+  PageHeader,
+  Pagination,
+  usePagination,
+} from '@plantao365/web-sdk';
 import { MEMBERS_NEW_PATH, memberPath } from './paths';
 import { describeError, sortMembers } from './types';
 import type { Member } from './types';

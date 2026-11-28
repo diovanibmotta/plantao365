@@ -3,9 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useRole } from '../team/TeamContext';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { FormActions, FormPage, FormSection } from '../ui/FormPage';
-import type { Crumb } from '../ui/FormPage';
+import { ConfirmDialog, type Crumb, FormActions, FormPage, FormSection } from '@plantao365/web-sdk';
 import { PROFILE_EXCEPTIONS_PATH, SCOPES, VACATIONS_PATH } from './paths';
 import type { UnavailabilityMode } from './paths';
 import {

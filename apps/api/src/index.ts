@@ -1,3 +1,4 @@
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
@@ -10,7 +11,17 @@ import { startEventWorker } from './events/index.js';
 import { createLogger } from './logger.js';
 import { loadMigrations, migrateUpLocked } from './migrator.js';
 import { createEventHandlers } from './notifications/handlers.js';
+import {
+  createPluginStore,
+  DEFAULT_CATALOG_URL,
+  OFFICIAL_STORE_KEYS,
+  parsePublicKeys,
+  PLUGIN_STORE_ENABLED,
+  PluginRegistry,
+  startPluginDeliveryWorker,
+} from './plugins/index.js';
 import { startReminderJob } from './reminders/index.js';
+import { createScheduleImpactNotifier } from './schedule-impact/index.js';
 import { computeConfigWarnings } from './system/index.js';
 
 let config;
@@ -67,18 +78,39 @@ await bootstrapManagers(db, config.MANAGER_EMAILS);
 await syncMasterUser(db, authOptions.master);
 const mailer = createMailer(smtp, logger);
 const worker = startOutboxWorker({ sql: db, mailer, logger });
+const plugins = new PluginRegistry({
+  sql: db,
+  logger,
+  pluginsDir: config.PLUGINS_DIR ?? path.join(tmpdir(), 'plantao365-plugins'),
+  publicKeys: [
+    ...parsePublicKeys(OFFICIAL_STORE_KEYS.join(',')),
+    ...parsePublicKeys(config.PLUGIN_PUBLIC_KEYS),
+  ],
+  scheduleImpactNotifier: createScheduleImpactNotifier(),
+});
+await plugins.loadEnabled();
+// Réplicas: install/enable/disable/settings feitos em outra réplica chegam por NOTIFY.
+const pluginSync = await plugins.startSync();
 const events = startEventWorker({
   sql: db,
   handlers: createEventHandlers({ appBaseUrl: config.APP_BASE_URL }),
+  fanOut: (type) => plugins.subscribersOf(type),
   logger,
 });
+const pluginDeliveries = startPluginDeliveryWorker({ sql: db, target: plugins, logger });
 const reminders = startReminderJob({ sql: db, logger, appBaseUrl: config.APP_BASE_URL });
+const catalogUrl = config.PLUGIN_CATALOG_URL ?? DEFAULT_CATALOG_URL;
 const app = createApp({
   logger,
   db,
   authOptions,
   corsOrigins: config.CORS_ALLOWED_ORIGINS,
   configWarnings: computeConfigWarnings(config),
+  plugins,
+  ...(PLUGIN_STORE_ENABLED &&
+    catalogUrl &&
+    catalogUrl !== 'off' && { pluginStore: createPluginStore({ catalogUrl }) }),
+  ...(config.PLUGIN_INSTALL_TOKEN && { pluginInstallToken: config.PLUGIN_INSTALL_TOKEN }),
   ...(config.WEB_DIST_DIR && { webDistDir: config.WEB_DIST_DIR }),
 });
 
@@ -89,7 +121,13 @@ const server = serve({ fetch: app.fetch, port: config.PORT }, (info) => {
 const shutdown = (signal: string) => {
   logger.info({ signal }, 'shutting down');
   server.close(() => {
-    void Promise.all([events.stop(), worker.stop(), reminders.stop()])
+    void Promise.all([
+      events.stop(),
+      worker.stop(),
+      reminders.stop(),
+      pluginDeliveries.stop(),
+      pluginSync.stop().then(() => plugins.stopAll()),
+    ])
       .then(() => mailer.close())
       .then(() => db.end())
       .finally(() => process.exit(0));

@@ -7,11 +7,10 @@ import {
   parseMinute,
   sortWorkPeriods,
   validateWorkPeriods,
-} from '@diovanibmotta/plantao365-shared';
-import type { WorkPeriod } from '@diovanibmotta/plantao365-shared';
+} from '@plantao365/shared';
+import type { WorkPeriod } from '@plantao365/shared';
 import { api } from '../api/client';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { FormActions, FormPage, FormSection } from '../ui/FormPage';
+import { ConfirmDialog, FormActions, FormPage, FormSection } from '@plantao365/web-sdk';
 import { SCHEDULE_ADMIN_PATH, tabPath } from './paths';
 import { describe } from './types';
 import { formatDuration } from './WorkHoursList';

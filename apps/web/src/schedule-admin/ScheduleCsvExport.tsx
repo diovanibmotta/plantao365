@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { api } from '../api/client';
 import { useActiveTeam } from '../team/TeamContext';
 import { toast } from '../toast/toast-store';
-import { FormActions, FormPage, FormSection } from '../ui/FormPage';
+import { FormActions, FormPage, FormSection } from '@plantao365/web-sdk';
 import { SCHEDULE_ADMIN_PATH, schedulePath, tabPath } from './paths';
 import {
   CSV_FIELDS,

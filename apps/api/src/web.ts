@@ -4,7 +4,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import type { Hono, MiddlewareHandler } from 'hono';
 
 /** Caminhos que pertencem à API: nunca caem no fallback da SPA. */
-const API_PREFIXES = ['/api', '/auth', '/health'];
+const API_PREFIXES = ['/api', '/auth', '/health', '/plugins-assets'];
 
 const isApiPath = (path: string) =>
   API_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));

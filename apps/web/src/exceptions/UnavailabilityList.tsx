@@ -3,10 +3,14 @@ import { Link, useNavigate } from 'react-router';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useRole } from '../team/TeamContext';
-import { EmptyState } from '../ui/EmptyState';
-import { FilterBar, normalizeSearch } from '../ui/FilterBar';
-import { PageHeader } from '../ui/PageHeader';
-import { Pagination, usePagination } from '../ui/Pagination';
+import {
+  EmptyState,
+  FilterBar,
+  normalizeSearch,
+  PageHeader,
+  Pagination,
+  usePagination,
+} from '@plantao365/web-sdk';
 import { SCOPES } from './paths';
 import type { UnavailabilityMode } from './paths';
 import { KIND_LABELS, errorMessage, formatPeriod } from './types';

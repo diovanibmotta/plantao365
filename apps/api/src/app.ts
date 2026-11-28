@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import type { HealthStatus } from '@diovanibmotta/plantao365-shared';
+import type { HealthStatus } from '@plantao365/shared';
 import { pingDb, type Sql } from './db.js';
 import {
   createAuthRouter,
@@ -15,6 +15,12 @@ import {
 import { createAuditRouter } from './audit/index.js';
 import { createBalanceRouter } from './balance/index.js';
 import { createOnPublished, createOnShiftChanged } from './notifications/schedule-events.js';
+import {
+  createPluginAssetsRouter,
+  createPluginsRouter,
+  type PluginRegistry,
+  type PluginStore,
+} from './plugins/index.js';
 import { createPreferencesRouter } from './preferences/index.js';
 import { createHolidaysRouter, createOnShiftsRecalculated } from './holidays/index.js';
 import {
@@ -48,6 +54,12 @@ export interface AppDeps {
   oidcProvider?: OidcProvider;
   /** Recursos desativados por falta de configuração; exibidos como banner ao gestor. */
   configWarnings?: ConfigWarning[];
+  /** Kernel de plugins: administração em /api/plugins e rotas em /api/extensions/<id>. */
+  plugins?: PluginRegistry;
+  /** Token aceito pela CLI no install de plugins. */
+  pluginInstallToken?: string;
+  /** Loja de plugins (catálogo). */
+  pluginStore?: PluginStore;
 }
 
 export function createApp({
@@ -59,6 +71,9 @@ export function createApp({
   corsOrigins = [],
   oidcProvider,
   configWarnings = [],
+  plugins,
+  pluginInstallToken,
+  pluginStore,
 }: AppDeps): Hono {
   const app = new Hono();
 
@@ -113,8 +128,25 @@ export function createApp({
       }),
     );
     app.use(sessionMiddleware({ db, cookieOptions: { secure: authOptions.cookieSecure } }));
-    app.use('/api/*', guestGuard());
+    app.use(
+      '/api/*',
+      guestGuard(plugins ? { extraReadPaths: () => plugins.guestReadPaths() } : {}),
+    );
     app.use('/api/*', teamMiddleware({ db }));
+    // Antes dos demais: o router de escalas registra `use('*', requireAuth())` sob /api, o que
+    // barraria o install por token da CLI (sem sessão) em /api/plugins.
+    if (plugins) {
+      app.route(
+        '/api',
+        createPluginsRouter({
+          registry: plugins,
+          db,
+          ...(pluginStore && { store: pluginStore }),
+          ...(pluginInstallToken && { installToken: pluginInstallToken }),
+        }),
+      );
+      app.route('/', createPluginAssetsRouter({ registry: plugins }));
+    }
     app.route('/api', createTeamsRouter({ db }));
     app.route('/api', createSystemRouter({ warnings: configWarnings }));
     app.route('/api', createAuditRouter({ db, guard: requireRole('manager') }));
@@ -159,10 +191,18 @@ export function createApp({
         onPublished: createOnPublished(notifyDeps),
         onShiftChanged: createOnShiftChanged(notifyDeps),
         scheduleImpactNotifier,
+        ...(plugins && { rotationAdjusters: plugins.rotationAdjusters }),
         logger,
       }),
     );
-    app.route('/api', createSwapsRouter({ db, onSwapEvent: createOnSwapEvent(notifyDeps) }));
+    app.route(
+      '/api',
+      createSwapsRouter({
+        db,
+        onSwapEvent: createOnSwapEvent(notifyDeps),
+        ...(plugins && { swapGuard: plugins.swapGuard }),
+      }),
+    );
     app.route('/api', createPreferencesRouter({ db }));
     app.route('/api', createBalanceRouter({ db }));
   }

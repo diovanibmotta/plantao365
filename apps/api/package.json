@@ -1,11 +1,11 @@
 {
-  "name": "@diovanibmotta/plantao365-api",
+  "name": "@plantao365/api",
   "version": "1.32.0",
   "description": "API do Plantão365 (Hono + PostgreSQL), distribuída como pacote Node",
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/diovanibmotta/plantao365.git",
+    "url": "git+https://github.com/plantao365/app.git",
     "directory": "apps/api"
   },
   "type": "module",
@@ -28,7 +28,8 @@
     "migrate": "tsx --env-file-if-exists=../../.env src/migrate.ts"
   },
   "dependencies": {
-    "@diovanibmotta/plantao365-shared": "*",
+    "@plantao365/shared": "*",
+    "@plantao365/plugin-sdk": "*",
     "@hono/node-server": "^2.1.11",
     "hono": "^4.13.21",
     "jose": "^6.2.18",

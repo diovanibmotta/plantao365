@@ -1,4 +1,4 @@
-import { dayOfWeek } from '@diovanibmotta/plantao365-shared';
+import { dayOfWeek } from '@plantao365/shared';
 import { DAY_TYPE_LABEL, formatPeriod } from '../schedule/format';
 import type { ShiftDto } from '../schedule/types';
 import type { Team } from '../team/TeamContext';

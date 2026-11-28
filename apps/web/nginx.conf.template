@@ -15,11 +15,19 @@ server {
   }
 
   location /api/ {
+    # Instalação de plugin envia até 15 MB; acima disso a própria API responde 413.
+    client_max_body_size 16m;
     proxy_pass ${API_UPSTREAM};
     proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+  }
+
+  # Front dos plugins (Module Federation), servido pela API na mesma origem.
+  location /plugins-assets/ {
+    proxy_pass ${API_UPSTREAM};
+    proxy_set_header Host $http_host;
   }
 
   location /auth/ {

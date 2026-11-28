@@ -38,23 +38,59 @@ async function ensureTable(sql: Sql): Promise<void> {
   )`;
 }
 
-export async function appliedMigrations(sql: Sql): Promise<string[]> {
+/**
+ * Escopo das migrações: sem escopo = core. Com escopo (plugin), o nome gravado é `<scope>/<nome>`
+ * e, com `schema`, cada migração roda com `search_path` = schema, public (o schema é criado).
+ */
+export interface MigrationScope {
+  scope?: string;
+  schema?: string;
+}
+
+const stored = (opts: MigrationScope, name: string) =>
+  opts.scope ? `${opts.scope}/${name}` : name;
+
+export async function appliedMigrations(sql: Sql, opts: MigrationScope = {}): Promise<string[]> {
   await ensureTable(sql);
-  const rows = await sql<{ name: string }[]>`select name from schema_migrations order by name`;
+  const rows = opts.scope
+    ? await sql<{ name: string }[]>`
+        select substr(name, ${opts.scope.length + 2}) as name from schema_migrations
+        where starts_with(name, ${`${opts.scope}/`}) order by name`
+    : await sql<{ name: string }[]>`
+        select name from schema_migrations where strpos(name, '/') = 0 order by name`;
   return rows.map((r) => r.name);
 }
 
+async function useScope(tx: Sql, opts: MigrationScope): Promise<void> {
+  if (!opts.schema) return;
+  const schema = tx(opts.schema);
+  await tx`create schema if not exists ${schema}`;
+  await tx`select set_config('search_path', ${`"${opts.schema}", public`}, true)`;
+}
+
 /** Aplica as migrações pendentes, cada uma em transação. Retorna os nomes aplicados. */
-export async function migrateUp(sql: Sql, migrations: Migration[]): Promise<string[]> {
-  const done = new Set(await appliedMigrations(sql));
+export async function migrateUp(
+  sql: Sql,
+  migrations: Migration[],
+  opts: MigrationScope = {},
+): Promise<string[]> {
+  const done = new Set(await appliedMigrations(sql, opts));
   const applied: string[] = [];
   for (const m of migrations) {
     if (done.has(m.name)) continue;
-    await sql.begin(async (tx) => {
+    const name = stored(opts, m.name);
+    const ran = await sql.begin(async (txRaw) => {
+      const tx = txRaw as unknown as Sql;
+      // Réplicas ativando o mesmo plugin ao mesmo tempo: só uma aplica, as outras esperam e pulam.
+      await tx`select pg_advisory_xact_lock(hashtext(${`migrate:${name}`}))`;
+      const [already] = await tx`select 1 from public.schema_migrations where name = ${name}`;
+      if (already) return false;
+      await useScope(tx, opts);
       await tx.unsafe(m.up);
-      await tx`insert into schema_migrations (name) values (${m.name})`;
+      await tx`insert into public.schema_migrations (name) values (${name})`;
+      return true;
     });
-    applied.push(m.name);
+    if (ran) applied.push(m.name);
   }
   return applied;
 }
@@ -64,16 +100,19 @@ export async function migrateDown(
   sql: Sql,
   migrations: Migration[],
   steps: number | 'all' = 1,
+  opts: MigrationScope = {},
 ): Promise<string[]> {
-  const done = await appliedMigrations(sql);
+  const done = await appliedMigrations(sql, opts);
   const toRevert = done.reverse().slice(0, steps === 'all' ? undefined : steps);
   const reverted: string[] = [];
   for (const name of toRevert) {
     const m = migrations.find((x) => x.name === name);
     if (!m) throw new Error(`Migração aplicada ${name} não existe no diretório`);
-    await sql.begin(async (tx) => {
+    await sql.begin(async (txRaw) => {
+      const tx = txRaw as unknown as Sql;
+      await useScope(tx, opts);
       await tx.unsafe(m.down);
-      await tx`delete from schema_migrations where name = ${name}`;
+      await tx`delete from public.schema_migrations where name = ${stored(opts, name)}`;
     });
     reverted.push(name);
   }

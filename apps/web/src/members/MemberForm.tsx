@@ -4,8 +4,7 @@ import { api } from '../api/client';
 import type { ApiError } from '../api/client';
 import { useManageableTeams } from '../team/TeamContext';
 import { toast } from '../toast/toast-store';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { FormActions, FormPage, FormSection } from '../ui/FormPage';
+import { ConfirmDialog, FormActions, FormPage, FormSection } from '@plantao365/web-sdk';
 import { MEMBERS_PATH } from './paths';
 import {
   ROLE_OPTIONS,

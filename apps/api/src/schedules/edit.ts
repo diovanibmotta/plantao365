@@ -1,6 +1,6 @@
 import type { Hono } from 'hono';
 import { z } from 'zod';
-import { addDays, localToInstant, shiftDuration } from '@diovanibmotta/plantao365-shared';
+import { addDays, localToInstant, shiftDuration } from '@plantao365/shared';
 import { recordAudit } from '../audit/index.js';
 import { requireRole } from '../auth/authz.js';
 import type { AuthEnv } from '../auth/index.js';
