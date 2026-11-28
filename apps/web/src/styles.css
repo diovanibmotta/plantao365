@@ -328,7 +328,8 @@ a {
 /* ---------- Botões ---------- */
 
 .btn,
-.icon-btn {
+.icon-btn,
+::file-selector-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -347,7 +348,8 @@ a {
     opacity 150ms var(--ease);
 }
 
-.btn {
+.btn,
+::file-selector-button {
   height: 32px;
   padding: 0 12px;
 }
@@ -369,7 +371,8 @@ a {
 }
 
 .btn:hover:not(:disabled),
-.icon-btn:hover:not(:disabled) {
+.icon-btn:hover:not(:disabled),
+input:not(:disabled)::file-selector-button:hover {
   background: var(--surface-2);
 }
 
@@ -377,12 +380,14 @@ a {
   color: var(--text);
 }
 
-.btn:active:not(:disabled) {
+.btn:active:not(:disabled),
+input:not(:disabled)::file-selector-button:active {
   background: var(--border);
 }
 
 .btn:disabled,
-.icon-btn:disabled {
+.icon-btn:disabled,
+input:disabled::file-selector-button {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -452,6 +457,15 @@ textarea:disabled {
   background: var(--surface-2);
   color: var(--muted);
   cursor: not-allowed;
+}
+
+input[type='file'] {
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+::file-selector-button {
+  margin-right: 10px;
 }
 
 input[type='checkbox'],
