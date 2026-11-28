@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { FormActions, FormPage, FormSection } from '@diovanibmotta/plantao365-web-sdk';
 import { api } from '../api/client';
+import { usePlugins } from '../plugins/PluginContext';
 import { LoadError } from './LoadError';
 import { pluginAdminPath, pluginsTabPath } from './paths';
 import type { StoreItem } from './types';
@@ -15,6 +16,7 @@ export function StorePluginForm() {
   const { data, error } = useLoad<{ plugins: StoreItem[] }>('/api/plugins/catalog');
   const [chosen, setChosen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { reload } = usePlugins();
   const item = data?.plugins.find((p) => p.id === id);
   const crumbs = [{ label: 'Loja de plugins', to: back }, { label: item?.name ?? 'Plugin' }];
 
@@ -42,6 +44,7 @@ export function StorePluginForm() {
     } catch {
       // erro exibido pelo toast do interceptor
     } finally {
+      reload();
       setBusy(false);
     }
   };

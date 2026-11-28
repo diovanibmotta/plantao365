@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { FormActions, FormPage, FormSection } from '@diovanibmotta/plantao365-web-sdk';
 import { api } from '../api/client';
+import { usePlugins } from '../plugins/PluginContext';
 import { PLUGINS_PATH } from './paths';
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -21,6 +22,7 @@ export function PluginUploadForm() {
   const [signature, setSignature] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { reload } = usePlugins();
   const back = () => void navigate(PLUGINS_PATH);
 
   const install = async () => {
@@ -36,6 +38,7 @@ export function PluginUploadForm() {
     } catch {
       // erro exibido pelo toast do interceptor
     } finally {
+      reload();
       setBusy(false);
     }
   };
