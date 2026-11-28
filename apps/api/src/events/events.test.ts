@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Sql } from '../db.js';
 import { createEventHandlers } from '../notifications/handlers.js';
+import { processPluginDeliveries } from '../plugins/index.js';
 import { createTestDb, drainEvents, type TestDb } from '../test-utils.js';
 import { processDomainEvents, type EventHandlers } from './consumer.js';
 import { publishEvent } from './publisher.js';
@@ -77,6 +78,18 @@ describe.skipIf(!process.env['TEST_DATABASE_URL'])('eventos de domínio (Postgre
     expect(await processDomainEvents(sql, handlers, { now: () => NOW })).toMatchObject({
       processed: 0,
     });
+  });
+
+  it('entrega ao plugin vence pelo relógio do consumidor, não pelo do banco', async () => {
+    // NOW está atrás do banco: equivale a um banco adiantado em relação à aplicação.
+    await sql`insert into plugins (id, version) values ('demo', '1.0.0')`;
+    await publishEvent(sql, 'user.activated', { userId: '1', actorId: null }, { now: NOW });
+    await processDomainEvents(sql, {}, { now: () => NOW, fanOut: () => ['demo'] });
+    const target = { activeIds: () => ['demo'], handlerFor: () => undefined };
+    expect(await processPluginDeliveries(sql, target, { now: () => NOW })).toMatchObject({
+      processed: 1,
+    });
+    await sql`delete from plugins`;
   });
 
   it('falha do handler desfaz o que ele gravou, reagenda e esgota em failed', async () => {

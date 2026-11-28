@@ -87,9 +87,15 @@ export async function processDomainEvents(
           update domain_events
           set next_attempt_at = ${new Date(now().getTime() + leaseMs)}
           where id in ${tx(claimed.map((r) => r.id))}`;
+        // Vencimento pelo relógio da aplicação (o mesmo que o consome), não pelo default do banco.
+        const dueAt = now();
         const deliveries = opts.fanOut
           ? claimed.flatMap((r) =>
-              opts.fanOut!(r.type).map((pluginId) => ({ event_id: r.id, plugin_id: pluginId })),
+              opts.fanOut!(r.type).map((pluginId) => ({
+                event_id: r.id,
+                plugin_id: pluginId,
+                next_attempt_at: dueAt,
+              })),
             )
           : [];
         if (deliveries.length > 0) {
