@@ -1,13 +1,8 @@
 import { useEffect, useId, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import {
-  ConfirmDialog,
-  FormActions,
-  FormPage,
-  FormSection,
-} from '@diovanibmotta/plantao365-web-sdk';
+import { ConfirmDialog, FormActions, FormPage, FormSection } from '@plantao365/web-sdk';
 import { api } from '../api/client';
-import { useAuth } from '../auth/AuthContext';
+import { usePlugins } from '../plugins/PluginContext';
 import { PLUGINS_PATH } from './paths';
 import {
   STATUS_LABELS,
@@ -25,9 +20,8 @@ const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringif
 export function PluginForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const canChange = user?.isMaster === true;
   const fieldId = useId();
+  const { reload } = usePlugins();
   const [plugin, setPlugin] = useState<PluginSummary | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(false);
@@ -112,6 +106,7 @@ export function PluginForm() {
     } catch {
       // erro exibido pelo toast do interceptor
     } finally {
+      reload();
       setBusy(false);
     }
   };
@@ -125,6 +120,7 @@ export function PluginForm() {
     } catch {
       setConfirmingDelete(false);
     } finally {
+      reload();
       setBusy(false);
     }
   };
@@ -201,12 +197,7 @@ export function PluginForm() {
         description={plugin.description ?? `Versão ${plugin.version}.`}
         onSubmit={() => void save()}
       >
-        {!canChange && (
-          <p className="muted" role="note">
-            Só a master key altera plugins; você está vendo em modo leitura.
-          </p>
-        )}
-        <fieldset disabled={!canChange || busy} style={{ border: 0, margin: 0, padding: 0 }}>
+        <fieldset disabled={busy} style={{ border: 0, margin: 0, padding: 0 }}>
           <FormSection title="Situação" description="Versão instalada e se o plugin está ativo.">
             <p>
               {plugin.id} · versão {plugin.version} · {STATUS_LABELS[plugin.status]}
@@ -240,9 +231,8 @@ export function PluginForm() {
         <FormActions
           busy={busy}
           onCancel={back}
-          saveDisabled={!canChange}
           deleteLabel="Remover"
-          onDelete={canChange ? () => setConfirmingDelete(true) : undefined}
+          onDelete={() => setConfirmingDelete(true)}
         />
       </FormPage>
       {confirmingDelete && (

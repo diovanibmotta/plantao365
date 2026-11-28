@@ -47,11 +47,11 @@ const BROKEN = plugin({
 
 type Handler = (url: string, init?: RequestInit) => Response | undefined;
 
-function mockApi(handler: Handler, isMaster = true) {
+function mockApi(handler: Handler) {
   const fetchMock = vi.fn((url: string, init?: RequestInit) => {
     if (url === '/auth/me') {
       return Promise.resolve(
-        json({ id: 'u1', email: 'a@b.c', name: 'Ana', role: 'manager', isMaster }),
+        json({ id: 'u1', email: 'a@b.c', name: 'Ana', role: 'manager', isMaster: false }),
       );
     }
     return Promise.resolve(handler(url, init) ?? json({}));
@@ -174,21 +174,6 @@ describe('formulário de plugin', () => {
     await waitFor(() =>
       expect(writes(fetchMock)).toEqual([['/api/plugins/broken?purge=true', 'DELETE', undefined]]),
     );
-  });
-
-  it('gestor sem master key vê em modo leitura', async () => {
-    mockApi(
-      (url) => (url === '/api/plugins/contacts' ? json({ plugin: plugin() }) : undefined),
-      false,
-    );
-    renderApp('/plugins/contacts');
-    expect(await screen.findByText(/modo leitura/)).toBeTruthy();
-    // desabilitado pelo <fieldset disabled>
-    expect(screen.getByLabelText('Telefone').matches(':disabled')).toBe(true);
-    expect((screen.getByRole('button', { name: 'Salvar' }) as HTMLButtonElement).disabled).toBe(
-      true,
-    );
-    expect(screen.queryByRole('button', { name: 'Remover' })).toBeNull();
   });
 
   it('plugin inexistente mostra mensagem e volta para a listagem', async () => {

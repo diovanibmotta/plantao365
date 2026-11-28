@@ -46,6 +46,9 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
       SMTP_SECURE: ${SMTP_SECURE:-false}
+      PLUGIN_PUBLIC_KEYS: ${PLUGIN_PUBLIC_KEYS:-}
+      PLUGIN_INSTALL_TOKEN: ${PLUGIN_INSTALL_TOKEN:-}
+      PLUGINS_DIR: ${PLUGINS_DIR:-}
     ports:
       - '${WEB_PORT:-8080}:3000'
     restart: unless-stopped

@@ -41,6 +41,21 @@ describe('CLI plantao-plugin', () => {
     await expect(create('Bad_Id', path.join(tmp, 'x'))).rejects.toThrow(/id inválido/);
   });
 
+  it('create aponta os SDKs para a versão publicada junto com a CLI', async () => {
+    const dir = path.join(tmp, 'contacts');
+    await create('contacts', dir);
+    const readJson = async (file: string | URL) => JSON.parse(await readFile(file, 'utf8'));
+    const { version } = await readJson(new URL('../package.json', import.meta.url));
+    const web = await readJson(new URL('../../web-sdk/package.json', import.meta.url));
+    // o release publica os dois com a mesma versão; se divergirem, a faixa derivada não serve
+    expect(web.version).toBe(version);
+    const { devDependencies } = await readJson(path.join(dir, 'package.json'));
+    expect(devDependencies).toMatchObject({
+      '@plantao365/plugin-sdk': `^${version}`,
+      '@plantao365/web-sdk': `^${version}`,
+    });
+  });
+
   it('lint aponta arquivo e linha do CSS fora do padrão', async () => {
     await mkdir(path.join(tmp, 'dist/web/assets'), { recursive: true });
     await writeFile(path.join(tmp, 'dist/web/assets/a.css'), '.plg-x {}\n.btn { color: red; }');

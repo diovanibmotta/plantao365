@@ -1,6 +1,6 @@
 # Plugins
 
-Guia do autor de plugins do Plantão365: como criar, o que o kernel oferece e como o contrato evolui. A decisão de arquitetura está na [ADR 0001](adr/0001-microkernel-plugins.md). O plugin de referência fica em repositório próprio: [plantao365-plugin-emergency-contacts](https://github.com/diovanibmotta/plantao365-plugin-emergency-contacts).
+Guia do autor de plugins do Plantão365: como criar, o que o kernel oferece e como o contrato evolui. A decisão de arquitetura está na [ADR 0001](adr/0001-microkernel-plugins.md). O plugin de referência fica em repositório próprio: [plugin-emergency-contacts](https://github.com/plantao365/plugin-emergency-contacts).
 
 ## Quando é plugin
 
@@ -16,11 +16,21 @@ npx plantao-plugin sign meu-plugin-0.1.0.p365 --key plugin-signing.pem
 npx plantao-plugin install meu-plugin-0.1.0.p365 --url https://plantao.exemplo --token "$PLANTAO365_PLUGIN_TOKEN"
 ```
 
-Depois do install, a master key habilita e configura em **Gestão › Plugins** (`/plugins`). Detalhes da CLI, do projeto e das variáveis do servidor no [README do plugin-sdk](../packages/plugin-sdk/README.md).
+Depois do install, um gestor habilita e configura em **Configuração › Plugins** (`/plugins`). Detalhes da CLI, do projeto e das variáveis do servidor no [README do plugin-sdk](../packages/plugin-sdk/README.md).
 
 Plugins não moram neste repositório: cada um tem o seu e é instalado como pacote. No core, `apps/api/src/plugins/scaffold-plugin.test.ts` testa o caminho do autor sobre o projeto que a CLI gera (create → build → pack → sign → install por token → enable → rota, migração e front) contra o Postgres do CI. O navegador fica com o job `e2e`, a regressão visual do plugin de referência (ver [CONTRIBUTING](../CONTRIBUTING.md#e2e-de-navegador-playwright)).
 
 O `plugin-sdk` e o `web-sdk` são publicados no GitHub Packages a cada release (a instalação pede um token com `read:packages` no `.npmrc`).
+
+## Instalação
+
+Nesta versão a instalação é só manual: pela CLI ou em **Instalar de arquivo**, que avisa do risco e pede confirmação (a CLI e a API não pedem; ver [#88](https://github.com/plantao365/app/issues/88)). A tela **Configuração › Plugins** tem as abas **Instalados** e **Chaves**. Qualquer gestor instala, habilita, configura e remove; cadastrar uma chave pública permite instalar pacotes daquele publicador. Todo gestor, portanto, consegue executar código no servidor.
+
+## Loja (desligada até a v3)
+
+O código da loja existe, mas está desligado ([#73](https://github.com/plantao365/app/issues/73)): sem aba na tela, e o catálogo da API responde `store_disabled` mesmo com `PLUGIN_CATALOG_URL` preenchida. Para religar, mude `PLUGIN_STORE_ENABLED` em `apps/api/src/plugins/store.ts` e em `apps/web/src/plugins-admin/paths.ts`, e devolva a variável aos arquivos de deploy.
+
+A loja é um `catalog.json` estático com os pacotes ao lado, servido por CDN sobre um bucket privado; a infraestrutura fica fora deste repositório. A URL e a chave da loja oficial são constantes em `apps/api/src/plugins/store.ts`; `PLUGIN_CATALOG_URL` troca o endereço (`off` desliga). A API só baixa pacotes da mesma origem do índice, sem seguir redirect, e confere sha256, assinatura, plugin e versão.
 
 ## Pontos de extensão
 

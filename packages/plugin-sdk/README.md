@@ -1,4 +1,4 @@
-# @diovanibmotta/plantao365-plugin-sdk
+# @plantao365/plugin-sdk
 
 Contrato do kernel para plugins do Plantão365 (`definePlugin`, `PluginContext`), lint de estilo, formato do pacote e a CLI `plantao-plugin`.
 
@@ -15,7 +15,8 @@ npx plantao-plugin install contacts-0.1.0.p365 --url https://plantao.exemplo --t
 ```
 
 - `build` grava `dist/plantao365.plugin.json` com `styleCheck: "passed"` só se o CSS gerado passar no lint (seletor sob `.plg-<id>`, só tokens semânticos). Sem isso o kernel recusa o install.
-- `install` usa `Authorization: Bearer`; o token vem de `--token` ou da env `PLANTAO365_PLUGIN_TOKEN`. Depois do install, habilite e configure em **Gestão › Plugins** (`/plugins`).
+- `catalog <arquivo> --dir <pasta>` adiciona o pacote assinado ao índice da loja (a loja fica desligada no app até a v3).
+- `install` usa `Authorization: Bearer`; o token vem de `--token` ou da env `PLANTAO365_PLUGIN_TOKEN`. Depois do install, habilite e configure em **Configuração › Plugins** (`/plugins`).
 
 ## Projeto do plugin
 
@@ -31,6 +32,8 @@ npx plantao-plugin install contacts-0.1.0.p365 --url https://plantao.exemplo --t
 
 ## Servidor (variáveis da API)
 
-- `PLUGIN_PUBLIC_KEYS`: chaves públicas Ed25519 (saída do `keygen`), separadas por vírgula. Vazio desativa o install.
-- `PLUGIN_INSTALL_TOKEN`: token aceito pela CLI (mínimo 32 caracteres). Vazio: só a master key instala.
+- `PLUGIN_PUBLIC_KEYS`: chaves públicas Ed25519 (saída do `keygen`) confiáveis além das cadastradas na tela, separadas por vírgula. Opcional.
+- `PLUGIN_INSTALL_TOKEN`: token aceito pela CLI (mínimo 32 caracteres). Vazio: só um gestor logado instala.
+- `PLUGINS_DIR`: cache dos pacotes extraídos (o original fica no banco). Vazio: diretório temporário do SO.
+- Proxy na frente da API: encaminhe `/plugins-assets/` e aceite corpo de até 16 MB no install (o nginx e o Ingress do repositório já fazem isso).
 - Com várias réplicas, install/enable/disable/configuração feitos em uma chegam às outras por `NOTIFY plugins_changed`; as migrações do plugin rodam uma vez, sob advisory lock.

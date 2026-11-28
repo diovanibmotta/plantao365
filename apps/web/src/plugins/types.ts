@@ -1,4 +1,4 @@
-import type { PluginWebModule } from '@diovanibmotta/plantao365-web-sdk';
+import type { PluginWebModule } from '@plantao365/web-sdk';
 
 /** Item de `GET /api/plugins/manifest`: plugins ativos na API. */
 export interface PluginManifestEntry {

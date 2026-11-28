@@ -1,5 +1,5 @@
-import { SHIFT_WEEKDAYS } from '@diovanibmotta/plantao365-shared';
-import type { ShiftTime, ShiftTimes, WeekdayShiftTime } from '@diovanibmotta/plantao365-shared';
+import { SHIFT_WEEKDAYS } from '@plantao365/shared';
+import type { ShiftTime, ShiftTimes, WeekdayShiftTime } from '@plantao365/shared';
 
 export { SHIFT_WEEKDAYS };
 

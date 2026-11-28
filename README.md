@@ -4,12 +4,13 @@
 
 Gestão de escala de plantão (sobreaviso) para equipes: rodízio automático com revisão do gestor, preferências e exceções dos membros, saldo de horas previsto x realizado e avisos por e-mail.
 
-Este README é para quem desenvolve. Uso, implantação, configuração e SSO estão na **[wiki](https://github.com/diovanibmotta/plantao365/wiki)**:
+Este README é para quem desenvolve. Uso, implantação, configuração e SSO estão na **[wiki](https://github.com/plantao365/app/wiki)**:
 
-- [Primeiro acesso](https://github.com/diovanibmotta/plantao365/wiki/Primeiro-Acesso) · [Guia do gestor](https://github.com/diovanibmotta/plantao365/wiki/Guia-do-Gestor) · [Guia do membro](https://github.com/diovanibmotta/plantao365/wiki/Guia-do-Membro)
-- [Configuração (variáveis de ambiente)](https://github.com/diovanibmotta/plantao365/wiki/Configuracao) · [SSO Entra ID](https://github.com/diovanibmotta/plantao365/wiki/SSO-Entra-ID)
-- [Implantação](https://github.com/diovanibmotta/plantao365/wiki/Implantacao): [Kubernetes](https://github.com/diovanibmotta/plantao365/wiki/Implantacao-Kubernetes), [imagem única](https://github.com/diovanibmotta/plantao365/wiki/Implantacao-Imagem-Unica), [Docker Compose](https://github.com/diovanibmotta/plantao365/wiki/Implantacao-Docker-Compose)
-- [Solução de problemas](https://github.com/diovanibmotta/plantao365/wiki/Solucao-de-Problemas)
+- [Primeiro acesso](https://github.com/plantao365/app/wiki/Primeiro-Acesso) · [Guia do gestor](https://github.com/plantao365/app/wiki/Guia-do-Gestor) · [Guia do membro](https://github.com/plantao365/app/wiki/Guia-do-Membro)
+- [Configuração (variáveis de ambiente)](https://github.com/plantao365/app/wiki/Configuracao) · [SSO Entra ID](https://github.com/plantao365/app/wiki/SSO-Entra-ID)
+- [Implantação](https://github.com/plantao365/app/wiki/Implantacao): [Kubernetes](https://github.com/plantao365/app/wiki/Implantacao-Kubernetes), [imagem única](https://github.com/plantao365/app/wiki/Implantacao-Imagem-Unica), [Docker Compose](https://github.com/plantao365/app/wiki/Implantacao-Docker-Compose)
+- [Solução de problemas](https://github.com/plantao365/app/wiki/Solucao-de-Problemas)
+- [Plugins](https://github.com/plantao365/app/wiki/Plugins) (a partir da 2.0.0): [guia do autor](https://github.com/plantao365/app/wiki/Plugins-Guia-do-Autor), [contrato](https://github.com/plantao365/app/wiki/Plugins-Contrato), [operação](https://github.com/plantao365/app/wiki/Plugins-Operacao)
 
 ## Stack
 
@@ -28,7 +29,7 @@ apps/
   api/            API Hono, migrações em apps/api/migrations
   web/            SPA React
 packages/
-  shared/         regras de domínio compartilhadas (@diovanibmotta/plantao365-shared)
+  shared/         regras de domínio compartilhadas (@plantao365/shared)
 deploy/k8s/       manifests Kubernetes (Kustomize)
 ```
 
@@ -41,20 +42,20 @@ Pré-requisitos: Node >= 22, npm >= 10 e um PostgreSQL acessível.
 ```bash
 npm ci
 cp .env.example .env        # ajuste DATABASE_URL e MANAGER_EMAILS
-npm run migrate -w @diovanibmotta/plantao365-api -- up
+npm run migrate -w @plantao365/api -- up
 npm run dev                 # API em :3000 e web em :5173
 ```
 
-Sem SSO configurado, defina `MASTER_USERNAME`/`MASTER_PASSWORD` no `.env` e entre por "Acesso master" na tela de login. Demais variáveis em [`.env.example`](.env.example) e na [wiki](https://github.com/diovanibmotta/plantao365/wiki/Configuracao).
+Sem SSO configurado, defina `MASTER_USERNAME`/`MASTER_PASSWORD` no `.env` e entre por "Acesso master" na tela de login. Demais variáveis em [`.env.example`](.env.example) e na [wiki](https://github.com/plantao365/app/wiki/Configuracao).
 
 ### Migrações
 
 Novo par numerado `NNNN_nome.up.sql` / `.down.sql` em `apps/api/migrations`; nunca edite migração já aplicada. A API aplica as pendentes ao subir (com lock entre réplicas); `AUTO_MIGRATE=false` desliga.
 
 ```bash
-npm run migrate -w @diovanibmotta/plantao365-api -- status
-npm run migrate -w @diovanibmotta/plantao365-api -- up
-npm run migrate -w @diovanibmotta/plantao365-api -- down 1     # reverte N migrações (ou "all")
+npm run migrate -w @plantao365/api -- status
+npm run migrate -w @plantao365/api -- up
+npm run migrate -w @plantao365/api -- down 1     # reverte N migrações (ou "all")
 ```
 
 ## Scripts
@@ -80,8 +81,8 @@ TEST_DATABASE_URL=postgres://usuario:senha@localhost:5432/postgres npm test
 
 Versionamento automático com [semantic-release](https://semantic-release.gitbook.io) e [Gitmoji](https://gitmoji.dev) a cada push em `main`: tag `vX.Y.Z`, `CHANGELOG.md` e GitHub Release. Cada release publica:
 
-- `@diovanibmotta/plantao365-shared` e `@diovanibmotta/plantao365-api` no GitHub Packages (npm);
-- imagens `ghcr.io/diovanibmotta/plantao365-api` e `ghcr.io/diovanibmotta/plantao365` (API + front), tags `X.Y.Z`, `X.Y` e `latest`.
+- `@plantao365/shared` e `@plantao365/api` no GitHub Packages (npm);
+- imagens `ghcr.io/plantao365/app-api` e `ghcr.io/plantao365/app` (API + front), tags `X.Y.Z`, `X.Y` e `latest`.
 
 Regras de commit em [CONTRIBUTING.md](CONTRIBUTING.md).
 

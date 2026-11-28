@@ -79,7 +79,7 @@ describe('pacote de plugin', () => {
     tampered[tampered.length - 1] ^= 1;
     expect(() => verifySignature(tampered, signature, keys)).toThrow(/Assinatura/);
     expect(() => verifySignature(archive, signature, keyPair().keys)).toThrow(/Assinatura/);
-    expect(() => verifySignature(archive, signature, [])).toThrow(/PLUGIN_PUBLIC_KEYS/);
+    expect(() => verifySignature(archive, signature, [])).toThrow(/Nenhuma chave confiável/);
   });
 
   it('checa compatibilidade com o contrato do kernel', () => {

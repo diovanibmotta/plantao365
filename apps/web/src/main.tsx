@@ -8,8 +8,8 @@ import { ToastViewport } from './toast/ToastViewport';
 import { initTheme } from './theme';
 import { registerPluginSdk } from './plugins/sdk-host';
 // CSS do design system: o host carrega uma vez; plugins só consomem (não importam).
-import '@diovanibmotta/plantao365-web-sdk/tokens.css';
-import '@diovanibmotta/plantao365-web-sdk/ui.css';
+import '@plantao365/web-sdk/tokens.css';
+import '@plantao365/web-sdk/ui.css';
 import './styles.css';
 
 initTheme();

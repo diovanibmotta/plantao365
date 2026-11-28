@@ -11,7 +11,15 @@ import { startEventWorker } from './events/index.js';
 import { createLogger } from './logger.js';
 import { loadMigrations, migrateUpLocked } from './migrator.js';
 import { createEventHandlers } from './notifications/handlers.js';
-import { parsePublicKeys, PluginRegistry, startPluginDeliveryWorker } from './plugins/index.js';
+import {
+  createPluginStore,
+  DEFAULT_CATALOG_URL,
+  OFFICIAL_STORE_KEYS,
+  parsePublicKeys,
+  PLUGIN_STORE_ENABLED,
+  PluginRegistry,
+  startPluginDeliveryWorker,
+} from './plugins/index.js';
 import { startReminderJob } from './reminders/index.js';
 import { createScheduleImpactNotifier } from './schedule-impact/index.js';
 import { computeConfigWarnings } from './system/index.js';
@@ -74,7 +82,10 @@ const plugins = new PluginRegistry({
   sql: db,
   logger,
   pluginsDir: config.PLUGINS_DIR ?? path.join(tmpdir(), 'plantao365-plugins'),
-  publicKeys: parsePublicKeys(config.PLUGIN_PUBLIC_KEYS),
+  publicKeys: [
+    ...parsePublicKeys(OFFICIAL_STORE_KEYS.join(',')),
+    ...parsePublicKeys(config.PLUGIN_PUBLIC_KEYS),
+  ],
   scheduleImpactNotifier: createScheduleImpactNotifier(),
 });
 await plugins.loadEnabled();
@@ -88,6 +99,7 @@ const events = startEventWorker({
 });
 const pluginDeliveries = startPluginDeliveryWorker({ sql: db, target: plugins, logger });
 const reminders = startReminderJob({ sql: db, logger, appBaseUrl: config.APP_BASE_URL });
+const catalogUrl = config.PLUGIN_CATALOG_URL ?? DEFAULT_CATALOG_URL;
 const app = createApp({
   logger,
   db,
@@ -95,6 +107,9 @@ const app = createApp({
   corsOrigins: config.CORS_ALLOWED_ORIGINS,
   configWarnings: computeConfigWarnings(config),
   plugins,
+  ...(PLUGIN_STORE_ENABLED &&
+    catalogUrl &&
+    catalogUrl !== 'off' && { pluginStore: createPluginStore({ catalogUrl }) }),
   ...(config.PLUGIN_INSTALL_TOKEN && { pluginInstallToken: config.PLUGIN_INSTALL_TOKEN }),
   ...(config.WEB_DIST_DIR && { webDistDir: config.WEB_DIST_DIR }),
 });

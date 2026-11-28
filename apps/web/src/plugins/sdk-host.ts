@@ -1,4 +1,4 @@
-import { registerWebSdk } from '@diovanibmotta/plantao365-web-sdk';
+import { registerWebSdk } from '@plantao365/web-sdk';
 import { api } from '../api/client';
 import { useActiveTeam, useRole } from '../team/TeamContext';
 import { toast } from '../toast/toast-store';

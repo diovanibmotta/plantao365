@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import type { HealthStatus } from '@diovanibmotta/plantao365-shared';
+import type { HealthStatus } from '@plantao365/shared';
 import { pingDb, type Sql } from './db.js';
 import {
   createAuthRouter,
@@ -19,6 +19,7 @@ import {
   createPluginAssetsRouter,
   createPluginsRouter,
   type PluginRegistry,
+  type PluginStore,
 } from './plugins/index.js';
 import { createPreferencesRouter } from './preferences/index.js';
 import { createHolidaysRouter, createOnShiftsRecalculated } from './holidays/index.js';
@@ -57,6 +58,8 @@ export interface AppDeps {
   plugins?: PluginRegistry;
   /** Token aceito pela CLI no install de plugins. */
   pluginInstallToken?: string;
+  /** Loja de plugins (catálogo). */
+  pluginStore?: PluginStore;
 }
 
 export function createApp({
@@ -70,6 +73,7 @@ export function createApp({
   configWarnings = [],
   plugins,
   pluginInstallToken,
+  pluginStore,
 }: AppDeps): Hono {
   const app = new Hono();
 
@@ -136,6 +140,8 @@ export function createApp({
         '/api',
         createPluginsRouter({
           registry: plugins,
+          db,
+          ...(pluginStore && { store: pluginStore }),
           ...(pluginInstallToken && { installToken: pluginInstallToken }),
         }),
       );

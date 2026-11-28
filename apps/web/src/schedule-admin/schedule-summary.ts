@@ -1,4 +1,4 @@
-import type { LocalDate } from '@diovanibmotta/plantao365-shared';
+import type { LocalDate } from '@plantao365/shared';
 import type { ShiftDto } from '../schedule/types';
 
 export interface MemberTotals {

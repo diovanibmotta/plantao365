@@ -82,7 +82,7 @@ describe.skipIf(!TEST_DATABASE_URL)('hooks de plugin no core', () => {
       scheduleImpactNotifier: createScheduleImpactNotifier(),
     });
     app = buildTestApp(sql, (a) => {
-      a.route('/api', createPluginsRouter({ registry }));
+      a.route('/api', createPluginsRouter({ registry, db: sql }));
       a.route(
         '/api',
         createSchedulesRouter({ db: sql, rotationAdjusters: registry.rotationAdjusters }),

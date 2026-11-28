@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { PageHeader, definePluginWeb } from '@diovanibmotta/plantao365-web-sdk';
+import { PageHeader, definePluginWeb } from '@plantao365/web-sdk';
 import { App } from '../App';
 import { AuthProvider } from '../auth/AuthContext';
 import { PluginProvider } from './PluginContext';
@@ -134,6 +134,51 @@ describe('kernel de plugins no front', () => {
     renderApp('/ext/demo');
     expect(await screen.findByText('Página não encontrada')).toBeTruthy();
     expect(screen.queryByRole('link', { name: /Contatos/ })).toBeNull();
+  });
+});
+
+describe('recarga sem atualizar a página', () => {
+  it('remover um plugin tira o item do menu na hora', async () => {
+    plugins = [loaded()];
+    let removed = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        if (url === '/auth/me') return Promise.resolve(json(user('manager')));
+        if (url === '/api/teams') {
+          return Promise.resolve(json([{ id: 't1', name: 'Infra', role: 'manager' }]));
+        }
+        if (url === '/api/plugins/manifest') {
+          return Promise.resolve(json(removed ? { plugins: [] } : manifest));
+        }
+        if (url === '/api/plugins/demo' && init?.method === 'DELETE') {
+          removed = true;
+          return Promise.resolve(json({}));
+        }
+        if (url === '/api/plugins/demo') {
+          return Promise.resolve(
+            json({
+              plugin: {
+                id: 'demo',
+                name: 'Demo',
+                version: '1.0.0',
+                description: null,
+                status: 'enabled',
+                error: null,
+                settings: {},
+                settingsSchema: null,
+              },
+            }),
+          );
+        }
+        return Promise.resolve(json({ plugins: [] }));
+      }),
+    );
+    renderApp('/plugins/demo');
+    expect(await screen.findByRole('link', { name: /Contatos/ })).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remover' }));
+    await waitFor(() => expect(screen.queryByRole('link', { name: /Contatos/ })).toBeNull());
   });
 });
 

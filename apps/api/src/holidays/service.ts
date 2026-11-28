@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { parseLocalDate } from '@diovanibmotta/plantao365-shared';
+import { parseLocalDate } from '@plantao365/shared';
 import type { Sql } from '../db.js';
 
 export const HOLIDAY_SCOPES = ['national', 'state', 'municipal'] as const;

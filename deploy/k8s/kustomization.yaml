@@ -8,5 +8,5 @@ resources:
   - ingress.yaml
   - migrate-job.yaml
 images:
-  - name: ghcr.io/diovanibmotta/plantao365-api
+  - name: ghcr.io/plantao365/app-api
     newTag: latest

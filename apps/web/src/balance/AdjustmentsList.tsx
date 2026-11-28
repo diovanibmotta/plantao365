@@ -8,7 +8,7 @@ import {
   PageHeader,
   Pagination,
   usePagination,
-} from '@diovanibmotta/plantao365-web-sdk';
+} from '@plantao365/web-sdk';
 import { Diff } from './Diff';
 import { formatDate } from './format';
 import { ADJUSTMENTS_NEW_PATH, adjustmentPath } from './paths';
