@@ -1,4 +1,4 @@
-import { TIME_ZONE } from '@diovanibmotta/plantao365-shared';
+import { TIME_ZONE } from '@plantao365/shared';
 import type { jsPDF } from 'jspdf';
 import { formatHours, formatPeriod } from '../schedule/format';
 import {

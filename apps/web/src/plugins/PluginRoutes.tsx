@@ -1,5 +1,5 @@
 import { Route, Routes, useParams } from 'react-router';
-import type { PluginRoute, Role } from '@diovanibmotta/plantao365-web-sdk';
+import type { PluginRoute, Role } from '@plantao365/web-sdk';
 import { NotFoundPage } from '../pages/pages';
 import { useRole } from '../team/TeamContext';
 import { PluginBoundary } from './PluginBoundary';

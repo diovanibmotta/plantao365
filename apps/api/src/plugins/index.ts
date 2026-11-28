@@ -7,6 +7,7 @@ export {
   createPluginStore,
   DEFAULT_CATALOG_URL,
   OFFICIAL_STORE_KEYS,
+  PLUGIN_STORE_ENABLED,
   type PluginStore,
 } from './store.js';
 export {

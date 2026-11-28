@@ -12,8 +12,8 @@ import type {
   PluginJob,
   RotationPrepareHook,
   SwapGuardHook,
-} from '@diovanibmotta/plantao365-plugin-sdk';
-import type { RotationAdjuster } from '@diovanibmotta/plantao365-shared';
+} from '@plantao365/plugin-sdk';
+import type { RotationAdjuster } from '@plantao365/shared';
 import { recordAudit } from '../audit/index.js';
 import {
   impactConfirmationResponse,

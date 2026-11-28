@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router';
 import { useTeam } from './TeamContext';
 import { TeamMembersPanel } from './TeamMembersPanel';
 import { TEAMS_PATH, teamPath } from './paths';
-import { Breadcrumb } from '@diovanibmotta/plantao365-web-sdk';
+import { Breadcrumb } from '@plantao365/web-sdk';
 import './teams.css';
 
 /** Gestão dos membros de uma equipe, acessada a partir da listagem ou do formulário. */

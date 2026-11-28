@@ -1,17 +1,17 @@
 import { useSearchParams } from 'react-router';
 import { KeysList } from '../plugins-admin/KeysList';
-import type { PluginsTab } from '../plugins-admin/paths';
+import { PLUGIN_STORE_ENABLED, type PluginsTab } from '../plugins-admin/paths';
 import { PluginsList } from '../plugins-admin/PluginsList';
 import { StoreList } from '../plugins-admin/StoreList';
 import '../schedule-admin/schedule-admin.css';
 
 const TABS: { id: PluginsTab; label: string }[] = [
   { id: 'installed', label: 'Instalados' },
-  { id: 'store', label: 'Loja' },
+  ...(PLUGIN_STORE_ENABLED ? [{ id: 'store' as const, label: 'Loja' }] : []),
   { id: 'keys', label: 'Chaves' },
 ];
 
-/** Gestão de plugins: instalados, loja e chaves confiáveis; formulários em rotas próprias. */
+/** Gestão de plugins: instalados e chaves confiáveis; formulários em rotas próprias. */
 export function PluginsPage() {
   const [params, setParams] = useSearchParams();
   const tab: PluginsTab = TABS.find((t) => t.id === params.get('tab'))?.id ?? 'installed';

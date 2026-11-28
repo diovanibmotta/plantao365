@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { APP_NAME } from '@diovanibmotta/plantao365-shared';
+import { APP_NAME } from '@plantao365/shared';
 import { useAuth } from '../auth/AuthContext';
 import { TeamProvider, useRole, useTeam } from '../team/TeamContext';
 import { effectiveTheme, setTheme, type Theme } from '../theme';

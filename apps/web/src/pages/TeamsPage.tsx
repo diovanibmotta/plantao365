@@ -10,7 +10,7 @@ import {
   PageHeader,
   Pagination,
   usePagination,
-} from '@diovanibmotta/plantao365-web-sdk';
+} from '@plantao365/web-sdk';
 import '../team/teams.css';
 
 type DashboardFilter = '' | 'with' | 'without';

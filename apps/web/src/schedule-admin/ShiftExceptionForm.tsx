@@ -6,16 +6,11 @@ import {
   parseMinute,
   shiftDuration,
   validateWorkPeriods,
-} from '@diovanibmotta/plantao365-shared';
-import type { ShiftException, WorkPeriod } from '@diovanibmotta/plantao365-shared';
+} from '@plantao365/shared';
+import type { ShiftException, WorkPeriod } from '@plantao365/shared';
 import { api } from '../api/client';
 import { formatHours } from '../schedule/format';
-import {
-  ConfirmDialog,
-  FormActions,
-  FormPage,
-  FormSection,
-} from '@diovanibmotta/plantao365-web-sdk';
+import { ConfirmDialog, FormActions, FormPage, FormSection } from '@plantao365/web-sdk';
 import { EXCEPTIONS_LIST_PATH, SCHEDULE_ADMIN_PATH } from './paths';
 import { describe, formatDate } from './types';
 

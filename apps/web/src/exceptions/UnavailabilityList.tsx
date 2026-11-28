@@ -10,7 +10,7 @@ import {
   PageHeader,
   Pagination,
   usePagination,
-} from '@diovanibmotta/plantao365-web-sdk';
+} from '@plantao365/web-sdk';
 import { SCOPES } from './paths';
 import type { UnavailabilityMode } from './paths';
 import { KIND_LABELS, errorMessage, formatPeriod } from './types';

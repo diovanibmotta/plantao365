@@ -27,8 +27,8 @@ export function scaffold(id: string, kernelApi: string): Record<string, string> 
       type: 'module',
       scripts: { build: 'plantao-plugin build', pack: 'plantao-plugin pack' },
       devDependencies: {
-        '@diovanibmotta/plantao365-plugin-sdk': sdkRange,
-        '@diovanibmotta/plantao365-web-sdk': sdkRange,
+        '@plantao365/plugin-sdk': sdkRange,
+        '@plantao365/web-sdk': sdkRange,
         '@module-federation/vite': '1.23.11',
         '@vitejs/plugin-react': '^6.3.0',
         esbuild: '^0.28.0',
@@ -39,7 +39,7 @@ export function scaffold(id: string, kernelApi: string): Record<string, string> 
       },
     }),
     '.gitignore': 'node_modules\ndist\n*.p365\n*.sig\n*.pem\n',
-    'server/index.ts': `import { definePlugin } from '@diovanibmotta/plantao365-plugin-sdk';
+    'server/index.ts': `import { definePlugin } from '@plantao365/plugin-sdk';
 
 export default definePlugin({
   setup(ctx) {
@@ -51,7 +51,7 @@ export default definePlugin({
 });
 `,
     'web/index.tsx': `import { useEffect, useState } from 'react';
-import { api, definePluginWeb, pluginApi, PluginPage } from '@diovanibmotta/plantao365-web-sdk';
+import { api, definePluginWeb, pluginApi, PluginPage } from '@plantao365/web-sdk';
 import './styles.css';
 
 const url = pluginApi('${id}');
@@ -111,7 +111,7 @@ export default defineConfig({
         react: { singleton: true },
         'react-dom': { singleton: true },
         'react-router': { singleton: true },
-        '@diovanibmotta/plantao365-web-sdk': { singleton: true },
+        '@plantao365/web-sdk': { singleton: true },
       },
       dts: false,
     }),

@@ -8,7 +8,7 @@ import {
   type RotationMember,
   type RotationOutput,
   type ShiftContext,
-} from '@diovanibmotta/plantao365-shared';
+} from '@plantao365/shared';
 import type { Hono } from 'hono';
 import { z } from 'zod';
 import { recordAudit } from '../audit/index.js';

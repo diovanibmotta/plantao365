@@ -1,4 +1,4 @@
-import type { LocalDate } from '@diovanibmotta/plantao365-shared';
+import type { LocalDate } from '@plantao365/shared';
 import { ApiError } from '../api/client';
 import type { ShiftDto } from '../schedule/types';
 

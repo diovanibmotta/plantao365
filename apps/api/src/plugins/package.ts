@@ -1,10 +1,6 @@
 import { createHash, createPublicKey, verify, type KeyObject } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
-import {
-  checkPluginStyles,
-  encodePackage as encode,
-  PACKAGE_FORMAT,
-} from '@diovanibmotta/plantao365-plugin-sdk';
+import { checkPluginStyles, encodePackage as encode, PACKAGE_FORMAT } from '@plantao365/plugin-sdk';
 import { z } from 'zod';
 import {
   KERNEL_API_VERSION,

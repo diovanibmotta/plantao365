@@ -1,4 +1,4 @@
-import type { SlotName } from '@diovanibmotta/plantao365-web-sdk';
+import type { SlotName } from '@plantao365/web-sdk';
 import { PluginBoundary } from './PluginBoundary';
 import { usePlugins } from './PluginContext';
 import './plugins.css';

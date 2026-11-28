@@ -1,11 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import {
-  ConfirmDialog,
-  FormActions,
-  FormPage,
-  FormSection,
-} from '@diovanibmotta/plantao365-web-sdk';
+import { ConfirmDialog, FormActions, FormPage, FormSection } from '@plantao365/web-sdk';
 import { api } from '../api/client';
 import { LoadError } from './LoadError';
 import { pluginsTabPath } from './paths';
@@ -80,7 +75,7 @@ function Fields({
       <FormPage crumbs={crumbs} title={current?.name ?? 'Nova chave'} onSubmit={save}>
         <FormSection
           title="Publicador"
-          description="Só instalam aqui pacotes assinados por uma chave confiável. Cadastre a chave pública de quem publica o plugin; plugins da loja oficial usam a chave que já vem no aplicativo. Atenção: o que for assinado com esta chave executa código no servidor."
+          description="Só instalam aqui pacotes assinados por uma chave confiável. Cadastre a chave pública de quem publica o plugin. Atenção: o que for assinado com esta chave executa código no servidor."
         >
           <label className="ui-field ui-field--wide">
             Nome

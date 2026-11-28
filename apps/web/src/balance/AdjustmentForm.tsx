@@ -2,12 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { api } from '../api/client';
 import { todayLocal } from '../schedule/format';
-import {
-  ConfirmDialog,
-  FormActions,
-  FormPage,
-  FormSection,
-} from '@diovanibmotta/plantao365-web-sdk';
+import { ConfirmDialog, FormActions, FormPage, FormSection } from '@plantao365/web-sdk';
 import { Diff } from './Diff';
 import { formatDate, formatSignedHours, parseHours } from './format';
 import { BALANCE_PATH, adjustmentsListPath } from './paths';

@@ -9,7 +9,7 @@ const shared = {
   react: { singleton: true },
   'react-dom': { singleton: true },
   'react-router': { singleton: true },
-  '@diovanibmotta/plantao365-web-sdk': { singleton: true },
+  '@plantao365/web-sdk': { singleton: true },
 };
 
 export default defineConfig({

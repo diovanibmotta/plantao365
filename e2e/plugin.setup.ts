@@ -1,4 +1,4 @@
-import { main } from '@diovanibmotta/plantao365-plugin-sdk/cli';
+import { main } from '@plantao365/plugin-sdk/cli';
 import { expect, test as setup } from '@playwright/test';
 import * as env from './env.js';
 

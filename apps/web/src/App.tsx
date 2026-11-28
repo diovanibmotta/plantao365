@@ -25,6 +25,7 @@ import { MySchedulePage } from './pages/MySchedulePage';
 import { NotFoundPage } from './pages/pages';
 import { PluginRoutes } from './plugins/PluginRoutes';
 import { KeyForm } from './plugins-admin/KeyForm';
+import { PLUGIN_STORE_ENABLED } from './plugins-admin/paths';
 import { PluginForm } from './plugins-admin/PluginForm';
 import { PluginUploadForm } from './plugins-admin/PluginUploadForm';
 import { StorePluginForm } from './plugins-admin/StorePluginForm';
@@ -107,7 +108,9 @@ export function App() {
             <Route path="audit" element={<AuditPage />} />
             <Route path="plugins" element={<PluginsPage />} />
             <Route path="plugins/upload" element={<PluginUploadForm />} />
-            <Route path="plugins/store/:id" element={<StorePluginForm />} />
+            {PLUGIN_STORE_ENABLED && (
+              <Route path="plugins/store/:id" element={<StorePluginForm />} />
+            )}
             <Route path="plugins/keys/new" element={<KeyForm />} />
             <Route path="plugins/keys/:keyId" element={<KeyForm />} />
             <Route path="plugins/:id" element={<PluginForm />} />

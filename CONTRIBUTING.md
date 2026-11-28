@@ -13,7 +13,7 @@
 
 ## E2E de navegador (Playwright)
 
-O job `e2e` do CI sobe Postgres e a API com o build do front, instala o plugin de referência [emergency-contacts](https://github.com/diovanibmotta/plantao365-plugin-emergency-contacts) (commit fixado em `e2e/env.ts`) assinado, habilita com a master key e compara listagem, formulário e slot do perfil (claro/escuro, desktop/mobile) com os snapshots em `e2e/snapshots`. Também compara os estilos computados do plugin com os de telas nativas.
+O job `e2e` do CI sobe Postgres e a API com o build do front, instala o plugin de referência [emergency-contacts](https://github.com/plantao365/plugin-emergency-contacts) (commit fixado em `e2e/env.ts`) assinado, habilita com a master key e compara listagem, formulário e slot do perfil (claro/escuro, desktop/mobile) com os snapshots em `e2e/snapshots`. Também compara os estilos computados do plugin com os de telas nativas.
 
 Para rodar na máquina, com um Postgres local (o banco `plantao365_e2e` é apagado e recriado):
 

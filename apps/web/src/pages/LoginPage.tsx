@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
-import { APP_NAME } from '@diovanibmotta/plantao365-shared';
+import { APP_NAME } from '@plantao365/shared';
 import { api, ApiError, UnauthorizedError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { BrandMark } from '../layout/icons';

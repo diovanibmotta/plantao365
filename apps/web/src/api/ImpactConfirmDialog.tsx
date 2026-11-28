@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { ConfirmDialog } from '@diovanibmotta/plantao365-web-sdk';
+import { ConfirmDialog } from '@plantao365/web-sdk';
 import {
   answerImpactConfirmation,
   getImpactConfirmation,

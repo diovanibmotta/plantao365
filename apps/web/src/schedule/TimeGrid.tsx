@@ -5,8 +5,8 @@ import {
   dayOfWeek,
   formatMinute,
   isWeekend,
-} from '@diovanibmotta/plantao365-shared';
-import type { LocalDate, ShiftTimes, WorkPeriod } from '@diovanibmotta/plantao365-shared';
+} from '@plantao365/shared';
+import type { LocalDate, ShiftTimes, WorkPeriod } from '@plantao365/shared';
 import { Avatar } from '../layout/Avatar';
 import { WEEK_HEADERS, segmentOnDate } from './calendar';
 import type { DaySegment } from './calendar';

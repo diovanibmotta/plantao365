@@ -1,6 +1,6 @@
 # Plugins
 
-Guia do autor de plugins do Plantão365: como criar, o que o kernel oferece e como o contrato evolui. A decisão de arquitetura está na [ADR 0001](adr/0001-microkernel-plugins.md). O plugin de referência fica em repositório próprio: [plantao365-plugin-emergency-contacts](https://github.com/diovanibmotta/plantao365-plugin-emergency-contacts).
+Guia do autor de plugins do Plantão365: como criar, o que o kernel oferece e como o contrato evolui. A decisão de arquitetura está na [ADR 0001](adr/0001-microkernel-plugins.md). O plugin de referência fica em repositório próprio: [plugin-emergency-contacts](https://github.com/plantao365/plugin-emergency-contacts).
 
 ## Quando é plugin
 
@@ -22,9 +22,13 @@ Plugins não moram neste repositório: cada um tem o seu e é instalado como pac
 
 O `plugin-sdk` e o `web-sdk` são publicados no GitHub Packages a cada release (a instalação pede um token com `read:packages` no `.npmrc`).
 
-## Loja
+## Instalação
 
-A tela **Configuração › Plugins** tem as abas **Instalados**, **Loja** e **Chaves**. Qualquer gestor instala (da loja ou de arquivo), habilita, configura e remove; cadastrar uma chave pública permite instalar pacotes daquele publicador. Todo gestor, portanto, consegue executar código no servidor.
+Nesta versão a instalação é só manual: pela CLI ou em **Instalar de arquivo**, que avisa do risco e pede confirmação (a CLI e a API não pedem; ver [#88](https://github.com/plantao365/app/issues/88)). A tela **Configuração › Plugins** tem as abas **Instalados** e **Chaves**. Qualquer gestor instala, habilita, configura e remove; cadastrar uma chave pública permite instalar pacotes daquele publicador. Todo gestor, portanto, consegue executar código no servidor.
+
+## Loja (desligada até a v3)
+
+O código da loja existe, mas está desligado ([#73](https://github.com/plantao365/app/issues/73)): sem aba na tela, e o catálogo da API responde `store_disabled` mesmo com `PLUGIN_CATALOG_URL` preenchida. Para religar, mude `PLUGIN_STORE_ENABLED` em `apps/api/src/plugins/store.ts` e em `apps/web/src/plugins-admin/paths.ts`, e devolva a variável aos arquivos de deploy.
 
 A loja é um `catalog.json` estático com os pacotes ao lado, servido por CDN sobre um bucket privado; a infraestrutura fica fora deste repositório. A URL e a chave da loja oficial são constantes em `apps/api/src/plugins/store.ts`; `PLUGIN_CATALOG_URL` troca o endereço (`off` desliga). A API só baixa pacotes da mesma origem do índice, sem seguir redirect, e confere sha256, assinatura, plugin e versão.
 

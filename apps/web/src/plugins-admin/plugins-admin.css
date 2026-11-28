@@ -1,0 +1,8 @@
+/* oklab: em oklch o matiz entre o âmbar e a borda azulada passa pelo verde. */
+.plugins-warning {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in oklab, var(--warning) 45%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--warning) 9%, var(--surface));
+  text-align: left;
+}

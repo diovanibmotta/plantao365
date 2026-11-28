@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import type { FormEvent } from 'react';
-import { addDays } from '@diovanibmotta/plantao365-shared';
-import type { LocalDate } from '@diovanibmotta/plantao365-shared';
+import { addDays } from '@plantao365/shared';
+import type { LocalDate } from '@plantao365/shared';
 import { api } from '../api/client';
 import { formatDayShort, formatPeriod } from '../schedule/format';
 import type { ShiftDto } from '../schedule/types';

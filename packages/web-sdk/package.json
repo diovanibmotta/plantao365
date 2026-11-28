@@ -1,11 +1,11 @@
 {
-  "name": "@diovanibmotta/plantao365-web-sdk",
+  "name": "@plantao365/web-sdk",
   "version": "1.30.0",
   "description": "SDK do front para plugins do Plantão365: componentes, API e contrato de telas, menus e slots",
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/diovanibmotta/plantao365.git",
+    "url": "git+https://github.com/plantao365/app.git",
     "directory": "packages/web-sdk"
   },
   "type": "module",

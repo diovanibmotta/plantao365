@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { Breadcrumb, type Crumb } from '@diovanibmotta/plantao365-web-sdk';
+import { Breadcrumb, type Crumb } from '@plantao365/web-sdk';
 
 /** Formulário que não carregou: mensagem e volta para a listagem. */
 export function LoadError({

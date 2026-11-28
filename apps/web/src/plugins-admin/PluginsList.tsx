@@ -7,7 +7,7 @@ import {
   PageHeader,
   Pagination,
   usePagination,
-} from '@diovanibmotta/plantao365-web-sdk';
+} from '@plantao365/web-sdk';
 import { api } from '../api/client';
 import { PLUGIN_UPLOAD_PATH, pluginAdminPath } from './paths';
 import { STATUS_LABELS, type PluginStatus, type PluginSummary } from './types';
@@ -70,9 +70,7 @@ export function PluginsList() {
         </p>
       )}
       {items?.length === 0 && (
-        <EmptyState action={cta}>
-          Nenhum plugin instalado. Escolha um na aba Loja ou instale de arquivo.
-        </EmptyState>
+        <EmptyState action={cta}>Nenhum plugin instalado. Instale um de arquivo.</EmptyState>
       )}
       {items && items.length > 0 && (
         <>
